@@ -24,14 +24,28 @@ animate independently around a fixed black core.
 
 ## Quota states
 
-The exact remaining quota is mapped to the nearest 10% visual state. Every state
-uses six aligned animation frames, while the black core stays the same size.
+The exact remaining quota is mapped to the nearest 10% visual state. Each GIF
+previews the complete six-frame loop, while the black core stays the same size.
 
-<p align="center">
-  <img src="Assets/Sprites/previews/all-sprites-contact.png"
-       alt="All quota states from 100% to 0%, with six animation frames per state"
-       width="760">
-</p>
+<table>
+  <tr>
+    <td align="center"><img src="Assets/Sprites/previews/quota-100-animation.gif" alt="100% quota state" width="160"><br><strong>100%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-90-animation.gif" alt="90% quota state" width="160"><br><strong>90%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-80-animation.gif" alt="80% quota state" width="160"><br><strong>80%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-70-animation.gif" alt="70% quota state" width="160"><br><strong>70%</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="Assets/Sprites/previews/quota-60-animation.gif" alt="60% quota state" width="160"><br><strong>60%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-50-animation.gif" alt="50% quota state" width="160"><br><strong>50%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-40-animation.gif" alt="40% quota state" width="160"><br><strong>40%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-30-animation.gif" alt="30% quota state" width="160"><br><strong>30%</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="Assets/Sprites/previews/quota-20-animation.gif" alt="20% quota state" width="160"><br><strong>20%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-10-animation.gif" alt="10% quota state" width="160"><br><strong>10%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-0-animation.gif" alt="0% quota state" width="160"><br><strong>0%</strong></td>
+  </tr>
+</table>
 
 | Remaining quota | Accretion disk |
 | --- | --- |
