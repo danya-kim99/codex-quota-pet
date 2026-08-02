@@ -11,6 +11,37 @@ The MVP is local-only. Do not add a backend, analytics, cloud sync, skins,
 non-macOS platforms, Codex Fast-mode controls, or quota-reset behavior unless the
 user explicitly expands scope.
 
+## Product workflow gates
+
+- Keep discovery and design separate from implementation. Do not edit production
+  code, generate batch final assets, or begin release work while product design
+  still has unresolved decisions.
+- Treat statements such as "fix this section" or "move to the next design step"
+  as approval of that section only. They do not authorize implementation.
+- Before implementation, present one consolidated design-freeze specification
+  covering quota states, Standard/Turbo and Reduce Motion behavior, tooltip and
+  menu content, hover/drag/positioning behavior, localization, accessibility,
+  data freshness and failure states, distribution scope, and acceptance criteria.
+- Begin implementation only after the user explicitly approves that consolidated
+  specification for development. Record the approved behavior in
+  `docs/PRODUCT_SPEC.md` before changing production code.
+- Validate one representative visual prototype with the user before generating
+  all states or committing to a renderer/asset pipeline. The user owns subjective
+  visual approval; automated layout, accessibility, build, and regression checks
+  remain the agent's responsibility.
+- Maintain an acceptance checklist through implementation so previously approved
+  features are not silently removed or regressed. If design changes after the
+  freeze, pause implementation, update the specification and checklist, assess
+  affected work, and obtain approval again before continuing.
+- Verify external protocol semantics from authoritative source or a focused live
+  experiment before choosing an architecture. Inspect existing authentication,
+  tooling, and environment state before asking the user to configure them.
+- Confirm the intended distribution channel before changing certificates,
+  signing, notarization, packaging, or release configuration.
+- Keep agent-run visual QA proportional. Unless the user explicitly delegates
+  aesthetic approval, provide a build for their review instead of spending an
+  extended cycle judging subjective visual fidelity.
+
 ## Architecture
 
 - Keep SwiftUI and `AppState` as the source of truth.
