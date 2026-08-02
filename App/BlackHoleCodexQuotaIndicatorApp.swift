@@ -44,13 +44,26 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
     private let petPanel = PetPanelController()
+    private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         appState.start()
         petPanel.startMonitoring(appState: appState)
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.appState.refreshQuotaIfStale(maxAge: 0)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
         appState.stop()
     }
 

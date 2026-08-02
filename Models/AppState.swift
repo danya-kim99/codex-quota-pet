@@ -6,6 +6,7 @@ import ServiceManagement
 @Observable
 final class AppState {
     nonisolated static let reconnectDelays: [TimeInterval] = [1, 2, 5, 10, 30]
+    nonisolated static let quotaRefreshMaxAge: TimeInterval = 30
 
     private(set) var connectionState: ConnectionState = .connecting
     private(set) var quota: QuotaSnapshot?
@@ -21,7 +22,9 @@ final class AppState {
     private let retryDelays: [TimeInterval]
     private let launchAtLoginStatusProvider: () -> SMAppService.Status
     private let updateLaunchAtLogin: (Bool) throws -> Void
+    private let now: () -> Date
     private var hasStarted = false
+    private var quotaUpdatedAt: Date?
     private var reconnectAttempt = 0
     private var reconnectTask: Task<Void, Never>?
 
@@ -38,13 +41,15 @@ final class AppState {
             } else {
                 try SMAppService.mainApp.unregister()
             }
-        }
+        },
+        now: @escaping () -> Date = Date.init
     ) {
         self.defaults = defaults
         self.appServer = appServer
         self.retryDelays = retryDelays
         self.launchAtLoginStatusProvider = launchAtLoginStatusProvider
         self.updateLaunchAtLogin = updateLaunchAtLogin
+        self.now = now
         launchAtLoginStatus = launchAtLoginStatusProvider()
         hidesInFullScreenApps = defaults.bool(forKey: AppConstants.hideInFullScreenAppsKey)
     }
@@ -82,6 +87,18 @@ final class AppState {
         connectionState = .disconnected
     }
 
+    func refreshQuotaIfStale(
+        maxAge: TimeInterval = AppState.quotaRefreshMaxAge
+    ) {
+        guard hasStarted, connectionState == .connected else { return }
+        if maxAge > 0, let quotaUpdatedAt {
+            let age = now().timeIntervalSince(quotaUpdatedAt)
+            if age >= 0, age < maxAge { return }
+        }
+
+        appServer.refreshRateLimits()
+    }
+
     private func connect(isRetry: Bool) {
         connectionState = isRetry ? .reconnecting : .connecting
         errorMessage = nil
@@ -114,6 +131,7 @@ final class AppState {
         reconnectTask = nil
         reconnectAttempt = 0
         quota = snapshot
+        quotaUpdatedAt = now()
         errorMessage = nil
         connectionState = .connected
     }

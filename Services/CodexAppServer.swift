@@ -65,10 +65,13 @@ protocol CodexAppServerClient: AnyObject {
         onFailure: @escaping (String) -> Void
     ) throws
 
+    func refreshRateLimits()
     func stop()
 }
 
 final class CodexAppServer: CodexAppServerClient {
+    static let rateLimitRefreshInterval: TimeInterval = 60
+
     private struct Envelope: Decodable {
         let id: Int?
         let method: String?
@@ -90,6 +93,7 @@ final class CodexAppServer: CodexAppServerClient {
     private var nextRequestID = 1
     private var rateLimitRequestIDs = Set<Int>()
     private var configTimer: Timer?
+    private var rateLimitTimer: Timer?
     private var onSnapshot: ((QuotaSnapshot) -> Void)?
     private var onSpeedMode: ((SpeedMode) -> Void)?
     private var onFailure: ((String) -> Void)?
@@ -158,6 +162,17 @@ final class CodexAppServer: CodexAppServerClient {
             try send(["method": "initialized", "params": [:]])
             try requestRateLimits()
             try requestConfig()
+            rateLimitTimer = Timer.scheduledTimer(
+                withTimeInterval: Self.rateLimitRefreshInterval,
+                repeats: true
+            ) { [weak self] _ in
+                guard let self, self.sessionID == activeSessionID else {
+                    return
+                }
+
+                self.refreshRateLimits()
+            }
+            rateLimitTimer?.tolerance = 5
             configTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
                 guard let self, self.sessionID == activeSessionID else {
                     return
@@ -177,6 +192,8 @@ final class CodexAppServer: CodexAppServerClient {
 
     func stop() {
         sessionID += 1
+        rateLimitTimer?.invalidate()
+        rateLimitTimer = nil
         configTimer?.invalidate()
         configTimer = nil
         output?.readabilityHandler = nil
@@ -197,6 +214,14 @@ final class CodexAppServer: CodexAppServerClient {
         onSpeedMode = nil
         onFailure = nil
         hasReportedFailure = false
+    }
+
+    func refreshRateLimits() {
+        do {
+            try requestRateLimits()
+        } catch {
+            reportFailure(error.localizedDescription, sessionID: sessionID)
+        }
     }
 
     deinit {
@@ -228,7 +253,7 @@ final class CodexAppServer: CodexAppServerClient {
         }
 
         if envelope.method == "account/rateLimits/updated" {
-            try? requestRateLimits()
+            refreshRateLimits()
             return
         }
 
@@ -254,6 +279,8 @@ final class CodexAppServer: CodexAppServerClient {
         }
 
         hasReportedFailure = true
+        rateLimitTimer?.invalidate()
+        rateLimitTimer = nil
         configTimer?.invalidate()
         configTimer = nil
         output?.readabilityHandler = nil
@@ -261,9 +288,16 @@ final class CodexAppServer: CodexAppServerClient {
     }
 
     private func requestRateLimits() throws {
+        guard rateLimitRequestIDs.isEmpty else { return }
+
         let requestID = takeRequestID()
         rateLimitRequestIDs.insert(requestID)
-        try send(["method": "account/rateLimits/read", "id": requestID])
+        do {
+            try send(["method": "account/rateLimits/read", "id": requestID])
+        } catch {
+            rateLimitRequestIDs.remove(requestID)
+            throw error
+        }
     }
 
     private func requestConfig() throws {

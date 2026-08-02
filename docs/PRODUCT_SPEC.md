@@ -35,6 +35,9 @@ requiring the user to keep the Codex window open.
 - If Codex App Server disconnects, the pet keeps the last known quota visible
   in a dimmed state and retries after 1, 2, 5, 10, then at most 30 seconds. The
   menu shows the reconnecting state and provides `Retry Now`.
+- The quota refreshes at startup, after App Server quota notifications, every
+  60 seconds as a passive fallback, on hover when the snapshot is at least 30
+  seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
 ## MVP boundary
@@ -54,10 +57,10 @@ platforms are outside the MVP.
 - Launch at login is implemented with the native `SMAppService` main-app login
   item and verified through a logout/login cycle using an Apple Development
   signed build.
-- Local Debug build, launch, and twenty-two unit tests pass. The tests cover all
+- Local Debug build, launch, and unit tests pass. The tests cover all
   66 bundled sprite frames, quota mapping, Turbo behavior, visibility,
-  fullscreen policy, launch-at-login state handling, and automatic/manual
-  reconnects.
+  fullscreen policy, quota freshness, launch-at-login state handling, and
+  automatic/manual reconnects.
 - A local unsigned Release build passes. During an eight-second active-animation
   sample it held approximately 3.1–3.2% CPU and 21 MB of memory without growth.
 - Runtime recovery was verified by terminating only the app's child Codex App

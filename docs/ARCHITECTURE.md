@@ -31,6 +31,10 @@ scrape Codex UI or private application files.
 The current client launches the installed Codex executable with the stable
 stdio JSONL transport, reads `account/rateLimits/read`, selects the main
 `codex` bucket, and refetches after `account/rateLimits/updated` notifications.
+Because those notifications are local to turns handled by the same App Server
+process, the passive pet also refreshes every 60 seconds, when a user hovers an
+older-than-30-second snapshot, and after macOS wakes from sleep. Concurrent
+quota reads are coalesced into the existing in-flight request.
 It polls `config/read` for the effective `service_tier`; `fast` and its request
 value `priority` map to the Turbo visual state. A failed config read leaves quota
 connectivity untouched and falls back to Standard mode.

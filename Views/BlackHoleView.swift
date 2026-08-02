@@ -41,7 +41,12 @@ struct BlackHoleView: View {
             Color.clear
                 .frame(width: Self.hoverDiameter, height: Self.hoverDiameter)
                 .contentShape(Circle())
-                .onHover(perform: setTooltipVisible)
+                .onHover { isHovering in
+                    if isHovering {
+                        appState.refreshQuotaIfStale()
+                    }
+                    setTooltipVisible(isHovering)
+                }
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .onDisappear {

@@ -499,6 +499,43 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(AppState.reconnectDelays, [1, 2, 5, 10, 30])
     }
 
+    @MainActor
+    func testQuotaRefreshesOnlyAfterSnapshotBecomesStale() async {
+        let appServer = FakeAppServer()
+        var now = Date(timeIntervalSince1970: 1_000)
+        let appState = AppState(appServer: appServer, now: { now })
+
+        appState.start()
+        appState.refreshQuotaIfStale(maxAge: 0)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 90))
+        await Self.waitUntil { appState.connectionState == .connected }
+
+        appState.refreshQuotaIfStale()
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+
+        appState.refreshQuotaIfStale(maxAge: 0)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 90))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 90 }
+
+        now.addTimeInterval(AppState.quotaRefreshMaxAge)
+        appState.refreshQuotaIfStale()
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 2)
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 89))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 89 }
+        appState.refreshQuotaIfStale()
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 2)
+
+        appState.stop()
+    }
+
+    func testPassiveQuotaPollingUsesOneMinuteInterval() {
+        XCTAssertEqual(CodexAppServer.rateLimitRefreshInterval, 60)
+    }
+
     private static func snapshot(remainingPercent: Int) -> QuotaSnapshot {
         QuotaSnapshot(
             limitId: "codex",
@@ -525,6 +562,7 @@ private final class FakeAppServer: CodexAppServerClient {
     private var onSnapshot: ((QuotaSnapshot) -> Void)?
     private var onFailure: ((String) -> Void)?
     private(set) var startCount = 0
+    private(set) var rateLimitRefreshCount = 0
 
     func start(
         onSnapshot: @escaping (QuotaSnapshot) -> Void,
@@ -539,6 +577,10 @@ private final class FakeAppServer: CodexAppServerClient {
     func stop() {
         onSnapshot = nil
         onFailure = nil
+    }
+
+    func refreshRateLimits() {
+        rateLimitRefreshCount += 1
     }
 
     func fail(with message: String) {
