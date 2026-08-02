@@ -98,15 +98,31 @@ boundary is recorded in `docs/ARCHITECTURE.md`.
 - Apple silicon for the `v0.1.0` preview build
 - A locally installed and authenticated Codex CLI
 
-## Install the private preview
+## Install the preview
+
+### Manually
 
 1. Download and unzip the release archive.
 2. Move `Black Hole Codex Quota Indicator.app` to `/Applications`.
-3. Open the app. Because the private preview is not notarized, macOS may require
+3. Open the app. Because the preview is not notarized, macOS may require
    one-time approval in **System Settings → Privacy & Security → Open Anyway**.
 
 Do not disable Gatekeeper. The app can enable Launch at Login from its menu
 after it is installed in `/Applications`.
+
+### With a Codex agent
+
+Start a local Codex task and paste this prompt:
+
+> Install the latest release of Black Hole Codex Quota Indicator from
+> https://github.com/danya-kim99/black-hole-codex-quota-indicator. Confirm that
+> this Mac uses Apple silicon, download the macOS arm64 `.zip` and matching
+> `.sha256` file from the latest GitHub Release, verify the checksum, unzip the
+> app, and install it in `/Applications`. Ask before replacing an existing
+> installation or requesting administrator access. Do not disable Gatekeeper.
+> Launch the app and report the installed version and path. If macOS blocks the
+> first launch, tell me how to approve it through **System Settings → Privacy &
+> Security → Open Anyway**.
 
 ## Local verification
 
