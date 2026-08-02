@@ -1,0 +1,26 @@
+{
+  "canvas": {
+    "width": 384,
+    "height": 272
+  },
+  "anchor": {
+    "x": 192,
+    "y": 136
+  },
+  "framesPerState": 6,
+  "frameDurationMs": 140,
+  "states": [
+    100,
+    90,
+    80,
+    70,
+    60,
+    50,
+    40,
+    30,
+    20,
+    10,
+    0
+  ],
+  "filenamePattern": "frames/quota-{percent}-frame-{frame}.png"
+}
