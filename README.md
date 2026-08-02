@@ -22,17 +22,6 @@ pulse, and Reduce Motion freezes both effects.
 The renderer uses a compact pixel-art style. Its three color layers rotate and
 animate independently around a fixed black core.
 
-Click the black hole to pull in a random pixel-art object. The v0.2.0 catalog
-contains 28 space objects, cute animals, and characters. Rapid clicks can launch
-up to three objects at once along different trajectories, with gravitational
-stretching and a pixel-breakup finish.
-
-<p align="center">
-  <img src="Assets/Sprites/previews/absorbable-objects-atlas.png"
-       alt="Pixel-art catalog of absorbable space objects, animals, and characters"
-       width="700">
-</p>
-
 ## Quota states
 
 The exact remaining quota is mapped to the nearest 10% visual state. Each GIF
@@ -103,6 +92,19 @@ formatting, and VoiceOver labels use the selected locale.
 Product decisions are recorded in `docs/PRODUCT_SPEC.md`, and the technical
 boundary is recorded in `docs/ARCHITECTURE.md`.
 
+## Optional pixel-art interaction
+
+Click the black hole to pull in a random pixel-art object. The v0.2.0 catalog
+contains 28 space objects, cute animals, and characters. Rapid clicks can launch
+up to three objects at once along different trajectories, with gravitational
+stretching and a pixel-breakup finish.
+
+<p align="center">
+  <img src="Assets/Sprites/previews/absorbable-objects-atlas.png"
+       alt="Pixel-art catalog of absorbable space objects, animals, and characters"
+       width="700">
+</p>
+
 ## Copyright
 
 Copyright © 2026 Daniil Kim. All rights reserved.
@@ -132,7 +134,7 @@ The app can enable Launch at Login from its menu after it is installed in
 Start a local Codex task and paste this prompt:
 
 > Install the latest release of Black Hole Codex Quota Indicator from
-> https://github.com/danya-kim99/black-hole-codex-quota-indicator. Download the
+> https://github.com/danya-kim99/codex-quota-pet. Download the
 > app archive and matching `.sha256` file, verify the checksum, install the app
 > in `/Applications`, and launch it. Ask before replacing an existing
 > installation. Report the installed version and path.
