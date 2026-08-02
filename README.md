@@ -115,14 +115,10 @@ after it is installed in `/Applications`.
 Start a local Codex task and paste this prompt:
 
 > Install the latest release of Black Hole Codex Quota Indicator from
-> https://github.com/danya-kim99/black-hole-codex-quota-indicator. Confirm that
-> this Mac uses Apple silicon, download the macOS arm64 `.zip` and matching
-> `.sha256` file from the latest GitHub Release, verify the checksum, unzip the
-> app, and install it in `/Applications`. Ask before replacing an existing
-> installation or requesting administrator access. Do not disable Gatekeeper.
-> Launch the app and report the installed version and path. If macOS blocks the
-> first launch, tell me how to approve it through **System Settings → Privacy &
-> Security → Open Anyway**.
+> https://github.com/danya-kim99/black-hole-codex-quota-indicator. Download the
+> app archive and matching `.sha256` file, verify the checksum, install the app
+> in `/Applications`, and launch it. Ask before replacing an existing
+> installation. Report the installed version and path.
 
 ## Local verification
 
