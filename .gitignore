@@ -6,3 +6,5 @@ dist/
 tmp/
 *.xcuserstate
 xcuserdata/
+__pycache__/
+*.pyc

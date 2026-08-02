@@ -16,6 +16,8 @@ final class AppState {
     private(set) var hidesInFullScreenApps: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
+    private(set) var absorptionRequestID = 0
+    private(set) var absorptionResetID = 0
 
     private let appServer: any CodexAppServerClient
     private let defaults: UserDefaults
@@ -163,6 +165,14 @@ final class AppState {
 
     func togglePetVisibility() {
         isPetVisible.toggle()
+    }
+
+    func requestAbsorption() {
+        absorptionRequestID &+= 1
+    }
+
+    func resetAbsorptionScene() {
+        absorptionResetID &+= 1
     }
 
     func setHidesInFullScreenApps(_ isEnabled: Bool) {

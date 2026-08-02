@@ -40,6 +40,70 @@ requiring the user to keep the Codex window open.
   seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
+## Approved absorption interaction
+
+The approved design freeze is recorded in
+[`ABSORPTION_DESIGN_FREEZE.md`](ABSORPTION_DESIGN_FREEZE.md). Its confirmed
+behavior is:
+
+The interaction is implemented in the production application from the approved
+V3 design and uses the bundled manifest-driven asset set.
+
+- A short click on the black core absorbs one decorative pixel-art object. A
+  pointer movement beyond 6 pt remains a panel drag and creates nothing.
+- Objects spawn inside an edge of the existing 400 × 220 pt pet window. The
+  feature does not create a desktop-wide overlay or inspect applications,
+  files, or other windows.
+- The bundled set contains 28 approved models: twelve space objects, twelve
+  cute animals, and four characters. Category selection uses `2 : 2 : 1`
+  weights, producing 40% space objects, 40% animals, and 20% characters, with
+  no immediate model repeat.
+- At most three objects can be active. Their starting sides differ when
+  possible, and their paths may cross only near the core.
+- A normal absorption lasts approximately 0.9–1.05 seconds. The object follows
+  a curved partial orbit, accelerates near the core, and undergoes discrete
+  pixel spaghettification up to about 2.5× length and 0.5× width.
+- Objects start moving immediately without an introductory wobble. Rotation
+  follows the continuous path tangent before position pixel-snapping to avoid
+  visible jitter on curved approaches.
+- During the final approach, the visible silhouette progressively loses 8–14
+  colored pixel blocks. Those detached fragments continue independently toward
+  the core instead of acting as an unrelated overlay trail.
+- Objects render in front of the accretion disk during approach. At the center,
+  the object itself disappears through stepped pixel breakup, shrink, and fade;
+  no additional black overlay is drawn over the existing core artwork.
+- The photon ring uses a restrained 100–150 ms flash with a softer outer contour
+  and horizontal line. The disk reacts with a pulse capped at 2.2%. The fixed
+  core size and quota-state geometry never change.
+- Absorption is silent, manually triggered, session-only, and has no counters,
+  achievements, progression, automatic events, settings, or persistence.
+- The interaction is cosmetic and works at every quota value, including zero,
+  with the same object duration in Standard and Turbo. It does not affect quota
+  data, refresh behavior, service tier, or reset time.
+- Reduce Motion replaces the orbit, rotation, spaghettification, particles, and
+  disk pulse with a 200–250 ms stepped pixel fade next to the core.
+- A successful click suppresses the quota tooltip until the pointer exits and
+  hovers again. Existing stale-on-hover refresh and drag behavior remain.
+- Active objects move with the panel during a drag and are discarded if the pet
+  is hidden or suppressed by another fullscreen application.
+- The interaction remains available while reconnecting and is dimmed with the
+  rest of the disconnected pet.
+- VoiceOver exposes one localized `Absorb Object` / `Втянуть объект` action but
+  does not announce the selected model or completion.
+- The renderer may use 30 fps only while objects are active and must return to
+  the existing idle schedule after the final absorption. No new renderer,
+  dependency, network service, permission, signing change, or distribution
+  change is approved.
+- A bundled manifest declares category selection weights and each model's stable
+  ID, category, and PNG asset. Sprites load lazily through the existing cache
+  approach. Adding a normal model or category requires assets and manifest data,
+  not a new Swift animation branch.
+
+The V2 astronaut animation is the approved representative visual prototype.
+The slower V3 timing is approved through the three-object launch with varied
+trajectories. The user explicitly authorized implementation after the design
+and visual gates were complete.
+
 ## MVP boundary
 
 The first release includes Codex App Server connectivity, quota and reset data,
@@ -49,6 +113,16 @@ accessibility behavior. Reconnection states are implemented.
 
 Skins, controlling Fast mode, resetting quota, cross-device sync, and non-macOS
 platforms are outside the MVP.
+
+## Future interaction ideas
+
+- Persist the number and kinds of objects absorbed by the black hole.
+- Turn absorbed objects into a lightweight collection or achievement system.
+- Add special visual reactions after click streaks or absorption milestones.
+
+These ideas are intentionally outside the first absorption-interaction slice.
+The initial version keeps every click self-contained and stores no interaction
+progress.
 
 ## Current MVP status
 
@@ -69,6 +143,6 @@ platforms are outside the MVP.
   with the current quota, speed mode, connection state, and reset time.
 - The approved app icon and matching menu-bar icon are integrated through the
   native asset catalog.
-- Distribution remains blocked on a clean Git baseline, Developer ID signing,
-  notarization, and validation on a clean Mac. None of those release settings
-  or external operations were changed during preflight.
+- GitHub preview releases ship an Apple-silicon ZIP with a matching SHA-256
+  checksum. Developer ID signing, notarization, and clean-Mac validation remain
+  future work for a production distribution channel.

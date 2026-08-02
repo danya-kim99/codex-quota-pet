@@ -1,0 +1,162 @@
+{
+  "canvas": {
+    "width": 64,
+    "height": 64
+  },
+  "categories": [
+    {
+      "id": "space",
+      "weight": 2
+    },
+    {
+      "id": "animals",
+      "weight": 2
+    },
+    {
+      "id": "characters",
+      "weight": 1
+    }
+  ],
+  "objects": [
+    {
+      "id": "astronaut",
+      "category": "space",
+      "asset": "absorb-astronaut"
+    },
+    {
+      "id": "rocket",
+      "category": "space",
+      "asset": "absorb-rocket"
+    },
+    {
+      "id": "satellite",
+      "category": "space",
+      "asset": "absorb-satellite"
+    },
+    {
+      "id": "lunar-rover",
+      "category": "space",
+      "asset": "absorb-lunar-rover"
+    },
+    {
+      "id": "ufo",
+      "category": "space",
+      "asset": "absorb-ufo"
+    },
+    {
+      "id": "space-probe",
+      "category": "space",
+      "asset": "absorb-space-probe"
+    },
+    {
+      "id": "comet",
+      "category": "space",
+      "asset": "absorb-comet"
+    },
+    {
+      "id": "asteroid",
+      "category": "space",
+      "asset": "absorb-asteroid"
+    },
+    {
+      "id": "ringed-planet",
+      "category": "space",
+      "asset": "absorb-ringed-planet"
+    },
+    {
+      "id": "space-capsule",
+      "category": "space",
+      "asset": "absorb-space-capsule"
+    },
+    {
+      "id": "broken-solar-panel",
+      "category": "space",
+      "asset": "absorb-broken-solar-panel"
+    },
+    {
+      "id": "space-wrench",
+      "category": "space",
+      "asset": "absorb-space-wrench"
+    },
+    {
+      "id": "kitten",
+      "category": "animals",
+      "asset": "absorb-kitten"
+    },
+    {
+      "id": "corgi",
+      "category": "animals",
+      "asset": "absorb-corgi"
+    },
+    {
+      "id": "bunny",
+      "category": "animals",
+      "asset": "absorb-bunny"
+    },
+    {
+      "id": "red-panda",
+      "category": "animals",
+      "asset": "absorb-red-panda"
+    },
+    {
+      "id": "axolotl",
+      "category": "animals",
+      "asset": "absorb-axolotl"
+    },
+    {
+      "id": "frog",
+      "category": "animals",
+      "asset": "absorb-frog"
+    },
+    {
+      "id": "duckling",
+      "category": "animals",
+      "asset": "absorb-duckling"
+    },
+    {
+      "id": "raccoon",
+      "category": "animals",
+      "asset": "absorb-raccoon"
+    },
+    {
+      "id": "hamster",
+      "category": "animals",
+      "asset": "absorb-hamster"
+    },
+    {
+      "id": "fox",
+      "category": "animals",
+      "asset": "absorb-fox"
+    },
+    {
+      "id": "penguin",
+      "category": "animals",
+      "asset": "absorb-penguin"
+    },
+    {
+      "id": "bear-cub",
+      "category": "animals",
+      "asset": "absorb-bear-cub"
+    },
+    {
+      "id": "character-white-shirt",
+      "category": "characters",
+      "asset": "absorb-character-white-shirt"
+    },
+    {
+      "id": "character-purple-shirt",
+      "category": "characters",
+      "asset": "absorb-character-purple-shirt"
+    },
+    {
+      "id": "character-green-hoodie",
+      "category": "characters",
+      "asset": "absorb-character-green-hoodie"
+    },
+    {
+      "id": "character-glasses",
+      "category": "characters",
+      "asset": "absorb-character-glasses"
+    }
+  ]
+}

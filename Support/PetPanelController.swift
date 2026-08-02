@@ -10,6 +10,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var isDraggingPet = false
     private var restoreTooltipAfterDrag = false
     private var dragCompletionTask: Task<Void, Never>?
+    private var pointerMonitor: Any?
+    private var absorptionPointerStart: (window: CGPoint, screen: CGPoint)?
     private weak var appState: AppState?
     private var observationTokens: [NSObjectProtocol] = []
     private let isFrontmostApplicationFullScreen: () -> Bool
@@ -113,6 +115,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         let tooltipPanel = makeTooltipPanel(appState: appState, relativeTo: panel)
         self.panel = panel
         self.tooltipPanel = tooltipPanel
+        installPointerMonitorIfNeeded()
         panel.addChildWindow(tooltipPanel, ordered: .above)
         tooltipPanel.orderOut(nil)
         repositionTooltip()
@@ -122,6 +125,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     func hide() {
         cancelDragTracking()
+        absorptionPointerStart = nil
+        appState?.resetAbsorptionScene()
         setTooltipVisible(false)
         panel?.orderOut(nil)
     }
@@ -335,6 +340,49 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         restoreTooltipAfterDrag = false
     }
 
+    private func installPointerMonitorIfNeeded() {
+        guard pointerMonitor == nil else { return }
+        pointerMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseUp]
+        ) { [weak self] event in
+            self?.handlePointerEvent(event)
+            return event
+        }
+    }
+
+    private func handlePointerEvent(_ event: NSEvent) {
+        guard let panel else { return }
+
+        switch event.type {
+        case .leftMouseDown:
+            guard event.window === panel else {
+                absorptionPointerStart = nil
+                return
+            }
+            absorptionPointerStart = (
+                window: event.locationInWindow,
+                screen: NSEvent.mouseLocation
+            )
+        case .leftMouseUp:
+            guard let start = absorptionPointerStart else { return }
+            absorptionPointerStart = nil
+            let screenEnd = NSEvent.mouseLocation
+            let virtualWindowEnd = CGPoint(
+                x: start.window.x + screenEnd.x - start.screen.x,
+                y: start.window.y + screenEnd.y - start.screen.y
+            )
+            if AbsorptionInteraction.acceptsClick(
+                mouseDown: start.window,
+                mouseUp: virtualWindowEnd,
+                sceneSize: BlackHoleView.size
+            ) {
+                appState?.requestAbsorption()
+            }
+        default:
+            break
+        }
+    }
+
     private static func visibleFrame(for petFrame: CGRect) -> CGRect {
         let screen = NSScreen.screens.max { lhs, rhs in
             intersectionArea(lhs.frame, petFrame) < intersectionArea(rhs.frame, petFrame)
@@ -408,5 +456,19 @@ private final class PetHostingView: NSHostingView<BlackHoleView> {
 
     override func accessibilityChildren() -> [Any]? {
         nil
+    }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        [
+            NSAccessibilityCustomAction(
+                name: NSLocalizedString(
+                    "accessibility.absorb_object",
+                    comment: "Absorb object accessibility action"
+                )
+            ) { [weak self] in
+                self?.rootView.appState.requestAbsorption()
+                return self != nil
+            }
+        ]
     }
 }

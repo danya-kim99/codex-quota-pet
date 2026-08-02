@@ -15,6 +15,7 @@
 "reset.compact.absolute" = "%1$@, %2$@";
 "reset.unavailable" = "Limit reset time unavailable";
 "accessibility.quota" = "Codex quota";
+"accessibility.absorb_object" = "Absorb Object";
 "menu.quota.short" = "Quota";
 "menu.reset" = "Resets %@";
 "menu.secondary.remaining" = "Secondary: %d%% remaining";

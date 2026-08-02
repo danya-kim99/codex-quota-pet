@@ -150,6 +150,14 @@ final class RateLimitDecodingTests: XCTestCase {
             english.localizedString(forKey: "reset.compact.absolute", value: nil, table: nil),
             "%1$@, %2$@"
         )
+        XCTAssertEqual(
+            english.localizedString(forKey: "accessibility.absorb_object", value: nil, table: nil),
+            "Absorb Object"
+        )
+        XCTAssertEqual(
+            russian.localizedString(forKey: "accessibility.absorb_object", value: nil, table: nil),
+            "Втянуть объект"
+        )
 
         let menuTranslations = [
             "menu.quota.short": ("Quota", "Квота"),
@@ -322,6 +330,202 @@ final class RateLimitDecodingTests: XCTestCase {
                 )
             }
         }
+    }
+
+    func testAbsorbableObjectManifestAndSpritesAreBundled() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let catalog = try AbsorbableObjectCatalog(bundle: appBundle)
+
+        XCTAssertEqual(catalog.manifest.canvas, .init(width: 64, height: 64))
+        XCTAssertEqual(catalog.manifest.objects.count, 28)
+        XCTAssertEqual(
+            Dictionary(uniqueKeysWithValues: catalog.manifest.categories.map { ($0.id, $0.weight) }),
+            ["space": 2, "animals": 2, "characters": 1]
+        )
+        XCTAssertEqual(
+            catalog.manifest.objects.filter { $0.category == "characters" }.count,
+            4
+        )
+
+        for object in catalog.manifest.objects {
+            let url = try XCTUnwrap(
+                appBundle.url(
+                    forResource: object.asset,
+                    withExtension: "png",
+                    subdirectory: "objects"
+                ),
+                "Missing asset for \(object.id)"
+            )
+            let image = try XCTUnwrap(NSImage(contentsOf: url))
+            let data = try XCTUnwrap(image.tiffRepresentation)
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
+            XCTAssertEqual(bitmap.pixelsWide, 64, object.id)
+            XCTAssertEqual(bitmap.pixelsHigh, 64, object.id)
+            XCTAssertEqual(bitmap.colorAt(x: 0, y: 0)?.alphaComponent, 0, object.id)
+            XCTAssertEqual(bitmap.colorAt(x: 63, y: 63)?.alphaComponent, 0, object.id)
+        }
+    }
+
+    func testAbsorbableObjectSelectionUsesApprovedCategoryWeightsAndNoRepeat() throws {
+        let catalog = try AbsorbableObjectCatalog(bundle: Bundle(for: AppDelegate.self))
+
+        XCTAssertEqual(
+            catalog.select(excluding: nil, categoryRoll: 0, objectRoll: 0)?.category,
+            "space"
+        )
+        XCTAssertEqual(
+            catalog.select(excluding: nil, categoryRoll: 0.4, objectRoll: 0)?.category,
+            "animals"
+        )
+        XCTAssertEqual(
+            catalog.select(excluding: nil, categoryRoll: 0.8, objectRoll: 0)?.category,
+            "characters"
+        )
+
+        let first = try XCTUnwrap(
+            catalog.select(excluding: nil, categoryRoll: 0, objectRoll: 0)
+        )
+        let second = try XCTUnwrap(
+            catalog.select(excluding: first.id, categoryRoll: 0, objectRoll: 0)
+        )
+        XCTAssertNotEqual(first.id, second.id)
+    }
+
+    func testAbsorptionPathsDeformBreakUpAndRespectReducedMotion() {
+        let object = AbsorbableObjectManifest.Object(
+            id: "test",
+            category: "space",
+            asset: "test"
+        )
+        let startDate = Date(timeIntervalSince1970: 1_000)
+        let plan = AbsorptionPlan(
+            object: object,
+            startDate: startDate,
+            duration: 1,
+            side: .left,
+            seed: 42,
+            usesReducedMotion: false
+        )
+        let start = AbsorptionVisualState.make(
+            plan: plan,
+            at: startDate,
+            sceneSize: BlackHoleView.size
+        )
+        let deformed = AbsorptionVisualState.make(
+            plan: plan,
+            at: startDate.addingTimeInterval(0.95),
+            sceneSize: BlackHoleView.size
+        )
+        let finished = AbsorptionVisualState.make(
+            plan: plan,
+            at: startDate.addingTimeInterval(1),
+            sceneSize: BlackHoleView.size
+        )
+
+        XCTAssertLessThan(start.position.x, BlackHoleView.size.width / 2)
+        XCTAssertEqual(deformed.longitudinalScale, 2.5, accuracy: 0.001)
+        XCTAssertEqual(deformed.transverseScale, 0.5, accuracy: 0.001)
+        XCTAssertGreaterThan(deformed.breakupProgress, 0.9)
+        XCTAssertEqual(finished.opacity, 0, accuracy: 0.001)
+        XCTAssertEqual(finished.position.x, BlackHoleView.size.width / 2, accuracy: 1)
+        XCTAssertEqual(finished.position.y, BlackHoleView.size.height / 2, accuracy: 1)
+
+        let reducedPlan = AbsorptionPlan(
+            object: object,
+            startDate: startDate,
+            duration: 0.225,
+            side: .top,
+            seed: 7,
+            usesReducedMotion: true
+        )
+        let reduced = AbsorptionVisualState.make(
+            plan: reducedPlan,
+            at: startDate.addingTimeInterval(0.15),
+            sceneSize: BlackHoleView.size
+        )
+        XCTAssertEqual(reduced.longitudinalScale, 1)
+        XCTAssertEqual(reduced.transverseScale, 1)
+        XCTAssertEqual(reduced.breakupProgress, 0)
+        XCTAssertLessThan(reduced.opacity, 1)
+    }
+
+    func testAbsorptionRotationStaysStableOnPixelSnappedPath() {
+        let object = AbsorbableObjectManifest.Object(
+            id: "test",
+            category: "space",
+            asset: "test"
+        )
+        let startDate = Date(timeIntervalSince1970: 2_000)
+        let plan = AbsorptionPlan(
+            object: object,
+            startDate: startDate,
+            duration: 1,
+            side: .right,
+            seed: 42,
+            usesReducedMotion: false
+        )
+        let states = (0...30).map { frame in
+            AbsorptionVisualState.make(
+                plan: plan,
+                at: startDate.addingTimeInterval(Double(frame) / 30),
+                sceneSize: BlackHoleView.size
+            )
+        }
+
+        for state in states {
+            XCTAssertEqual(state.position.x * 2, (state.position.x * 2).rounded())
+            XCTAssertEqual(state.position.y * 2, (state.position.y * 2).rounded())
+        }
+        for (current, next) in zip(states, states.dropFirst()) {
+            let delta = next.rotation.radians - current.rotation.radians
+            let angularDistance = abs(atan2(sin(delta), cos(delta)))
+            XCTAssertLessThan(angularDistance, 0.35)
+        }
+    }
+
+    func testAbsorptionUsesDifferentSpawnSidesWhenAvailable() {
+        XCTAssertEqual(AbsorptionPlan.spawnSide(excluding: [], roll: 0), .left)
+        XCTAssertEqual(
+            AbsorptionPlan.spawnSide(excluding: [.left], roll: 0),
+            .top
+        )
+        XCTAssertEqual(
+            AbsorptionPlan.spawnSide(excluding: [.left, .top, .right], roll: 0),
+            .bottom
+        )
+    }
+
+    func testAbsorptionClickThresholdKeepsPanelDrag() {
+        let center = CGPoint(
+            x: BlackHoleView.size.width / 2,
+            y: BlackHoleView.size.height / 2
+        )
+        XCTAssertTrue(
+            AbsorptionInteraction.acceptsClick(
+                mouseDown: center,
+                mouseUp: CGPoint(x: center.x + 6, y: center.y),
+                sceneSize: BlackHoleView.size
+            )
+        )
+        XCTAssertFalse(
+            AbsorptionInteraction.acceptsClick(
+                mouseDown: center,
+                mouseUp: CGPoint(x: center.x + 6.01, y: center.y),
+                sceneSize: BlackHoleView.size
+            )
+        )
+        XCTAssertFalse(
+            AbsorptionInteraction.acceptsClick(
+                mouseDown: CGPoint(x: 0, y: 0),
+                mouseUp: CGPoint(x: 0, y: 0),
+                sceneSize: BlackHoleView.size
+            )
+        )
+    }
+
+    func testAbsorptionFlashStaysRestrained() {
+        XCTAssertGreaterThan(BlackHoleView.reactionBrightness, 0)
+        XCTAssertLessThanOrEqual(BlackHoleView.reactionBrightness, 0.2)
     }
 
     func testSpriteFramesLoopAndTurboAdvancesFaster() {

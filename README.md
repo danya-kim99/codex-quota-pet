@@ -22,6 +22,17 @@ pulse, and Reduce Motion freezes both effects.
 The renderer uses a compact pixel-art style. Its three color layers rotate and
 animate independently around a fixed black core.
 
+Click the black hole to pull in a random pixel-art object. The v0.2.0 catalog
+contains 28 space objects, cute animals, and characters. Rapid clicks can launch
+up to three objects at once along different trajectories, with gravitational
+stretching and a pixel-breakup finish.
+
+<p align="center">
+  <img src="Assets/Sprites/previews/absorbable-objects-atlas.png"
+       alt="Pixel-art catalog of absorbable space objects, animals, and characters"
+       width="700">
+</p>
+
 ## Quota states
 
 The exact remaining quota is mapped to the nearest 10% visual state. Each GIF
@@ -92,10 +103,17 @@ formatting, and VoiceOver labels use the selected locale.
 Product decisions are recorded in `docs/PRODUCT_SPEC.md`, and the technical
 boundary is recorded in `docs/ARCHITECTURE.md`.
 
+## Copyright
+
+Copyright © 2026 Daniil Kim. All rights reserved.
+
+The source code, documentation, and visual assets are proprietary. See
+[`LICENSE`](LICENSE) for the terms of use.
+
 ## Requirements
 
 - macOS 14 or newer
-- Apple silicon for the `v0.1.0` preview build
+- Apple silicon for the current preview build
 - A locally installed and authenticated Codex CLI
 
 ## Install the preview
@@ -104,11 +122,10 @@ boundary is recorded in `docs/ARCHITECTURE.md`.
 
 1. Download and unzip the release archive.
 2. Move `Black Hole Codex Quota Indicator.app` to `/Applications`.
-3. Open the app. Because the preview is not notarized, macOS may require
-   one-time approval in **System Settings → Privacy & Security → Open Anyway**.
+3. Open the app.
 
-Do not disable Gatekeeper. The app can enable Launch at Login from its menu
-after it is installed in `/Applications`.
+The app can enable Launch at Login from its menu after it is installed in
+`/Applications`.
 
 ### With a Codex agent
 

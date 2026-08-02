@@ -15,6 +15,7 @@
 "reset.compact.absolute" = "%1$@, %2$@";
 "reset.unavailable" = "Время обновления лимита недоступно";
 "accessibility.quota" = "Квота Codex";
+"accessibility.absorb_object" = "Втянуть объект";
 "menu.quota.short" = "Квота";
 "menu.reset" = "Сброс %@";
 "menu.secondary.remaining" = "Дополнительный лимит: осталось %d%%";
