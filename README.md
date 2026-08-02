@@ -64,8 +64,8 @@ The tooltip follows the pet, chooses a visible side of the screen automatically,
 and stays hidden while the pet is being dragged.
 
 <p align="center">
-  <img src="docs/images/quota-tooltip-ru.png"
-       alt="Russian Turbo-mode quota tooltip showing 91% available and five days until reset"
+  <img src="docs/images/quota-tooltip-en.png"
+       alt="English Turbo-mode quota tooltip showing 89% available and five days until reset"
        width="560">
 </p>
 
