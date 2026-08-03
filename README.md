@@ -15,6 +15,8 @@ Motion freezes both effects. The menu can hide or restore the pet and optionally
 hide it while another application is fullscreen. If the local Codex process
 stops, the pet reconnects automatically and the menu offers an immediate retry.
 The menu also controls whether the main app launches when the user logs in.
+It also offers persistent S (240 × 132 pt), M (320 × 176 pt), and
+L (400 × 220 pt) pet sizes; absorbed objects remain 48 × 48 pt at every size.
 VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
@@ -138,6 +140,33 @@ Start a local Codex task and paste this prompt:
 > app archive and matching `.sha256` file, verify the checksum, install the app
 > in `/Applications`, and launch it. Ask before replacing an existing
 > installation. Report the installed version and path.
+
+## Update the preview
+
+Updating the application does not remove its saved settings.
+
+### Manually
+
+1. Download the latest `.zip` archive from the
+   [GitHub releases page](https://github.com/danya-kim99/codex-quota-pet/releases/latest).
+2. Unzip the archive.
+3. Quit the currently running app from its menu bar menu.
+4. Replace `/Applications/Black Hole Codex Quota Indicator.app` with the newly
+   unzipped app.
+5. Open the updated app and confirm its version in Finder with **Get Info**.
+
+### With a Codex agent
+
+Start a local Codex task and paste this prompt:
+
+> Update Black Hole Codex Quota Indicator to the latest release from
+> https://github.com/danya-kim99/codex-quota-pet. Check and report the currently
+> installed version first. Download the latest Apple-silicon app archive and
+> matching `.sha256` file, verify the checksum, and inspect the extracted app
+> version. Ask before quitting or replacing the existing app in `/Applications`.
+> After approval, replace it, launch the updated app, verify that its process is
+> running, and report the installed version and path. Do not delete the saved
+> application preferences.
 
 ## Local verification
 

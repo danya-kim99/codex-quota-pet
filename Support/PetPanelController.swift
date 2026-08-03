@@ -30,6 +30,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         tooltipPanel?.isVisible == true
     }
 
+    var petFrame: CGRect? {
+        panel?.frame
+    }
+
     func startMonitoring(appState: AppState) {
         self.appState = appState
 
@@ -78,7 +82,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             return
         }
 
-        let size = BlackHoleView.size
+        let size = appState.petSize.sceneSize
         let panel = NSPanel(
             contentRect: CGRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -131,6 +135,19 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         panel?.orderOut(nil)
     }
 
+    func resize(to size: PetSize) {
+        setTooltipVisible(false)
+        guard let panel else { return }
+
+        let frame = Self.resizedPetFrame(
+            currentFrame: panel.frame,
+            to: size.sceneSize,
+            visibleFrame: Self.visibleFrame(for: panel.frame)
+        )
+        panel.setFrame(frame, display: true)
+        repositionTooltip()
+    }
+
     func setTooltipVisible(_ isVisible: Bool) {
         guard let tooltipPanel, !isDraggingPet else { return }
 
@@ -174,7 +191,14 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     ) -> (origin: CGPoint, placement: QuotaTooltipView.Placement) {
         let size = QuotaTooltipView.panelSize
         let center = CGPoint(x: petFrame.midX, y: petFrame.midY)
-        let halfHole = QuotaTooltipView.petAnchorHalfSize
+        let petScale = min(
+            petFrame.width / PetSize.large.sceneSize.width,
+            petFrame.height / PetSize.large.sceneSize.height
+        )
+        let halfHole = CGSize(
+            width: QuotaTooltipView.petAnchorHalfSize.width * petScale,
+            height: QuotaTooltipView.petAnchorHalfSize.height * petScale
+        )
 
         func clamp(_ value: CGFloat, from minimum: CGFloat, to maximum: CGFloat) -> CGFloat {
             guard maximum >= minimum else { return minimum }
@@ -258,6 +282,26 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         petFrame: CGRect
     ) -> Bool {
         wasVisible && petFrame.contains(cursorLocation)
+    }
+
+    static func resizedPetFrame(
+        currentFrame: CGRect,
+        to size: CGSize,
+        visibleFrame: CGRect
+    ) -> CGRect {
+        let centeredOrigin = CGPoint(
+            x: currentFrame.midX - size.width / 2,
+            y: currentFrame.midY - size.height / 2
+        )
+        let maximumX = max(visibleFrame.minX, visibleFrame.maxX - size.width)
+        let maximumY = max(visibleFrame.minY, visibleFrame.maxY - size.height)
+        return CGRect(
+            origin: CGPoint(
+                x: min(max(centeredOrigin.x, visibleFrame.minX), maximumX),
+                y: min(max(centeredOrigin.y, visibleFrame.minY), maximumY)
+            ),
+            size: size
+        )
     }
 
     private func makeTooltipPanel(appState: AppState, relativeTo panel: NSPanel) -> NSPanel {
@@ -374,7 +418,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             if AbsorptionInteraction.acceptsClick(
                 mouseDown: start.window,
                 mouseUp: virtualWindowEnd,
-                sceneSize: BlackHoleView.size
+                sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
             ) {
                 appState?.requestAbsorption()
             }

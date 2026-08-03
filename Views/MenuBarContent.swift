@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarContent: View {
     let appState: AppState
     let togglePetVisibility: () -> Void
+    let setPetSize: (PetSize) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
 
     var body: some View {
@@ -65,6 +66,18 @@ struct MenuBarContent: View {
                 localized(appState.isPetVisible ? "menu.hide_pet" : "menu.show_pet")
             ) {
                 togglePetVisibility()
+            }
+
+            Picker(
+                localized("menu.size"),
+                selection: Binding(
+                    get: { appState.petSize },
+                    set: setPetSize
+                )
+            ) {
+                ForEach(PetSize.allCases, id: \.self) { size in
+                    Text(size.label).tag(size)
+                }
             }
 
             Toggle(

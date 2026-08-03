@@ -40,6 +40,45 @@ requiring the user to keep the Codex window open.
   seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
+## Approved pet size selection
+
+The size-selection design update was approved for implementation on
+3 August 2026.
+
+- The current 400 × 220 pt pet is `L`. The additional sizes are `M` at
+  320 × 176 pt and `S` at 240 × 132 pt.
+- A localized `Size` / `Размер` picker in the menu bar exposes `S`, `M`, and
+  `L`, marks the current selection, and persists it between launches. Existing
+  installs and invalid stored values fall back to `L`.
+- All quota states continue to use the existing sprite assets, uniformly scaled
+  into the selected scene. Core, photon-ring, disk, reaction, Standard/Turbo,
+  zero-quota, and Reduce Motion relationships do not otherwise change.
+- Absorbable models keep their existing 48 × 48 pt rendered size and use the
+  same assets and animation timing. Spawn points and trajectories adapt to the
+  selected scene.
+- Changing size immediately hides the tooltip, clears active absorption
+  objects, resizes around the pet's current center, and clamps the resulting
+  panel to the current screen's visible frame. Dragging and fullscreen hiding
+  continue to use the same behavior at every size.
+- The tooltip keeps its existing size and contents. Its attachment offset and
+  the pet's hover/click target scale with the selected pet size; stale-on-hover
+  quota refresh behavior is unchanged.
+- VoiceOver quota and absorption actions, connection/retry behavior, data
+  freshness, local-only processing, permissions, signing, packaging, and
+  distribution scope are unchanged.
+
+Acceptance criteria for this update:
+
+- a fresh or migrated install uses `L`, and selecting each menu item produces
+  the exact approved panel size and survives relaunch;
+- the black-hole scene scales uniformly for every quota state while absorbable
+  objects remain 48 × 48 pt;
+- resizing preserves the panel center when space permits, remains on-screen,
+  clears active absorption, and does not regress tooltip, hover, click, drag,
+  Standard/Turbo, Reduce Motion, reconnecting, or accessibility behavior;
+- localized English and Russian menu labels are bundled, automated tests pass,
+  and `./script/build_and_run.sh --verify` builds and launches the app.
+
 ## Approved absorption interaction
 
 The approved design freeze is recorded in
@@ -51,9 +90,9 @@ V3 design and uses the bundled manifest-driven asset set.
 
 - A short click on the black core absorbs one decorative pixel-art object. A
   pointer movement beyond 6 pt remains a panel drag and creates nothing.
-- Objects spawn inside an edge of the existing 400 × 220 pt pet window. The
-  feature does not create a desktop-wide overlay or inspect applications,
-  files, or other windows.
+- Objects spawn inside an edge of the selected 400 × 220, 320 × 176, or
+  240 × 132 pt pet window. The feature does not create a desktop-wide overlay
+  or inspect applications, files, or other windows.
 - The bundled set contains 28 approved models: twelve space objects, twelve
   cute animals, and four characters. Category selection uses `2 : 2 : 1`
   weights, producing 40% space objects, 40% animals, and 20% characters, with

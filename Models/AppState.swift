@@ -13,6 +13,7 @@ final class AppState {
     private(set) var speedMode: SpeedMode = .standard
     private(set) var errorMessage: String?
     private(set) var isPetVisible = true
+    private(set) var petSize: PetSize
     private(set) var hidesInFullScreenApps: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
@@ -53,6 +54,9 @@ final class AppState {
         self.updateLaunchAtLogin = updateLaunchAtLogin
         self.now = now
         launchAtLoginStatus = launchAtLoginStatusProvider()
+        petSize = PetSize(
+            rawValue: defaults.string(forKey: AppConstants.petSizeKey) ?? ""
+        ) ?? .large
         hidesInFullScreenApps = defaults.bool(forKey: AppConstants.hideInFullScreenAppsKey)
     }
 
@@ -175,6 +179,13 @@ final class AppState {
         absorptionResetID &+= 1
     }
 
+    func setPetSize(_ size: PetSize) {
+        guard size != petSize else { return }
+        petSize = size
+        defaults.set(size.rawValue, forKey: AppConstants.petSizeKey)
+        resetAbsorptionScene()
+    }
+
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         hidesInFullScreenApps = isEnabled
         defaults.set(isEnabled, forKey: AppConstants.hideInFullScreenAppsKey)
@@ -198,6 +209,32 @@ final class AppState {
 
     func openLoginItemsSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+}
+
+enum PetSize: String, CaseIterable, Sendable {
+    case small
+    case medium
+    case large
+
+    var label: String {
+        switch self {
+        case .small: "S"
+        case .medium: "M"
+        case .large: "L"
+        }
+    }
+
+    var sceneSize: CGSize {
+        switch self {
+        case .small: CGSize(width: 240, height: 132)
+        case .medium: CGSize(width: 320, height: 176)
+        case .large: CGSize(width: 400, height: 220)
+        }
+    }
+
+    var scale: CGFloat {
+        sceneSize.width / PetSize.large.sceneSize.width
     }
 }
 

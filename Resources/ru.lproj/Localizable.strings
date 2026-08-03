@@ -23,6 +23,7 @@
 "menu.retry" = "Повторить сейчас";
 "menu.hide_pet" = "Скрыть питомца";
 "menu.show_pet" = "Показать питомца";
+"menu.size" = "Размер";
 "menu.hide_full_screen" = "Скрывать в полноэкранном режиме";
 "menu.launch_at_login" = "Запускать при входе";
 "menu.approval_required" = "Требуется разрешение";

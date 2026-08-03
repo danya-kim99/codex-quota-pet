@@ -23,6 +23,7 @@
 "menu.retry" = "Retry Now";
 "menu.hide_pet" = "Hide Pet";
 "menu.show_pet" = "Show Pet";
+"menu.size" = "Size";
 "menu.hide_full_screen" = "Hide in Full Screen";
 "menu.launch_at_login" = "Launch at Login";
 "menu.approval_required" = "Approval Required";

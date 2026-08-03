@@ -57,6 +57,9 @@ in or out instead of recreating it. An optional `UserDefaults` preference hides
 the panel when the frontmost layer-zero window matches a screen frame. The
 controller reevaluates that condition when the active Space or application
 changes, without requiring Accessibility or Screen Recording access.
+`AppState` also owns the persisted S/M/L pet-size preference. The renderer reads
+the selected scene dimensions directly, while `PetPanelController` resizes the
+native panel around its current center and clamps it to the visible screen.
 The pet panel never changes size or position on hover. `PetPanelController`
 shows a separate noninteractive child `NSPanel` below it for the localized quota
 card; the child follows the pet when it is dragged and ignores mouse events.

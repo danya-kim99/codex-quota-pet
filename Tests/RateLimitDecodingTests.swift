@@ -96,6 +96,39 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(BlackHoleView.size, cases[0].0.size)
     }
 
+    func testPetSizeOptionsUseApprovedDimensions() {
+        XCTAssertEqual(PetSize.allCases, [.small, .medium, .large])
+        XCTAssertEqual(PetSize.small.label, "S")
+        XCTAssertEqual(PetSize.medium.label, "M")
+        XCTAssertEqual(PetSize.large.label, "L")
+        XCTAssertEqual(PetSize.small.sceneSize, CGSize(width: 240, height: 132))
+        XCTAssertEqual(PetSize.medium.sceneSize, CGSize(width: 320, height: 176))
+        XCTAssertEqual(PetSize.large.sceneSize, CGSize(width: 400, height: 220))
+        XCTAssertEqual(AbsorptionVisualState.objectSize, 48)
+    }
+
+    @MainActor
+    func testPetResizePreservesCenterAndClampsToVisibleFrame() {
+        let screen = CGRect(x: 0, y: 0, width: 1_440, height: 900)
+        let centered = PetPanelController.resizedPetFrame(
+            currentFrame: CGRect(x: 500, y: 300, width: 400, height: 220),
+            to: PetSize.medium.sceneSize,
+            visibleFrame: screen
+        )
+        XCTAssertEqual(centered.size, PetSize.medium.sceneSize)
+        XCTAssertEqual(centered.midX, 700)
+        XCTAssertEqual(centered.midY, 410)
+
+        let clamped = PetPanelController.resizedPetFrame(
+            currentFrame: CGRect(x: 1_200, y: 780, width: 240, height: 120),
+            to: PetSize.large.sceneSize,
+            visibleFrame: screen
+        )
+        XCTAssertTrue(screen.contains(clamped))
+        XCTAssertEqual(clamped.maxX, screen.maxX)
+        XCTAssertEqual(clamped.maxY, screen.maxY)
+    }
+
     @MainActor
     func testTooltipRestoresAfterDragOnlyWhileCursorRemainsOverPet() {
         let petFrame = CGRect(x: 500, y: 300, width: 400, height: 220)
@@ -164,6 +197,7 @@ final class RateLimitDecodingTests: XCTestCase {
             "menu.retry": ("Retry Now", "Повторить сейчас"),
             "menu.hide_pet": ("Hide Pet", "Скрыть питомца"),
             "menu.show_pet": ("Show Pet", "Показать питомца"),
+            "menu.size": ("Size", "Размер"),
             "menu.hide_full_screen": ("Hide in Full Screen", "Скрывать в полноэкранном режиме"),
             "menu.launch_at_login": ("Launch at Login", "Запускать при входе"),
             "menu.approval_required": ("Approval Required", "Требуется разрешение"),
@@ -521,6 +555,25 @@ final class RateLimitDecodingTests: XCTestCase {
                 sceneSize: BlackHoleView.size
             )
         )
+
+        let smallCenter = CGPoint(
+            x: PetSize.small.sceneSize.width / 2,
+            y: PetSize.small.sceneSize.height / 2
+        )
+        XCTAssertTrue(
+            AbsorptionInteraction.acceptsClick(
+                mouseDown: CGPoint(x: smallCenter.x + 33, y: smallCenter.y),
+                mouseUp: CGPoint(x: smallCenter.x + 33, y: smallCenter.y),
+                sceneSize: PetSize.small.sceneSize
+            )
+        )
+        XCTAssertFalse(
+            AbsorptionInteraction.acceptsClick(
+                mouseDown: CGPoint(x: smallCenter.x + 34, y: smallCenter.y),
+                mouseUp: CGPoint(x: smallCenter.x + 34, y: smallCenter.y),
+                sceneSize: PetSize.small.sceneSize
+            )
+        )
     }
 
     func testAbsorptionFlashStaysRestrained() {
@@ -557,6 +610,61 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testPetSizeDefaultsPersistsAndClearsAbsorption() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let appState = AppState(defaults: defaults)
+        XCTAssertEqual(appState.petSize, .large)
+
+        let resetID = appState.absorptionResetID
+        appState.setPetSize(.small)
+        XCTAssertEqual(appState.petSize, .small)
+        XCTAssertEqual(appState.absorptionResetID, resetID + 1)
+        XCTAssertEqual(AppState(defaults: defaults).petSize, .small)
+
+        defaults.set("invalid", forKey: AppConstants.petSizeKey)
+        XCTAssertEqual(AppState(defaults: defaults).petSize, .large)
+    }
+
+    func testSmallAbsorptionSpawnPointsKeepObjectsInsideScene() {
+        let object = AbsorbableObjectManifest.Object(
+            id: "test",
+            category: "space",
+            asset: "test"
+        )
+        let startDate = Date(timeIntervalSince1970: 3_000)
+        let inset = AbsorptionVisualState.objectSize / 2
+
+        for (index, side) in AbsorptionSpawnSide.allCases.enumerated() {
+            let plan = AbsorptionPlan(
+                object: object,
+                startDate: startDate,
+                duration: 1,
+                side: side,
+                seed: UInt64(index),
+                usesReducedMotion: false
+            )
+            let state = AbsorptionVisualState.make(
+                plan: plan,
+                at: startDate,
+                sceneSize: PetSize.small.sceneSize
+            )
+            XCTAssertGreaterThanOrEqual(state.position.x, inset)
+            XCTAssertLessThanOrEqual(
+                state.position.x,
+                PetSize.small.sceneSize.width - inset
+            )
+            XCTAssertGreaterThanOrEqual(state.position.y, inset)
+            XCTAssertLessThanOrEqual(
+                state.position.y,
+                PetSize.small.sceneSize.height - inset
+            )
+        }
+    }
+
+    @MainActor
     func testPanelHidesAndRestores() {
         let appState = AppState()
         let controller = PetPanelController()
@@ -572,6 +680,31 @@ final class RateLimitDecodingTests: XCTestCase {
 
         controller.show(appState: appState)
         XCTAssertTrue(controller.isVisible)
+        controller.hide()
+    }
+
+    @MainActor
+    func testPanelUsesAndAppliesSelectedPetSize() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let appState = AppState(defaults: defaults)
+        appState.setPetSize(.medium)
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+        XCTAssertEqual(controller.petFrame?.size, PetSize.medium.sceneSize)
+
+        let originalCenter = controller.petFrame.map {
+            CGPoint(x: $0.midX, y: $0.midY)
+        }
+        appState.setPetSize(.small)
+        controller.resize(to: .small)
+        XCTAssertEqual(controller.petFrame?.size, PetSize.small.sceneSize)
+        XCTAssertEqual(
+            controller.petFrame.map { CGPoint(x: $0.midX, y: $0.midY) },
+            originalCenter
+        )
         controller.hide()
     }
 

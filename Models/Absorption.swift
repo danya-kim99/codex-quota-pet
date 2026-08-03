@@ -183,6 +183,8 @@ struct AbsorptionPlan: Identifiable, Equatable {
 }
 
 struct AbsorptionVisualState: Equatable {
+    static let objectSize: CGFloat = 48
+
     let progress: CGFloat
     let position: CGPoint
     let rotation: AngleValue
@@ -210,20 +212,24 @@ struct AbsorptionVisualState: Equatable {
 
         let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
         let start = spawnPoint(plan: plan, sceneSize: sceneSize)
+        let sceneScale = min(
+            sceneSize.width / PetSize.large.sceneSize.width,
+            sceneSize.height / PetSize.large.sceneSize.height
+        )
         let inward = normalized(CGPoint(x: center.x - start.x, y: center.y - start.y))
         let directionSign: CGFloat = unit(seed: plan.seed, index: 3) < 0.5 ? -1 : 1
         let perpendicular = CGPoint(x: -inward.y * directionSign, y: inward.x * directionSign)
         let firstControl = CGPoint(
-            x: start.x + inward.x * (54 + unit(seed: plan.seed, index: 4) * 34)
-                + perpendicular.x * (28 + unit(seed: plan.seed, index: 5) * 26),
-            y: start.y + inward.y * (54 + unit(seed: plan.seed, index: 4) * 34)
-                + perpendicular.y * (28 + unit(seed: plan.seed, index: 5) * 26)
+            x: start.x + inward.x * (54 + unit(seed: plan.seed, index: 4) * 34) * sceneScale
+                + perpendicular.x * (28 + unit(seed: plan.seed, index: 5) * 26) * sceneScale,
+            y: start.y + inward.y * (54 + unit(seed: plan.seed, index: 4) * 34) * sceneScale
+                + perpendicular.y * (28 + unit(seed: plan.seed, index: 5) * 26) * sceneScale
         )
         let secondControl = CGPoint(
-            x: center.x - inward.x * (22 + unit(seed: plan.seed, index: 6) * 18)
-                + perpendicular.x * (42 + unit(seed: plan.seed, index: 7) * 24),
-            y: center.y - inward.y * (22 + unit(seed: plan.seed, index: 6) * 18)
-                + perpendicular.y * (42 + unit(seed: plan.seed, index: 7) * 24)
+            x: center.x - inward.x * (22 + unit(seed: plan.seed, index: 6) * 18) * sceneScale
+                + perpendicular.x * (42 + unit(seed: plan.seed, index: 7) * 24) * sceneScale,
+            y: center.y - inward.y * (22 + unit(seed: plan.seed, index: 6) * 18) * sceneScale
+                + perpendicular.y * (42 + unit(seed: plan.seed, index: 7) * 24) * sceneScale
         )
 
         let pathProgress = pow(progress, 1.45)
@@ -290,16 +296,25 @@ struct AbsorptionVisualState: Equatable {
             + (unit(seed: plan.seed, index: 1) - 0.5) * horizontalRange * 2
         let vertical = sceneSize.height / 2
             + (unit(seed: plan.seed, index: 2) - 0.5) * verticalRange * 2
+        let minimumCenter = Self.objectSize / 2 + 2
+        let boundedHorizontal = min(
+            max(horizontal, minimumCenter),
+            sceneSize.width - minimumCenter
+        )
+        let boundedVertical = min(
+            max(vertical, minimumCenter),
+            sceneSize.height - minimumCenter
+        )
 
         return switch plan.side {
         case .left:
-            CGPoint(x: edgeOffset, y: vertical)
+            CGPoint(x: edgeOffset, y: boundedVertical)
         case .top:
-            CGPoint(x: horizontal, y: edgeOffset)
+            CGPoint(x: boundedHorizontal, y: edgeOffset)
         case .right:
-            CGPoint(x: sceneSize.width - edgeOffset, y: vertical)
+            CGPoint(x: sceneSize.width - edgeOffset, y: boundedVertical)
         case .bottom:
-            CGPoint(x: horizontal, y: sceneSize.height - edgeOffset)
+            CGPoint(x: boundedHorizontal, y: sceneSize.height - edgeOffset)
         }
     }
 
@@ -384,8 +399,12 @@ enum AbsorptionInteraction {
         sceneSize: CGSize
     ) -> Bool {
         let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
+        let scale = min(
+            sceneSize.width / PetSize.large.sceneSize.width,
+            sceneSize.height / PetSize.large.sceneSize.height
+        )
         let isInsideCore = hypot(mouseDown.x - center.x, mouseDown.y - center.y)
-            <= coreDiameter / 2
+            <= coreDiameter * scale / 2
         let movement = hypot(mouseUp.x - mouseDown.x, mouseUp.y - mouseDown.y)
         return isInsideCore && movement <= maximumClickMovement
     }

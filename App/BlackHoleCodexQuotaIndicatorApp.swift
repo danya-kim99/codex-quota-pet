@@ -10,6 +10,7 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
             MenuBarContent(
                 appState: appDelegate.appState,
                 togglePetVisibility: appDelegate.togglePetVisibility,
+                setPetSize: appDelegate.setPetSize,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps
             )
         } label: {
@@ -76,5 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         appState.setHidesInFullScreenApps(isEnabled)
         petPanel.updateVisibility(appState: appState)
+    }
+
+    func setPetSize(_ size: PetSize) {
+        guard size != appState.petSize else { return }
+        appState.setPetSize(size)
+        petPanel.resize(to: size)
     }
 }

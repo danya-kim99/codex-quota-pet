@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct BlackHoleView: View {
-    static let size = CGSize(width: 400, height: 220)
+    static let size = PetSize.large.sceneSize
     static let hoverDiameter: CGFloat = 128
     static let reactionBrightness: Double = 0.16
 
@@ -41,16 +41,23 @@ struct BlackHoleView: View {
         PetVisualState(remainingPercent: remainingPercent)
     }
 
+    private var sceneSize: CGSize {
+        appState.petSize.sceneSize
+    }
+
     var body: some View {
         ZStack {
             scene
 
             Color.clear
-                .frame(width: Self.hoverDiameter, height: Self.hoverDiameter)
+                .frame(
+                    width: Self.hoverDiameter * appState.petSize.scale,
+                    height: Self.hoverDiameter * appState.petSize.scale
+                )
                 .contentShape(Circle())
                 .onHover(perform: updateHover)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(width: sceneSize.width, height: sceneSize.height)
         .opacity(appState.connectionState == .connected ? 1 : 0.35)
         .onChange(of: appState.absorptionRequestID) { _, _ in
             startAbsorption()
@@ -92,7 +99,7 @@ struct BlackHoleView: View {
                             plan: plan,
                             sprite: sprite,
                             date: timeline.date,
-                            sceneSize: Self.size
+                            sceneSize: sceneSize
                         )
                     }
                 }
@@ -100,7 +107,7 @@ struct BlackHoleView: View {
                 reactionOverlay(at: timeline.date)
             }
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(width: sceneSize.width, height: sceneSize.height)
     }
 
     @ViewBuilder
@@ -118,6 +125,7 @@ struct BlackHoleView: View {
                     .fill(Color.white.opacity(0.58 * intensity))
                     .frame(width: 132, height: 2)
             }
+            .scaleEffect(appState.petSize.scale)
             .allowsHitTesting(false)
         }
     }
@@ -234,8 +242,6 @@ private struct AbsorptionObjectView: View {
     let date: Date
     let sceneSize: CGSize
 
-    private let objectSize: CGFloat = 48
-
     var body: some View {
         let state = AbsorptionVisualState.make(plan: plan, at: date, sceneSize: sceneSize)
         let fragments = sprite.fragmentTiles(seed: plan.seed)
@@ -251,7 +257,10 @@ private struct AbsorptionObjectView: View {
             Image(nsImage: sprite.image)
                 .resizable()
                 .interpolation(.none)
-                .frame(width: objectSize, height: objectSize)
+                .frame(
+                    width: AbsorptionVisualState.objectSize,
+                    height: AbsorptionVisualState.objectSize
+                )
                 .mask(PixelTileMask(removedTiles: removedTiles))
                 .scaleEffect(
                     x: state.sizeScale * state.longitudinalScale,
@@ -304,7 +313,10 @@ private struct AbsorptionObjectView: View {
             Image(nsImage: sprite.image)
                 .resizable()
                 .interpolation(.none)
-                .frame(width: objectSize, height: objectSize)
+                .frame(
+                    width: AbsorptionVisualState.objectSize,
+                    height: AbsorptionVisualState.objectSize
+                )
                 .mask(SinglePixelTileMask(tile: tile))
                 .scaleEffect(
                     x: state.sizeScale * state.longitudinalScale * (1 - 0.75 * phase),
