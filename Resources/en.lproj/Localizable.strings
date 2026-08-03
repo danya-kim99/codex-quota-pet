@@ -16,6 +16,7 @@
 "reset.unavailable" = "Limit reset time unavailable";
 "accessibility.quota" = "Codex quota";
 "accessibility.absorb_object" = "Absorb Object";
+"accessibility.open_context_menu" = "Open Context Menu";
 "menu.quota.short" = "Quota";
 "menu.reset" = "Resets %@";
 "menu.secondary.remaining" = "Secondary: %d%% remaining";
@@ -29,3 +30,4 @@
 "menu.approval_required" = "Approval Required";
 "menu.open_login_items" = "Open Login Items";
 "menu.quit" = "Quit %@";
+"context_menu.quit" = "Quit";

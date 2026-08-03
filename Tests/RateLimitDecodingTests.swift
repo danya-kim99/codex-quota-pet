@@ -199,6 +199,94 @@ final class RateLimitDecodingTests: XCTestCase {
         )
     }
 
+    func testContextMenuClickUsesVisiblePetAndMovementThreshold() {
+        for size in PetSize.allCases.map(\.sceneSize) {
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            XCTAssertTrue(
+                ContextMenuInteraction.acceptsClick(
+                    mouseDown: center,
+                    mouseUp: CGPoint(x: center.x + 6, y: center.y),
+                    sceneSize: size
+                )
+            )
+            XCTAssertFalse(
+                ContextMenuInteraction.acceptsClick(
+                    mouseDown: center,
+                    mouseUp: CGPoint(x: center.x + 7, y: center.y),
+                    sceneSize: size
+                )
+            )
+            XCTAssertFalse(
+                ContextMenuInteraction.acceptsClick(
+                    mouseDown: CGPoint(x: 1, y: 1),
+                    mouseUp: CGPoint(x: 1, y: 1),
+                    sceneSize: size
+                )
+            )
+        }
+    }
+
+    @MainActor
+    func testContextMenuChoosesOnScreenQuadrant() {
+        let screen = CGRect(x: 0, y: 0, width: 1_440, height: 900)
+        let cases: [(CGPoint, ContextMenuPlacement)] = [
+            (CGPoint(x: 20, y: 20), .aboveRight),
+            (CGPoint(x: 1_420, y: 20), .aboveLeft),
+            (CGPoint(x: 20, y: 880), .belowRight),
+            (CGPoint(x: 1_420, y: 880), .belowLeft)
+        ]
+
+        for (anchor, expectedPlacement) in cases {
+            let layout = PetPanelController.contextMenuLayout(
+                anchor: anchor,
+                visibleFrame: screen
+            )
+            XCTAssertEqual(layout.placement, expectedPlacement)
+            XCTAssertTrue(screen.contains(layout.frame))
+            XCTAssertEqual(layout.frame.size, PixelContextMenuView.panelSize)
+        }
+    }
+
+    @MainActor
+    func testContextMenuSpaghettificationReversesAndReducesMotion() {
+        let start = ContextMenuVisualState.make(
+            phase: .opening,
+            elapsedTime: 0,
+            reduceMotion: false
+        )
+        let opening = ContextMenuVisualState.make(
+            phase: .opening,
+            elapsedTime: ContextMenuVisualState.appearanceDuration * 0.6,
+            reduceMotion: false
+        )
+        let open = ContextMenuVisualState.make(
+            phase: .open,
+            elapsedTime: 0,
+            reduceMotion: false
+        )
+        let closing = ContextMenuVisualState.make(
+            phase: .closing,
+            elapsedTime: ContextMenuVisualState.dismissalDuration * 0.6,
+            reduceMotion: false
+        )
+        let reduced = ContextMenuVisualState.make(
+            phase: .opening,
+            elapsedTime: ContextMenuVisualState.reducedMotionDuration / 2,
+            reduceMotion: true
+        )
+
+        XCTAssertLessThan(start.longitudinalScale, 0.1)
+        XCTAssertLessThan(start.transverseScale, start.longitudinalScale)
+        XCTAssertGreaterThan(opening.longitudinalScale, opening.transverseScale)
+        XCTAssertEqual(open.longitudinalScale, 1)
+        XCTAssertEqual(open.transverseScale, 1)
+        XCTAssertLessThan(closing.visibleProgress, 1)
+        XCTAssertEqual(reduced.longitudinalScale, 1)
+        XCTAssertEqual(reduced.transverseScale, 1)
+        XCTAssertGreaterThan(reduced.opacity, 0)
+        XCTAssertLessThan(reduced.opacity, 1)
+    }
+
     func testTooltipLocalizationsAreBundled() throws {
         let appBundle = Bundle(for: AppDelegate.self)
         let englishPath = try XCTUnwrap(
@@ -234,6 +322,22 @@ final class RateLimitDecodingTests: XCTestCase {
             russian.localizedString(forKey: "accessibility.absorb_object", value: nil, table: nil),
             "Втянуть объект"
         )
+        XCTAssertEqual(
+            english.localizedString(
+                forKey: "accessibility.open_context_menu",
+                value: nil,
+                table: nil
+            ),
+            "Open Context Menu"
+        )
+        XCTAssertEqual(
+            russian.localizedString(
+                forKey: "accessibility.open_context_menu",
+                value: nil,
+                table: nil
+            ),
+            "Открыть контекстное меню"
+        )
 
         let menuTranslations = [
             "menu.quota.short": ("Quota", "Квота"),
@@ -244,7 +348,8 @@ final class RateLimitDecodingTests: XCTestCase {
             "menu.hide_full_screen": ("Hide in Full Screen", "Скрывать в полноэкранном режиме"),
             "menu.launch_at_login": ("Launch at Login", "Запускать при входе"),
             "menu.approval_required": ("Approval Required", "Требуется разрешение"),
-            "menu.open_login_items": ("Open Login Items", "Открыть объекты входа")
+            "menu.open_login_items": ("Open Login Items", "Открыть объекты входа"),
+            "context_menu.quit": ("Quit", "Выход")
         ]
         for (key, translation) in menuTranslations {
             XCTAssertEqual(
@@ -748,6 +853,61 @@ final class RateLimitDecodingTests: XCTestCase {
             controller.petFrame.map { CGPoint(x: $0.midX, y: $0.midY) },
             originalCenter
         )
+        controller.hide()
+    }
+
+    @MainActor
+    func testContextMenuPanelSuppressesTooltipAndHidesWithPet() throws {
+        let appState = AppState()
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+        controller.setTooltipVisible(true)
+        XCTAssertTrue(controller.isTooltipVisible)
+
+        let petFrame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(
+            at: CGPoint(x: petFrame.midX, y: petFrame.midY)
+        )
+
+        XCTAssertTrue(controller.isContextMenuVisible)
+        XCTAssertFalse(controller.isTooltipVisible)
+        XCTAssertEqual(controller.contextMenuFrame?.size, PixelContextMenuView.panelSize)
+
+        controller.hide()
+        XCTAssertFalse(controller.isContextMenuVisible)
+        XCTAssertFalse(controller.isVisible)
+    }
+
+    @MainActor
+    func testContextMenuSettingTogglesKeepPanelOpen() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let loginService = FakeLaunchAtLoginService()
+        let appState = AppState(
+            defaults: defaults,
+            launchAtLoginStatusProvider: { loginService.status },
+            updateLaunchAtLogin: loginService.setEnabled
+        )
+        let controller = PetPanelController(
+            isFrontmostApplicationFullScreen: { false }
+        )
+        controller.show(appState: appState)
+        let petFrame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(
+            at: CGPoint(x: petFrame.midX, y: petFrame.midY)
+        )
+        let actions = controller.contextMenuActions(appState: appState)
+
+        actions.setHidesInFullScreenApps(true)
+        XCTAssertTrue(appState.hidesInFullScreenApps)
+        XCTAssertTrue(controller.isContextMenuVisible)
+
+        actions.setLaunchesAtLogin(true)
+        XCTAssertTrue(appState.launchesAtLogin)
+        XCTAssertTrue(controller.isContextMenuVisible)
+
         controller.hide()
     }
 

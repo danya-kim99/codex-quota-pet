@@ -81,12 +81,26 @@ and stays hidden while the pet is being dragged.
 3. **Reset window** — segmented marks show the remaining days within the real
    quota window, followed by a localized countdown and reset date/time.
 
+## Pixel context menu
+
+Secondary-click the visible black hole or accretion disk with a mouse, trackpad,
+or Control-click to open a custom pixel-art menu. It provides the current
+frequently used controls without repeating quota details: conditional retry,
+S/M/L size selection, fullscreen hiding, launch at login, hiding the pet, and
+quitting the app. Setting toggles update their checkmarks without closing the
+menu.
+
+The menu uses the black hole's gold, orange, and purple palette with a reversible
+spaghettification animation. It stays on screen near the pointer, supports
+keyboard navigation and VoiceOver, respects Reduce Motion, and is localized in
+English and Russian.
+
 ## Languages
 
-| Language | Tooltip | Menu bar | Dates and plurals |
-| --- | --- | --- | --- |
-| English | Yes | Yes | Localized |
-| Russian / Русский | Yes | Yes | Localized |
+| Language | Tooltip | Menu bar | Context menu | Dates and plurals |
+| --- | --- | --- | --- | --- |
+| English | Yes | Yes | Yes | Localized |
+| Russian / Русский | Yes | Yes | Yes | Localized |
 
 The app follows the preferred macOS application language automatically, with
 English as the fallback. Quota details, menu commands, day counts, date/time

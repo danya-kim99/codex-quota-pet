@@ -6,12 +6,22 @@ import SwiftUI
 final class PetPanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var tooltipPanel: NSPanel?
+    private var contextMenuPanel: ContextMenuPanel?
+    private var contextMenuPresentation: ContextMenuPresentation?
     private var tooltipPlacement: QuotaTooltipView.Placement = .below
     private var isDraggingPet = false
     private var restoreTooltipAfterDrag = false
     private var dragCompletionTask: Task<Void, Never>?
+    private var contextMenuAnimationTask: Task<Void, Never>?
+    private var contextMenuDismissCompletion: (() -> Void)?
     private var pointerMonitor: Any?
+    private var outsidePointerMonitor: Any?
     private var absorptionPointerStart: (window: CGPoint, screen: CGPoint)?
+    private var contextPointerStart: (
+        window: CGPoint,
+        screen: CGPoint,
+        kind: ContextPointerKind
+    )?
     private weak var appState: AppState?
     private var observationTokens: [NSObjectProtocol] = []
     private let isFrontmostApplicationFullScreen: () -> Bool
@@ -30,8 +40,16 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         tooltipPanel?.isVisible == true
     }
 
+    var isContextMenuVisible: Bool {
+        contextMenuPanel?.isVisible == true
+    }
+
     var petFrame: CGRect? {
         panel?.frame
+    }
+
+    var contextMenuFrame: CGRect? {
+        contextMenuPanel?.frame
     }
 
     func startMonitoring(appState: AppState) {
@@ -76,6 +94,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func show(appState: AppState) {
+        self.appState = appState
+
         if let panel {
             repositionTooltip()
             panel.orderFrontRegardless()
@@ -102,9 +122,15 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.delegate = self
         panel.contentView = PetHostingView(
-            rootView: BlackHoleView(appState: appState) { [weak self] isVisible in
-                self?.setTooltipVisible(isVisible)
-            }
+            rootView: BlackHoleView(
+                appState: appState,
+                setTooltipVisible: { [weak self] isVisible in
+                    self?.setTooltipVisible(isVisible)
+                },
+                openContextMenu: { [weak self] in
+                    self?.showContextMenuFromAccessibility()
+                }
+            )
         )
 
         if let visibleFrame = NSScreen.main?.visibleFrame {
@@ -128,14 +154,17 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func hide() {
+        dismissContextMenu(animated: false)
         cancelDragTracking()
         absorptionPointerStart = nil
+        contextPointerStart = nil
         appState?.resetAbsorptionScene()
         setTooltipVisible(false)
         panel?.orderOut(nil)
     }
 
     func resize(to size: PetSize) {
+        dismissContextMenu(animated: true)
         setTooltipVisible(false)
         guard let panel else { return }
 
@@ -149,7 +178,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func setTooltipVisible(_ isVisible: Bool) {
-        guard let tooltipPanel, !isDraggingPet else { return }
+        guard let tooltipPanel, !isDraggingPet, contextMenuPanel == nil else { return }
 
         if isVisible {
             repositionTooltip()
@@ -164,7 +193,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func windowWillMove(_ notification: Notification) {
         guard notification.object as? NSWindow === panel,
               NSEvent.pressedMouseButtons & 1 != 0,
-              !isDraggingPet else {
+              !isDraggingPet,
+              contextMenuPanel == nil else {
             return
         }
 
@@ -183,6 +213,213 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func windowDidChangeScreen(_ notification: Notification) {
         guard notification.object as? NSWindow === panel else { return }
         repositionTooltip()
+    }
+
+    static func contextMenuLayout(
+        anchor: CGPoint,
+        visibleFrame: CGRect,
+        size: CGSize = PixelContextMenuView.panelSize
+    ) -> (frame: CGRect, placement: ContextMenuPlacement) {
+        let spacing: CGFloat = 8
+        let rightSpace = visibleFrame.maxX - anchor.x
+        let leftSpace = anchor.x - visibleFrame.minX
+        let aboveSpace = visibleFrame.maxY - anchor.y
+        let belowSpace = anchor.y - visibleFrame.minY
+        let opensRight = rightSpace >= size.width + spacing || rightSpace >= leftSpace
+        let opensAbove = aboveSpace >= size.height + spacing || aboveSpace >= belowSpace
+
+        let unclampedOrigin = CGPoint(
+            x: opensRight ? anchor.x + spacing : anchor.x - size.width - spacing,
+            y: opensAbove ? anchor.y + spacing : anchor.y - size.height - spacing
+        )
+        let maximumX = max(visibleFrame.minX, visibleFrame.maxX - size.width)
+        let maximumY = max(visibleFrame.minY, visibleFrame.maxY - size.height)
+        let origin = CGPoint(
+            x: min(max(unclampedOrigin.x, visibleFrame.minX), maximumX),
+            y: min(max(unclampedOrigin.y, visibleFrame.minY), maximumY)
+        )
+        let placement: ContextMenuPlacement = switch (opensAbove, opensRight) {
+        case (true, true): .aboveRight
+        case (true, false): .aboveLeft
+        case (false, true): .belowRight
+        case (false, false): .belowLeft
+        }
+        return (CGRect(origin: origin, size: size), placement)
+    }
+
+    func showContextMenu(at screenPoint: CGPoint) {
+        guard contextMenuPanel == nil,
+              let panel,
+              panel.isVisible,
+              let appState else {
+            return
+        }
+
+        cancelDragTracking()
+        absorptionPointerStart = nil
+        setTooltipVisible(false)
+        appState.refreshLaunchAtLoginStatus()
+        panel.isMovableByWindowBackground = false
+
+        let layout = Self.contextMenuLayout(
+            anchor: screenPoint,
+            visibleFrame: Self.visibleFrame(containing: screenPoint, fallback: panel.frame)
+        )
+        let presentation = ContextMenuPresentation(placement: layout.placement)
+        let contextMenuPanel = ContextMenuPanel(
+            contentRect: CGRect(origin: .zero, size: layout.frame.size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+
+        contextMenuPanel.title = "Black-hole context menu"
+        contextMenuPanel.level = .popUpMenu
+        contextMenuPanel.isFloatingPanel = true
+        contextMenuPanel.isOpaque = false
+        contextMenuPanel.backgroundColor = .clear
+        contextMenuPanel.hasShadow = false
+        contextMenuPanel.hidesOnDeactivate = false
+        contextMenuPanel.becomesKeyOnlyIfNeeded = false
+        contextMenuPanel.collectionBehavior = panel.collectionBehavior
+        contextMenuPanel.animationBehavior = .none
+        contextMenuPanel.setFrame(layout.frame, display: false)
+        contextMenuPanel.contentView = NSHostingView(
+            rootView: PixelContextMenuView(
+                appState: appState,
+                presentation: presentation,
+                actions: contextMenuActions(appState: appState)
+            )
+        )
+
+        self.contextMenuPanel = contextMenuPanel
+        contextMenuPresentation = presentation
+        installOutsidePointerMonitor()
+        contextMenuPanel.makeKeyAndOrderFront(nil)
+
+        contextMenuAnimationTask?.cancel()
+        contextMenuAnimationTask = Task { @MainActor [weak self, weak presentation] in
+            let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                ? ContextMenuVisualState.reducedMotionDuration
+                : ContextMenuVisualState.appearanceDuration
+            try? await Task.sleep(
+                nanoseconds: UInt64(duration * 1_000_000_000)
+            )
+            guard !Task.isCancelled else { return }
+            presentation?.finishOpening()
+            self?.contextMenuAnimationTask = nil
+        }
+    }
+
+    private func showContextMenuFromAccessibility() {
+        guard let panel else { return }
+        showContextMenu(at: CGPoint(x: panel.frame.midX, y: panel.frame.midY))
+    }
+
+    func contextMenuActions(appState: AppState) -> PixelContextMenuActions {
+        PixelContextMenuActions(
+            dismiss: { [weak self] in
+                self?.dismissContextMenu(animated: true)
+            },
+            retry: { [weak self, weak appState] in
+                appState?.retryNow()
+                self?.dismissContextMenu(animated: true)
+            },
+            setPetSize: { [weak self, weak appState] size in
+                guard let self, let appState, size != appState.petSize else {
+                    self?.dismissContextMenu(animated: true)
+                    return
+                }
+                appState.setPetSize(size)
+                self.resize(to: size)
+            },
+            setHidesInFullScreenApps: { [weak self, weak appState] isEnabled in
+                guard let self, let appState else { return }
+                appState.setHidesInFullScreenApps(isEnabled)
+                self.updateVisibility(appState: appState)
+            },
+            setLaunchesAtLogin: { [weak appState] isEnabled in
+                appState?.setLaunchesAtLogin(isEnabled)
+            },
+            openLoginItems: { [weak self, weak appState] in
+                self?.dismissContextMenu(animated: true)
+                appState?.openLoginItemsSettings()
+            },
+            hidePet: { [weak self, weak appState] in
+                self?.dismissContextMenu(animated: true) { [weak self, weak appState] in
+                    guard let self, let appState else { return }
+                    appState.togglePetVisibility()
+                    self.updateVisibility(appState: appState)
+                }
+            },
+            quit: { [weak self] in
+                self?.dismissContextMenu(animated: true) {
+                    NSApp.terminate(nil)
+                }
+            }
+        )
+    }
+
+    private func dismissContextMenu(
+        animated: Bool,
+        completion: (() -> Void)? = nil
+    ) {
+        guard let contextMenuPanel, let presentation = contextMenuPresentation else {
+            completion?()
+            return
+        }
+
+        appendContextMenuDismissCompletion(completion)
+        guard animated else {
+            contextMenuAnimationTask?.cancel()
+            contextMenuAnimationTask = nil
+            presentation.closeImmediately()
+            finishContextMenuDismissal()
+            return
+        }
+
+        guard presentation.phase != .closing else { return }
+        contextMenuAnimationTask?.cancel()
+        contextMenuAnimationTask = nil
+        contextMenuPanel.ignoresMouseEvents = true
+
+        presentation.startClosing()
+        contextMenuAnimationTask = Task { @MainActor [weak self] in
+            let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                ? ContextMenuVisualState.reducedMotionDuration
+                : ContextMenuVisualState.dismissalDuration
+            try? await Task.sleep(
+                nanoseconds: UInt64(duration * 1_000_000_000)
+            )
+            guard !Task.isCancelled else { return }
+            self?.finishContextMenuDismissal()
+        }
+    }
+
+    private func appendContextMenuDismissCompletion(_ completion: (() -> Void)?) {
+        guard let completion else { return }
+        if let existing = contextMenuDismissCompletion {
+            contextMenuDismissCompletion = {
+                existing()
+                completion()
+            }
+        } else {
+            contextMenuDismissCompletion = completion
+        }
+    }
+
+    private func finishContextMenuDismissal() {
+        contextMenuAnimationTask?.cancel()
+        contextMenuAnimationTask = nil
+        contextMenuPanel?.orderOut(nil)
+        contextMenuPanel = nil
+        contextMenuPresentation = nil
+        removeOutsidePointerMonitor()
+        panel?.isMovableByWindowBackground = true
+
+        let completion = contextMenuDismissCompletion
+        contextMenuDismissCompletion = nil
+        completion?()
     }
 
     static func tooltipLayout(
@@ -395,28 +632,82 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private func installPointerMonitorIfNeeded() {
         guard pointerMonitor == nil else { return }
         pointerMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .leftMouseUp]
+            matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp]
         ) { [weak self] event in
-            self?.handlePointerEvent(event)
-            return event
+            self?.handlePointerEvent(event) ?? event
         }
     }
 
-    private func handlePointerEvent(_ event: NSEvent) {
-        guard let panel else { return }
+    private func installOutsidePointerMonitor() {
+        guard outsidePointerMonitor == nil else { return }
+        outsidePointerMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.dismissContextMenu(animated: true)
+            }
+        }
+    }
+
+    private func removeOutsidePointerMonitor() {
+        guard let outsidePointerMonitor else { return }
+        NSEvent.removeMonitor(outsidePointerMonitor)
+        self.outsidePointerMonitor = nil
+    }
+
+    private func handlePointerEvent(_ event: NSEvent) -> NSEvent? {
+        guard let panel else { return event }
+
+        if contextMenuPanel != nil {
+            if event.window === contextMenuPanel {
+                return event
+            }
+
+            if event.type == .leftMouseDown || event.type == .rightMouseDown {
+                dismissContextMenu(animated: true)
+                absorptionPointerStart = nil
+                contextPointerStart = nil
+            }
+
+            return event.window === panel ? nil : event
+        }
 
         switch event.type {
         case .leftMouseDown:
             guard event.window === panel else {
                 absorptionPointerStart = nil
-                return
+                contextPointerStart = nil
+                return event
             }
+
+            if event.modifierFlags.contains(.control) {
+                absorptionPointerStart = nil
+                if ContextMenuInteraction.containsVisiblePet(
+                    event.locationInWindow,
+                    sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
+                ) {
+                    contextPointerStart = (
+                        window: event.locationInWindow,
+                        screen: NSEvent.mouseLocation,
+                        kind: .controlClick
+                    )
+                }
+                return nil
+            }
+
+            contextPointerStart = nil
             absorptionPointerStart = (
                 window: event.locationInWindow,
                 screen: NSEvent.mouseLocation
             )
         case .leftMouseUp:
-            guard let start = absorptionPointerStart else { return }
+            if let start = contextPointerStart, start.kind == .controlClick {
+                contextPointerStart = nil
+                showContextMenuIfAccepted(start: start)
+                return nil
+            }
+
+            guard let start = absorptionPointerStart else { return event }
             absorptionPointerStart = nil
             let screenEnd = NSEvent.mouseLocation
             let virtualWindowEnd = CGPoint(
@@ -430,9 +721,52 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             ) {
                 appState?.requestAbsorption()
             }
+        case .rightMouseDown:
+            guard event.window === panel,
+                  ContextMenuInteraction.containsVisiblePet(
+                    event.locationInWindow,
+                    sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
+                  ) else {
+                contextPointerStart = nil
+                return event
+            }
+            absorptionPointerStart = nil
+            contextPointerStart = (
+                window: event.locationInWindow,
+                screen: NSEvent.mouseLocation,
+                kind: .rightClick
+            )
+            return nil
+        case .rightMouseUp:
+            guard let start = contextPointerStart, start.kind == .rightClick else {
+                return event
+            }
+            contextPointerStart = nil
+            showContextMenuIfAccepted(start: start)
+            return nil
         default:
             break
         }
+
+        return event
+    }
+
+    private func showContextMenuIfAccepted(
+        start: (window: CGPoint, screen: CGPoint, kind: ContextPointerKind)
+    ) {
+        let screenEnd = NSEvent.mouseLocation
+        let virtualWindowEnd = CGPoint(
+            x: start.window.x + screenEnd.x - start.screen.x,
+            y: start.window.y + screenEnd.y - start.screen.y
+        )
+        guard ContextMenuInteraction.acceptsClick(
+            mouseDown: start.window,
+            mouseUp: virtualWindowEnd,
+            sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
+        ) else {
+            return
+        }
+        showContextMenu(at: screenEnd)
     }
 
     private static func visibleFrame(for petFrame: CGRect) -> CGRect {
@@ -440,6 +774,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             intersectionArea(lhs.frame, petFrame) < intersectionArea(rhs.frame, petFrame)
         }
         return screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? petFrame
+    }
+
+    private static func visibleFrame(containing point: CGPoint, fallback: CGRect) -> CGRect {
+        NSScreen.screens.first(where: { $0.frame.contains(point) })?.visibleFrame
+            ?? visibleFrame(for: fallback)
     }
 
     private static func intersectionArea(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
@@ -483,6 +822,16 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 }
 
+private enum ContextPointerKind {
+    case rightClick
+    case controlClick
+}
+
+private final class ContextMenuPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
 @MainActor
 private final class PetHostingView: NSHostingView<BlackHoleView> {
     override func isAccessibilityElement() -> Bool {
@@ -519,6 +868,15 @@ private final class PetHostingView: NSHostingView<BlackHoleView> {
                 )
             ) { [weak self] in
                 self?.rootView.appState.requestAbsorption()
+                return self != nil
+            },
+            NSAccessibilityCustomAction(
+                name: NSLocalizedString(
+                    "accessibility.open_context_menu",
+                    comment: "Open black-hole context menu accessibility action"
+                )
+            ) { [weak self] in
+                self?.rootView.openContextMenu()
                 return self != nil
             }
         ]

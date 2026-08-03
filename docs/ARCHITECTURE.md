@@ -66,3 +66,10 @@ the child follows the pet when it is dragged and ignores mouse events. `L` uses
 the existing tooltip, `M` scales it to 80%, and `S` uses a dedicated compact
 circular-quota layout in a 272 × 132 pt panel. The card uses bundled English and
 Russian strings plus system date formatting.
+`PetPanelController` also owns a separate transient key-capable `NSPanel` for
+the custom pixel context menu. Local pointer monitoring distinguishes secondary
+clicks from absorption and dragging, while a short-lived global monitor closes
+the menu after clicks in other applications. SwiftUI reads live settings from
+`AppState`; menu actions call the same state methods as the menu bar and do not
+refresh quota. Hit testing, screen-quadrant placement, and the reversible
+spaghettification state are pure helpers covered by tests.

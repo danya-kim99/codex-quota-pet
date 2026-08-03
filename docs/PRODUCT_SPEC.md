@@ -181,6 +181,107 @@ The slower V3 timing is approved through the three-object launch with varied
 trajectories. The user explicitly authorized implementation after the design
 and visual gates were complete.
 
+## Approved black-hole context menu
+
+The black-hole context-menu design update was approved for development on
+3 August 2026. The representative `L` visual prototype was approved the same
+day, including its pixel icons, palette, layout, and reversible animation.
+
+- A secondary click anywhere on the visible black hole or accretion disk opens
+  the menu. Transparent panel edges are not interactive. A right mouse click,
+  the configured secondary trackpad click, and Control-click are equivalent.
+- The menu opens after button release when pointer travel is at most 6 pt. A
+  secondary click never starts absorption or panel dragging.
+- The context menu deliberately does not duplicate quota, reset, speed-mode,
+  connection-status, or connection-error text from the tooltip and menu bar.
+  Its ordered contents are: conditional `Retry Now`; a `Size` submenu with
+  `S`, `M`, and `L`; `Hide in Full Screen`; `Launch at Login`; conditional
+  launch-at-login approval, settings, and error items; a divider; `Hide Pet`;
+  and the compact localized label `Quit` / `Выход`.
+- `Retry Now` appears only when the connection is not connected. Launch-at-login
+  approval, settings, and error items appear only when relevant. Current size,
+  toggle state, enabled state, and conditional items update live from
+  `AppState` while the menu is open.
+- Every item has a minimal static 12 × 12 pixel icon in a fixed leading column.
+  The approved mapping is: circular arrow for retry, scale frame for size,
+  three progressively sized rectangles for `S`/`M`/`L`, screened shadow for
+  fullscreen hiding, door and entering arrow for launch at login, lock for
+  approval, system sliders for Login Items settings, warning diamond for a
+  launch-at-login error, crossed eye for hiding the pet, and power symbol for
+  quitting. Icons are decorative for accessibility.
+- The current size and enabled toggles use a separate trailing pixel checkmark.
+  Icons use muted gold normally, bright gold on hover, and muted gray-purple
+  when disabled. They do not animate independently from the menu.
+- The menu is a custom opaque dark pixel-art panel with a gold stepped border,
+  restrained orange and purple accents, and a fixed gold hover treatment that
+  does not depend on quota. It keeps the same readable size for `S`, `M`, and
+  `L`; it does not scale with the pet.
+- The menu originates near the pointer. It chooses a free quadrant and is
+  clamped fully inside the current screen's visible frame. Pet dragging is
+  disabled while the menu is open.
+- Normal-motion appearance starts as an elongated pixel strand at the click
+  point with a few detached pixels, visually related to absorbed-object
+  spaghettification. It straightens along its main axis, then restores height
+  in discrete steps over 280 ms. Items become interactive only after that
+  transition completes.
+- Normal-motion dismissal reverses the same deformation over 220 ms. `Hide Pet`
+  and `Quit` execute after dismissal completes. Size, retry, and navigation
+  actions update or execute immediately while dismissal runs. The `Hide in Full
+  Screen` and `Launch at Login` toggles update in place and keep the menu open;
+  automatic fullscreen suppression can still hide the pet and menu immediately.
+  Quota state and Standard or Turbo mode do not alter these timings or geometry.
+- Reduce Motion replaces stretch, deformation, and detached pixels with a short
+  stepped pixel fade. It preserves the same content, placement, and action
+  timing semantics.
+- The menu dismisses after a non-toggle action, an outside click, Escape, a
+  repeated secondary click, a size change, or pet hiding. The two setting
+  toggles keep it open. Automatic fullscreen suppression dismisses it
+  immediately without requiring an exit animation.
+- Opening the menu hides the tooltip. The tooltip can return only after the menu
+  closes and the pointer exits and hovers again. Existing absorptions continue
+  behind the menu, but new absorptions cannot start while it is open.
+- Opening the context menu does not refresh quota or add network traffic. The
+  existing connection, retry, persistence, and launch-at-login behavior remain
+  the source of truth.
+- English and Russian follow the current app language. Arrow keys move menu
+  selection; Return or Space activates it; Escape dismisses it. The custom menu
+  may temporarily take keyboard focus without adding a Dock icon or changing
+  the app's accessory activation model. Keyboard focus does not draw a native
+  blue focus ring around the custom pixel surface; selection remains visible
+  through the menu's own gold pixel highlight.
+- VoiceOver exposes a localized `Open Context Menu` action on the pet and reads
+  item labels, current size, toggle state, enabled state, and retry availability.
+  It does not announce decorative icons or duplicate quota inside the menu.
+- The feature does not change pet geometry, sprite animation, Standard/Turbo,
+  absorption behavior, the Codex App Server protocol, permissions,
+  dependencies, signing, packaging, or distribution.
+
+The representative visual prototype must show the `L` pet in Russian with the
+normal open menu plus its initial spaghettified and final expanded forms. It
+must demonstrate icon alignment, normal/hover/disabled states, trailing state
+checks, and the approved dark, gold, orange, and purple palette before
+production implementation begins.
+
+Acceptance criteria for this update:
+
+- right mouse, secondary trackpad, and Control-click open the menu only from the
+  visible pet; pointer travel beyond 6 pt does not open it, absorb an object, or
+  create an unintended drag;
+- content, ordering, conditional items, actions, icons, checkmarks, and live
+  state match the approved design in English and Russian;
+- the menu remains readable for `S`, `M`, and `L`, chooses an on-screen quadrant
+  at every display edge, and behaves correctly with multiple displays;
+- appearance and dismissal use the approved reversible spaghettification in
+  normal motion and the approved stepped fade with Reduce Motion;
+- tooltip suppression, drag blocking, ongoing and blocked absorption behavior,
+  fullscreen suppression, reconnecting, and launch-at-login states do not
+  regress;
+- keyboard and VoiceOver can expose, traverse, activate, and dismiss the menu
+  without changing the accessory activation model or drawing native focus
+  chrome; the two setting toggles update their checkmarks without closing it;
+- focused automated tests pass, and `./script/build_and_run.sh --verify` builds
+  and launches the app for real-flow review.
+
 ## MVP boundary
 
 The first release includes Codex App Server connectivity, quota and reset data,

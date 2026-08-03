@@ -16,6 +16,7 @@
 "reset.unavailable" = "Время обновления лимита недоступно";
 "accessibility.quota" = "Квота Codex";
 "accessibility.absorb_object" = "Втянуть объект";
+"accessibility.open_context_menu" = "Открыть контекстное меню";
 "menu.quota.short" = "Квота";
 "menu.reset" = "Сброс %@";
 "menu.secondary.remaining" = "Дополнительный лимит: осталось %d%%";
@@ -29,3 +30,4 @@
 "menu.approval_required" = "Требуется разрешение";
 "menu.open_login_items" = "Открыть объекты входа";
 "menu.quit" = "Завершить %@";
+"context_menu.quit" = "Выход";

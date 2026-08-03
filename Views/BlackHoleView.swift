@@ -8,6 +8,7 @@ struct BlackHoleView: View {
 
     let appState: AppState
     let setTooltipVisible: (Bool) -> Void
+    let openContextMenu: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animationStart = Date()
@@ -20,10 +21,12 @@ struct BlackHoleView: View {
 
     init(
         appState: AppState,
-        setTooltipVisible: @escaping (Bool) -> Void = { _ in }
+        setTooltipVisible: @escaping (Bool) -> Void = { _ in },
+        openContextMenu: @escaping () -> Void = {}
     ) {
         self.appState = appState
         self.setTooltipVisible = setTooltipVisible
+        self.openContextMenu = openContextMenu
     }
 
     private var remainingPercent: Int {
