@@ -184,6 +184,7 @@ struct AbsorptionPlan: Identifiable, Equatable {
 
 struct AbsorptionVisualState: Equatable {
     static let objectSize: CGFloat = 48
+    static let renderingInset: CGFloat = 2
 
     let progress: CGFloat
     let position: CGPoint
@@ -193,6 +194,21 @@ struct AbsorptionVisualState: Equatable {
     let sizeScale: CGFloat
     let opacity: CGFloat
     let breakupProgress: CGFloat
+
+    var renderedFrame: CGRect {
+        let halfExtents = Self.transformedHalfExtents(
+            rotation: rotation.radians,
+            longitudinalScale: longitudinalScale,
+            transverseScale: transverseScale,
+            sizeScale: sizeScale
+        )
+        return CGRect(
+            x: position.x - halfExtents.width,
+            y: position.y - halfExtents.height,
+            width: halfExtents.width * 2,
+            height: halfExtents.height * 2
+        )
+    }
 
     struct AngleValue: Equatable {
         let radians: CGFloat
@@ -240,7 +256,6 @@ struct AbsorptionVisualState: Equatable {
             to: center,
             progress: pathProgress
         )
-        let position = snapped(rawPosition)
         let tangent = cubicTangent(
             from: start,
             firstControl: firstControl,
@@ -253,14 +268,28 @@ struct AbsorptionVisualState: Equatable {
         let deformation = stepped(smoothstep((progress - 0.55) / 0.4), steps: 6)
         let shrink = smoothstep((progress - 0.78) / 0.22)
         let fade = stepped(smoothstep((progress - 0.92) / 0.08), steps: 4)
+        let longitudinalScale = 1 + 1.5 * deformation
+        let transverseScale = 1 - 0.5 * deformation
+        let sizeScale = 1 - 0.88 * shrink
+        let halfExtents = transformedHalfExtents(
+            rotation: rotation,
+            longitudinalScale: longitudinalScale,
+            transverseScale: transverseScale,
+            sizeScale: sizeScale
+        )
+        let position = fitted(
+            snapped(rawPosition),
+            halfExtents: halfExtents,
+            sceneSize: sceneSize
+        )
 
         return AbsorptionVisualState(
             progress: progress,
             position: position,
             rotation: AngleValue(radians: rotation),
-            longitudinalScale: 1 + 1.5 * deformation,
-            transverseScale: 1 - 0.5 * deformation,
-            sizeScale: 1 - 0.88 * shrink,
+            longitudinalScale: longitudinalScale,
+            transverseScale: transverseScale,
+            sizeScale: sizeScale,
             opacity: 1 - fade,
             breakupProgress: smoothstep((progress - 0.67) / 0.31)
         )
@@ -289,14 +318,15 @@ struct AbsorptionVisualState: Equatable {
     }
 
     private static func spawnPoint(plan: AbsorptionPlan, sceneSize: CGSize) -> CGPoint {
-        let edgeOffset = 26 + unit(seed: plan.seed, index: 0) * 18
+        let minimumCenterInset = ceil(objectSize / sqrt(2)) + renderingInset
+        let edgeOffset = minimumCenterInset + unit(seed: plan.seed, index: 0) * 8
         let horizontalRange = sceneSize.width * 0.42
         let verticalRange = sceneSize.height * 0.30
         let horizontal = sceneSize.width / 2
             + (unit(seed: plan.seed, index: 1) - 0.5) * horizontalRange * 2
         let vertical = sceneSize.height / 2
             + (unit(seed: plan.seed, index: 2) - 0.5) * verticalRange * 2
-        let minimumCenter = Self.objectSize / 2 + 2
+        let minimumCenter = minimumCenterInset
         let boundedHorizontal = min(
             max(horizontal, minimumCenter),
             sceneSize.width - minimumCenter
@@ -375,6 +405,43 @@ struct AbsorptionVisualState: Equatable {
         return CGPoint(
             x: (point.x / step).rounded() * step,
             y: (point.y / step).rounded() * step
+        )
+    }
+
+    private static func transformedHalfExtents(
+        rotation: CGFloat,
+        longitudinalScale: CGFloat,
+        transverseScale: CGFloat,
+        sizeScale: CGFloat
+    ) -> CGSize {
+        let width = objectSize * longitudinalScale * sizeScale
+        let height = objectSize * transverseScale * sizeScale
+        let cosine = abs(cos(rotation))
+        let sine = abs(sin(rotation))
+        return CGSize(
+            width: (cosine * width + sine * height) / 2,
+            height: (sine * width + cosine * height) / 2
+        )
+    }
+
+    private static func fitted(
+        _ point: CGPoint,
+        halfExtents: CGSize,
+        sceneSize: CGSize
+    ) -> CGPoint {
+        let step: CGFloat = 0.5
+        let minimumX = ceil((halfExtents.width + renderingInset) / step) * step
+        let maximumX = floor((sceneSize.width - halfExtents.width - renderingInset) / step) * step
+        let minimumY = ceil((halfExtents.height + renderingInset) / step) * step
+        let maximumY = floor((sceneSize.height - halfExtents.height - renderingInset) / step) * step
+
+        return CGPoint(
+            x: minimumX <= maximumX
+                ? min(maximumX, max(minimumX, point.x))
+                : sceneSize.width / 2,
+            y: minimumY <= maximumY
+                ? min(maximumY, max(minimumY, point.y))
+                : sceneSize.height / 2
         )
     }
 

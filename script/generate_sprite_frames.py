@@ -23,6 +23,7 @@ ANCHOR = (192, 136)
 TARGET_CORE_SIZE = 90
 FRAME_DURATION_MS = 140
 BOTTOM_ROW_TOP_BLEED = 64
+RIGHT_EDGE_BLEED_START = 350
 
 
 def keyed_cell(master: Image.Image, index: int) -> Image.Image:
@@ -104,6 +105,13 @@ def aligned_sprite(cell: Image.Image) -> Image.Image:
     if bounds is None or bounds[0] == 0 or bounds[1] == 0 or bounds[2] == canvas.width or bounds[3] == canvas.height:
         raise RuntimeError(f"Sprite clips the common canvas: {bounds}")
     return canvas
+
+
+def remove_right_edge_bleed(sprite: Image.Image) -> Image.Image:
+    """Remove pixels imported from the neighboring cell in the master grid."""
+    pixels = np.array(sprite)
+    pixels[:, RIGHT_EDGE_BLEED_START:] = 0
+    return Image.fromarray(pixels, "RGBA")
 
 
 def animated_frame(base: Image.Image, frame_index: int) -> Image.Image:
@@ -208,6 +216,11 @@ def validate(frames_by_state: dict[int, list[Image.Image]]) -> None:
             raise RuntimeError(f"{percent}% has an invalid frame format")
         if any(frame.getpixel((0, 0))[3] != 0 for frame in frames):
             raise RuntimeError(f"{percent}% does not have transparent corners")
+        if any(
+            frame.getchannel("A").crop((RIGHT_EDGE_BLEED_START, 0, *CANVAS_SIZE)).getbbox()
+            for frame in frames
+        ):
+            raise RuntimeError(f"{percent}% contains right-edge master-sheet bleed")
 
 
 def main() -> None:
@@ -219,7 +232,7 @@ def main() -> None:
 
     frames_by_state: dict[int, list[Image.Image]] = {}
     for index, percent in enumerate(STATES):
-        base = aligned_sprite(keyed_cell(master, index))
+        base = remove_right_edge_bleed(aligned_sprite(keyed_cell(master, index)))
         frames = [animated_frame(base, frame_index) for frame_index in range(FRAME_COUNT)]
         frames_by_state[percent] = frames
         for frame_index, frame in enumerate(frames):

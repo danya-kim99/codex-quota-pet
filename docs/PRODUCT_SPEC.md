@@ -14,7 +14,8 @@ requiring the user to keep the Codex window open.
 - From 20% through 0%, a purple layer appears and reaches full strength.
 - Each 10% quota state uses a six-frame transparent pixel-art loop. Gold,
   orange, and purple accumulate while their highlights animate at distinct
-  phases inside that loop.
+  phases inside that loop. The exported canvas excludes master-sheet bleed and
+  contains no unrelated opaque markers outside the intended artwork.
 - The renderer uses a limited pixel-art palette with stepped edges and glow.
 - Hover shows a compact localized card with the exact remaining quota, a
   mode-specific progress bar, dynamic day segments, and reset time. Standard
@@ -28,6 +29,12 @@ requiring the user to keep the Codex window open.
 - The pet is a draggable, transparent, always-on-top macOS surface with a menu
   bar control and no Dock icon. The menu can hide and restore the pet without
   quitting the application.
+- The menu bar control uses the approved monochrome 20 × 20 native macOS
+  template: two asymmetric caustic arcs orbit an open negative-space event
+  horizon. The heavier upper arc and more compact lower arc keep their tapered
+  opposing tips; there is no enclosing ring, central dot, or pixelation. The
+  1× and Retina 2× assets use antialiased transparent edges and follow the
+  system menu-bar foreground color in light and dark appearances.
 - The app respects Reduce Motion. A persisted menu setting can hide the pet
   automatically while another application is fullscreen.
 - VoiceOver announces the exact remaining quota, Standard or Turbo mode, and
@@ -55,7 +62,8 @@ The size-selection design update was approved for implementation on
   zero-quota, and Reduce Motion relationships do not otherwise change.
 - Absorbable models keep their existing 48 × 48 pt rendered size and use the
   same assets and animation timing. Spawn points and trajectories adapt to the
-  selected scene.
+  selected scene, and the complete transformed object remains inside the pet
+  panel throughout the approach instead of being clipped at its edges.
 - Changing size immediately hides the tooltip, clears active absorption
   objects, resizes around the pet's current center, and clamps the resulting
   panel to the current screen's visible frame. Dragging and fullscreen hiding

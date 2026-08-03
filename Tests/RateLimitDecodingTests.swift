@@ -4,8 +4,27 @@ import XCTest
 @testable import Black_Hole_Codex_Quota_Indicator
 
 final class RateLimitDecodingTests: XCTestCase {
-    func testBundledIconsAreConfigured() {
-        XCTAssertNotNil(NSImage(named: "MenuBarIcon"))
+    func testBundledIconsAreConfigured() throws {
+        let menuBarIcon = try XCTUnwrap(NSImage(named: "MenuBarIcon"))
+        let data = try XCTUnwrap(menuBarIcon.tiffRepresentation)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
+
+        XCTAssertEqual(menuBarIcon.size, NSSize(width: 20, height: 20))
+        XCTAssertTrue(menuBarIcon.isTemplate)
+        var hasTransparentPixel = false
+        var hasOpaquePixel = false
+        var hasAntialiasedPixel = false
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                let alpha = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.alphaComponent)
+                hasTransparentPixel = hasTransparentPixel || alpha == 0
+                hasOpaquePixel = hasOpaquePixel || alpha == 1
+                hasAntialiasedPixel = hasAntialiasedPixel || (alpha > 0 && alpha < 1)
+            }
+        }
+        XCTAssertTrue(hasTransparentPixel)
+        XCTAssertTrue(hasOpaquePixel)
+        XCTAssertTrue(hasAntialiasedPixel)
         XCTAssertEqual(
             Bundle(for: AppDelegate.self).object(forInfoDictionaryKey: "CFBundleIconName") as? String,
             "AppIcon"
@@ -514,6 +533,35 @@ final class RateLimitDecodingTests: XCTestCase {
         }
     }
 
+    func testQuotaFramesExcludeRightEdgeMasterSheetBleed() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+
+        for percent in [40, 10] {
+            for frame in 0..<PetVisualState.spriteFrameCount {
+                let url = try XCTUnwrap(
+                    appBundle.url(
+                        forResource: "quota-\(percent)-frame-\(frame)",
+                        withExtension: "png",
+                        subdirectory: "frames"
+                    )
+                )
+                let bitmap = try XCTUnwrap(
+                    NSBitmapImageRep(data: Data(contentsOf: url))
+                )
+
+                for y in 0..<bitmap.pixelsHigh {
+                    for x in 350..<bitmap.pixelsWide {
+                        XCTAssertEqual(
+                            bitmap.colorAt(x: x, y: y)?.alphaComponent,
+                            0,
+                            "Unexpected pixel in \(percent)% frame \(frame) at (\(x), \(y))"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     func testAbsorbableObjectManifestAndSpritesAreBundled() throws {
         let appBundle = Bundle(for: AppDelegate.self)
         let catalog = try AbsorbableObjectCatalog(bundle: appBundle)
@@ -629,6 +677,49 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(reduced.transverseScale, 1)
         XCTAssertEqual(reduced.breakupProgress, 0)
         XCTAssertLessThan(reduced.opacity, 1)
+    }
+
+    func testAbsorptionRenderingStaysInsideEveryPetSize() {
+        let object = AbsorbableObjectManifest.Object(
+            id: "test",
+            category: "animals",
+            asset: "absorb-bear-cub"
+        )
+        let startDate = Date(timeIntervalSince1970: 1_000)
+        let seeds: [UInt64] = [0, 1, 29, 42, 155, 607, 965, 988, .max]
+
+        for petSize in PetSize.allCases {
+            let sceneSize = petSize.sceneSize
+            let safeFrame = CGRect(origin: .zero, size: sceneSize).insetBy(
+                dx: AbsorptionVisualState.renderingInset,
+                dy: AbsorptionVisualState.renderingInset
+            )
+            for side in AbsorptionSpawnSide.allCases {
+                for seed in seeds {
+                    let plan = AbsorptionPlan(
+                        object: object,
+                        startDate: startDate,
+                        duration: 1,
+                        side: side,
+                        seed: seed,
+                        usesReducedMotion: false
+                    )
+                    for sample in 0...40 {
+                        let state = AbsorptionVisualState.make(
+                            plan: plan,
+                            at: startDate.addingTimeInterval(Double(sample) / 40),
+                            sceneSize: sceneSize
+                        )
+                        let frame = state.renderedFrame
+                        let context = "\(petSize) \(side) seed=\(seed) sample=\(sample)"
+                        XCTAssertGreaterThanOrEqual(frame.minX, safeFrame.minX, context)
+                        XCTAssertGreaterThanOrEqual(frame.minY, safeFrame.minY, context)
+                        XCTAssertLessThanOrEqual(frame.maxX, safeFrame.maxX, context)
+                        XCTAssertLessThanOrEqual(frame.maxY, safeFrame.maxY, context)
+                    }
+                }
+            }
+        }
     }
 
     func testAbsorptionRotationStaysStableOnPixelSnappedPath() {

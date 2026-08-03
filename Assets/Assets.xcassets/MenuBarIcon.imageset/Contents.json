@@ -1,12 +1,12 @@
 {
   "images" : [
     {
-      "filename" : "menu-bar-18.png",
+      "filename" : "menu-bar-20.png",
       "idiom" : "mac",
       "scale" : "1x"
     },
     {
-      "filename" : "menu-bar-18@2x.png",
+      "filename" : "menu-bar-20@2x.png",
       "idiom" : "mac",
       "scale" : "2x"
     }
@@ -14,5 +14,8 @@
   "info" : {
     "author" : "xcode",
     "version" : 1
+  },
+  "properties" : {
+    "template-rendering-intent" : "template"
   }
 }
