@@ -16,7 +16,8 @@ hide it while another application is fullscreen. If the local Codex process
 stops, the pet reconnects automatically and the menu offers an immediate retry.
 The menu also controls whether the main app launches when the user logs in.
 It also offers persistent S (240 × 132 pt), M (320 × 176 pt), and
-L (400 × 220 pt) pet sizes; absorbed objects remain 48 × 48 pt at every size.
+L (400 × 220 pt) pet sizes; the quota tooltip adapts to the pet size, while
+absorbed objects remain 48 × 48 pt at every size.
 VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
@@ -185,3 +186,35 @@ xcodebuild -project 'Black Hole Codex Quota Indicator.xcodeproj' \
   CODE_SIGNING_ALLOWED=NO \
   test
 ```
+
+## Automated CI and preview releases
+
+GitHub Actions runs the unit tests on every pull request and every push to
+`main`. Preview packaging and publishing are also handled by the same
+`CI and Release` workflow on an Apple-silicon macOS runner.
+
+To publish a stable preview:
+
+1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the Xcode project.
+2. Commit and push the release changes to `main`, then wait for CI to pass.
+3. Open **Actions → CI and Release → Run workflow**, keep the `main` branch, and
+   enter the version without the `v` prefix, for example `0.4.0`.
+4. Wait for the workflow to test, build, ad-hoc sign, validate, package, checksum,
+   tag, and publish the GitHub Release.
+
+The workflow rejects releases from another branch, invalid or existing versions,
+a version that differs from the app bundle, and non-arm64 output. GitHub receives
+write permission only for the manual release job. Developer ID signing and Apple
+notarization remain outside the current preview flow.
+
+For a Codex agent, use this prompt:
+
+> Prepare a new stable preview release of Black Hole Codex Quota Indicator.
+> Determine the SemVer version, update `MARKETING_VERSION` and increment
+> `CURRENT_PROJECT_VERSION`, then commit and push the release changes to `main`.
+> Do not build, sign, package, checksum, tag, or publish locally. Wait for the
+> `CI and Release` workflow on `main` to pass, then dispatch that workflow from
+> `main` with the version number without a `v` prefix. Wait for completion and
+> report the GitHub Release URL, version, build number, two uploaded assets, and
+> published ZIP digest. If CI or publishing fails, inspect the Actions logs and
+> fix the root cause instead of creating a local release.

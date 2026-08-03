@@ -188,13 +188,17 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     static func tooltipLayout(
         petFrame: CGRect,
         visibleFrame: CGRect
-    ) -> (origin: CGPoint, placement: QuotaTooltipView.Placement) {
-        let size = QuotaTooltipView.panelSize
+    ) -> (
+        origin: CGPoint,
+        placement: QuotaTooltipView.Placement,
+        size: CGSize
+    ) {
         let center = CGPoint(x: petFrame.midX, y: petFrame.midY)
         let petScale = min(
             petFrame.width / PetSize.large.sceneSize.width,
             petFrame.height / PetSize.large.sceneSize.height
         )
+        let size = QuotaTooltipView.panelSize(forScale: petScale)
         let halfHole = CGSize(
             width: QuotaTooltipView.petAnchorHalfSize.width * petScale,
             height: QuotaTooltipView.petAnchorHalfSize.height * petScale
@@ -272,7 +276,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                     to: visibleFrame.maxY - size.height
                 )
             ),
-            selected.placement
+            selected.placement,
+            size
         )
     }
 
@@ -305,8 +310,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     private func makeTooltipPanel(appState: AppState, relativeTo panel: NSPanel) -> NSPanel {
+        let visibleFrame = Self.visibleFrame(for: panel.frame)
+        let layout = Self.tooltipLayout(petFrame: panel.frame, visibleFrame: visibleFrame)
         let tooltipPanel = NSPanel(
-            contentRect: CGRect(origin: .zero, size: QuotaTooltipView.panelSize),
+            contentRect: CGRect(origin: .zero, size: layout.size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -321,8 +328,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         tooltipPanel.hidesOnDeactivate = false
         tooltipPanel.ignoresMouseEvents = true
         tooltipPanel.collectionBehavior = panel.collectionBehavior
-        let visibleFrame = Self.visibleFrame(for: panel.frame)
-        let layout = Self.tooltipLayout(petFrame: panel.frame, visibleFrame: visibleFrame)
         tooltipPlacement = layout.placement
         tooltipPanel.contentView = NSHostingView(
             rootView: QuotaTooltipView(appState: appState, placement: layout.placement)
@@ -338,7 +343,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             petFrame: panel.frame,
             visibleFrame: Self.visibleFrame(for: panel.frame)
         )
-        tooltipPanel.setFrameOrigin(layout.origin)
+        tooltipPanel.setFrame(
+            CGRect(origin: layout.origin, size: layout.size),
+            display: true
+        )
 
         guard layout.placement != tooltipPlacement else { return }
         tooltipPlacement = layout.placement

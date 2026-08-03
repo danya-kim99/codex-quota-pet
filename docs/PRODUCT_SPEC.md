@@ -60,9 +60,9 @@ The size-selection design update was approved for implementation on
   objects, resizes around the pet's current center, and clamps the resulting
   panel to the current screen's visible frame. Dragging and fullscreen hiding
   continue to use the same behavior at every size.
-- The tooltip keeps its existing size and contents. Its attachment offset and
-  the pet's hover/click target scale with the selected pet size; stale-on-hover
-  quota refresh behavior is unchanged.
+- The tooltip keeps its existing contents. `L` uses the existing layout at 100%,
+  `M` scales it uniformly to 80%, and `S` uses the separately approved compact
+  circular layout below; stale-on-hover quota refresh behavior is unchanged.
 - VoiceOver quota and absorption actions, connection/retry behavior, data
   freshness, local-only processing, permissions, signing, packaging, and
   distribution scope are unchanged.
@@ -74,10 +74,48 @@ Acceptance criteria for this update:
 - the black-hole scene scales uniformly for every quota state while absorbable
   objects remain 48 × 48 pt;
 - resizing preserves the panel center when space permits, remains on-screen,
-  clears active absorption, and does not regress tooltip, hover, click, drag,
-  Standard/Turbo, Reduce Motion, reconnecting, or accessibility behavior;
+  clears active absorption, and gives each size its approved tooltip that
+  remains on-screen without regressing hover, click, drag, Standard/Turbo,
+  Reduce Motion, reconnecting, or accessibility behavior;
 - localized English and Russian menu labels are bundled, automated tests pass,
   and `./script/build_and_run.sh --verify` builds and launches the app.
+
+## Approved compact S tooltip
+
+The compact `S` tooltip design update was approved for implementation on
+3 August 2026 and supersedes only the earlier requirement that the `S` tooltip
+uniformly scale to 60%.
+
+- `L` and `M` keep their current tooltip layouts and 100% / 80% scales.
+- `S` uses a dedicated readable 248 × 112 pt card inside a 272 × 132 pt tooltip
+  panel instead of shrinking the existing card, text, and progress bar to 60%.
+- The compact card keeps the localized Available label, exact remaining
+  percentage, localized days until reset, and localized exact reset date and
+  time. Its circular quota indicator replaces the horizontal progress bar and
+  the redundant day-segment strip.
+- Standard shows a plain circular quota arc. Turbo adds static directional
+  chevrons on the filled arc and a filled bolt marker at the beginning of the
+  arc. The decorations do not animate and are hidden from accessibility.
+- The arc keeps the existing gold, orange, and purple quota thresholds. Missing
+  quota renders an em dash and an empty track; missing reset data keeps the
+  existing localized unavailable state.
+- Reduce Motion, hover refresh, drag behavior, four-side tooltip placement,
+  screen clamping, reconnecting and stale-data behavior, menu content,
+  VoiceOver summaries, localization, permissions, signing, packaging, and
+  distribution scope are unchanged.
+
+Acceptance criteria for this update:
+
+- selecting `S` produces the dedicated compact panel while `M` and `L` retain
+  their existing layouts and scales; the `S` panel is smaller than `M` in both
+  dimensions;
+- the `S` card remains readable and on-screen in Standard and Turbo, for every
+  quota color state, in English and Russian, and at each tooltip placement;
+- Turbo places a filled bolt at the start of the circular arc and shows static
+  chevrons only on the filled portion; Standard shows neither decoration;
+- the compact progress and reset information retain their existing accessible
+  labels, automated tests pass, and `./script/build_and_run.sh --verify` builds
+  and launches the app.
 
 ## Approved absorption interaction
 

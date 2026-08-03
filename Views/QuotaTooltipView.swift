@@ -26,6 +26,13 @@ struct QuotaTooltipView: View {
 
     static let cardWidth: CGFloat = 320
     static let panelSize = CGSize(width: cardWidth + 40, height: 178)
+    static let smallCardSize = CGSize(width: 248, height: 112)
+    static let smallPanelSize = CGSize(width: 272, height: 132)
+    private static let smallRingSize: CGFloat = 70
+    private static let smallRingLineWidth: CGFloat = 8
+    private static var smallRingRadius: CGFloat {
+        (smallRingSize - smallRingLineWidth) / 2
+    }
     // Gold sprite states render at roughly 214–216 pt inside BlackHoleView.
     static let petAnchorHalfSize = CGSize(width: 108, height: 64)
 
@@ -73,7 +80,142 @@ struct QuotaTooltipView: View {
         }
     }
 
+    @ViewBuilder
     var body: some View {
+        if appState.petSize == .small {
+            smallTooltipContent
+        } else {
+            let scaledPanelSize = Self.panelSize(for: appState.petSize)
+
+            tooltipContent
+                .scaleEffect(appState.petSize.scale)
+                .frame(width: scaledPanelSize.width, height: scaledPanelSize.height)
+        }
+    }
+
+    private var smallTooltipContent: some View {
+        HStack(spacing: 12) {
+            smallCircularProgress
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(NSLocalizedString("quota.available", comment: "Quota card title"))
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .lineLimit(1)
+
+                Divider()
+                    .overlay(.white.opacity(0.14))
+
+                smallResetRows
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(14)
+        .frame(width: Self.smallCardSize.width, height: Self.smallCardSize.height)
+        .background(cardColor, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(.white.opacity(0.18))
+        }
+        .overlay(alignment: pointerAlignment) {
+            tooltipPointer
+        }
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(
+            width: Self.smallPanelSize.width,
+            height: Self.smallPanelSize.height,
+            alignment: panelAlignment
+        )
+    }
+
+    private var smallCircularProgress: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(.white.opacity(0.13), lineWidth: Self.smallRingLineWidth)
+
+            if progressFraction > 0 {
+                Circle()
+                    .inset(by: Self.smallRingLineWidth / 2)
+                    .trim(from: 0, to: progressFraction)
+                    .stroke(
+                        quotaColor,
+                        style: StrokeStyle(
+                            lineWidth: Self.smallRingLineWidth,
+                            lineCap: .round
+                        )
+                    )
+                    .rotationEffect(.degrees(-90))
+            }
+
+            if speedMode == .turbo {
+                ForEach(1..<10, id: \.self) { index in
+                    let fraction = CGFloat(index) / 10
+                    if fraction <= progressFraction {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 5, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.45))
+                            .offset(y: -Self.smallRingRadius)
+                            .rotationEffect(.degrees(Double(fraction) * 360))
+                            .accessibilityHidden(true)
+                    }
+                }
+
+                Circle()
+                    .fill(cardColor)
+                    .overlay {
+                        Circle().stroke(quotaColor, lineWidth: 1.5)
+                    }
+                    .frame(width: 24, height: 24)
+                    .overlay {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(quotaColor)
+                    }
+                    .offset(y: -Self.smallRingRadius)
+                    .accessibilityHidden(true)
+            }
+
+            Text(remainingPercent.map { "\($0)%" } ?? "—")
+                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+        }
+        .frame(width: Self.smallRingSize, height: Self.smallRingSize)
+        .accessibilityRepresentation {
+            ProgressView(value: Double(remainingPercent ?? 0), total: 100) {
+                Text(NSLocalizedString("quota.available", comment: "Progress label"))
+            }
+        }
+    }
+
+    private var smallResetRows: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: "timer")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(daysUntilResetText)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            }
+
+            if let resetDate {
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    Text(compactResetText(resetDate))
+                        .font(.system(size: 10, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(resetAccessibilityLabel)
+    }
+
+    private var tooltipContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .lastTextBaseline) {
                 Text(NSLocalizedString("quota.available", comment: "Quota card title"))
@@ -116,6 +258,17 @@ struct QuotaTooltipView: View {
             height: Self.panelSize.height,
             alignment: panelAlignment
         )
+    }
+
+    static func panelSize(for petSize: PetSize) -> CGSize {
+        petSize == .small ? smallPanelSize : panelSize(forScale: petSize.scale)
+    }
+
+    static func panelSize(forScale scale: CGFloat) -> CGSize {
+        if scale <= PetSize.small.scale {
+            return smallPanelSize
+        }
+        return CGSize(width: panelSize.width * scale, height: panelSize.height * scale)
     }
 
     @ViewBuilder

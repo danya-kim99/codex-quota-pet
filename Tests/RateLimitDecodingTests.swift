@@ -78,7 +78,7 @@ final class RateLimitDecodingTests: XCTestCase {
                 petFrame: petFrame,
                 visibleFrame: screen
             )
-            let tooltipFrame = CGRect(origin: layout.origin, size: QuotaTooltipView.panelSize)
+            let tooltipFrame = CGRect(origin: layout.origin, size: layout.size)
 
             XCTAssertEqual(layout.placement, expectedPlacement)
             XCTAssertTrue(screen.contains(tooltipFrame))
@@ -94,6 +94,49 @@ final class RateLimitDecodingTests: XCTestCase {
         )
         XCTAssertNotEqual(first.origin, moved.origin)
         XCTAssertEqual(BlackHoleView.size, cases[0].0.size)
+    }
+
+    @MainActor
+    func testTooltipUsesDedicatedSmallLayout() {
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .large),
+            CGSize(width: 360, height: 178)
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .medium),
+            CGSize(width: 288, height: 142.4)
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .small),
+            CGSize(width: 272, height: 132)
+        )
+        XCTAssertEqual(QuotaTooltipView.smallCardSize, CGSize(width: 248, height: 112))
+        XCTAssertLessThan(
+            QuotaTooltipView.panelSize(for: .small).width,
+            QuotaTooltipView.panelSize(for: .medium).width
+        )
+        XCTAssertLessThan(
+            QuotaTooltipView.panelSize(for: .small).height,
+            QuotaTooltipView.panelSize(for: .medium).height
+        )
+
+        let screen = CGRect(x: 0, y: 0, width: 1_440, height: 900)
+        for petSize in PetSize.allCases {
+            let sceneSize = petSize.sceneSize
+            let petFrame = CGRect(
+                x: screen.midX - sceneSize.width / 2,
+                y: screen.midY - sceneSize.height / 2,
+                width: sceneSize.width,
+                height: sceneSize.height
+            )
+            let layout = PetPanelController.tooltipLayout(
+                petFrame: petFrame,
+                visibleFrame: screen
+            )
+
+            XCTAssertEqual(layout.size, QuotaTooltipView.panelSize(for: petSize))
+            XCTAssertTrue(screen.contains(CGRect(origin: layout.origin, size: layout.size)))
+        }
     }
 
     func testPetSizeOptionsUseApprovedDimensions() {
