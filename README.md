@@ -40,12 +40,12 @@ previews the complete six-frame loop, while the black core stays the same size.
   <tr>
     <td align="center"><img src="Assets/Sprites/previews/quota-60-animation.gif" alt="60% quota state" width="160"><br><strong>60%</strong></td>
     <td align="center"><img src="Assets/Sprites/previews/quota-50-animation.gif" alt="50% quota state" width="160"><br><strong>50%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-40-animation.gif" alt="40% quota state" width="160"><br><strong>40%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-40-animation.gif?v=0.4.1" alt="40% quota state" width="160"><br><strong>40%</strong></td>
     <td align="center"><img src="Assets/Sprites/previews/quota-30-animation.gif" alt="30% quota state" width="160"><br><strong>30%</strong></td>
   </tr>
   <tr>
     <td align="center"><img src="Assets/Sprites/previews/quota-20-animation.gif" alt="20% quota state" width="160"><br><strong>20%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-10-animation.gif" alt="10% quota state" width="160"><br><strong>10%</strong></td>
+    <td align="center"><img src="Assets/Sprites/previews/quota-10-animation.gif?v=0.4.1" alt="10% quota state" width="160"><br><strong>10%</strong></td>
     <td align="center"><img src="Assets/Sprites/previews/quota-0-animation.gif" alt="0% quota state" width="160"><br><strong>0%</strong></td>
   </tr>
 </table>
