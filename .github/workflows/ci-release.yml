@@ -1,0 +1,215 @@
+name: CI and Release
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish, for example 0.4.0
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: Black Hole Codex Quota Indicator.xcodeproj
+  SCHEME: Black Hole Codex Quota Indicator
+
+jobs:
+  verify:
+    name: Test
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Run unit tests
+        run: |
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
+      - name: Upload failed test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-test-results-${{ github.run_id }}
+          path: build/DerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    name: Publish preview
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: macos-15
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_DERIVED_DATA: build/ReleaseDerivedData
+    steps:
+      - name: Check out source and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release request
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Releases must be dispatched from main, not $GITHUB_REF" >&2
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use stable SemVer without a v prefix" >&2
+            exit 1
+          fi
+
+          tag="v$RELEASE_VERSION"
+          if git rev-parse --verify --quiet "refs/tags/$tag"; then
+            echo "Tag $tag already exists" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Build arm64 Release
+        run: |
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath "$RELEASE_DERIVED_DATA" \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            build
+
+      - name: Sign and validate bundle
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          app="$RELEASE_DERIVED_DATA/Build/Products/Release/$SCHEME.app"
+          info="$app/Contents/Info.plist"
+          binary="$app/Contents/MacOS/$SCHEME"
+
+          codesign \
+            --force \
+            --sign - \
+            --options runtime \
+            --timestamp=none \
+            "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+          built_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info")
+          build_number=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info")
+          minimum_macos=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info")
+          architectures=$(lipo -archs "$binary")
+
+          if [[ "$built_version" != "$RELEASE_VERSION" ]]; then
+            echo "Requested $RELEASE_VERSION but the app contains $built_version" >&2
+            echo "Bump MARKETING_VERSION before dispatching the release" >&2
+            exit 1
+          fi
+
+          if [[ "$architectures" != "arm64" ]]; then
+            echo "Expected an arm64-only binary, got: $architectures" >&2
+            exit 1
+          fi
+
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "build=$build_number" >> "$GITHUB_OUTPUT"
+          echo "minimum_macos=$minimum_macos" >> "$GITHUB_OUTPUT"
+
+      - name: Package preview
+        id: package
+        shell: bash
+        env:
+          APP_BUNDLE: ${{ steps.bundle.outputs.app }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          archive_name="Black-Hole-Codex-Quota-Indicator-$TAG-macos-arm64.zip"
+          archive="dist/$archive_name"
+          checksum="$archive.sha256"
+
+          ditto -c -k --keepParent "$APP_BUNDLE" "$archive"
+          (
+            cd dist
+            shasum -a 256 "$archive_name" > "$archive_name.sha256"
+            shasum -a 256 -c "$archive_name.sha256"
+          )
+
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          CHECKSUM: ${{ steps.package.outputs.checksum }}
+        run: |
+          gh release create "$TAG" \
+            "$ARCHIVE" \
+            "$CHECKSUM" \
+            --target "$GITHUB_SHA" \
+            --title "Black Hole Codex Quota Indicator $TAG" \
+            --generate-notes
+
+      - name: Verify published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          ARCHIVE_NAME: ${{ steps.package.outputs.archive_name }}
+        run: |
+          set -euo pipefail
+
+          expected_digest="sha256:$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
+          actual_digest=$(gh release view "$TAG" --json assets \
+            --jq ".assets[] | select(.name == \"$ARCHIVE_NAME\") | .digest")
+          asset_count=$(gh release view "$TAG" --json assets --jq '.assets | length')
+          release_url=$(gh release view "$TAG" --json url --jq '.url')
+
+          if [[ "$asset_count" != "2" ]]; then
+            echo "Expected two release assets, got $asset_count" >&2
+            exit 1
+          fi
+
+          if [[ "$actual_digest" != "$expected_digest" ]]; then
+            echo "Published archive digest does not match the local artifact" >&2
+            exit 1
+          fi
+
+          echo "Published $release_url"
+          echo "Version $RELEASE_VERSION, build ${{ steps.bundle.outputs.build }}"
+          echo "Minimum macOS ${{ steps.bundle.outputs.minimum_macos }}"
