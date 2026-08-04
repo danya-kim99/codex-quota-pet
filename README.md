@@ -210,10 +210,12 @@ GitHub Actions runs the unit tests on every pull request and every push to
 To publish a stable preview:
 
 1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the Xcode project.
-2. Commit and push the release changes to `main`, then wait for CI to pass.
-3. Open **Actions → CI and Release → Run workflow**, keep the `main` branch, and
+2. Add `docs/releases/vX.Y.Z.md` with a user-facing summary, the changes in the
+   release, install/update instructions, and completed verification results.
+3. Commit and push the release changes to `main`, then wait for CI to pass.
+4. Open **Actions → CI and Release → Run workflow**, keep the `main` branch, and
    enter the version without the `v` prefix, for example `0.4.0`.
-4. Wait for the workflow to test, build, ad-hoc sign, validate, package, checksum,
+5. Wait for the workflow to test, build, ad-hoc sign, validate, package, checksum,
    tag, and publish the GitHub Release.
 
 The workflow rejects releases from another branch, invalid or existing versions,
@@ -225,7 +227,10 @@ For a Codex agent, use this prompt:
 
 > Prepare a new stable preview release of Black Hole Codex Quota Indicator.
 > Determine the SemVer version, update `MARKETING_VERSION` and increment
-> `CURRENT_PROJECT_VERSION`, then commit and push the release changes to `main`.
+> `CURRENT_PROJECT_VERSION`, and write complete user-facing release notes to
+> `docs/releases/vX.Y.Z.md` in the same format as the latest detailed release.
+> Derive the changes from the diff since the previous tag and include only
+> verification that actually ran. Then commit and push the release changes to `main`.
 > Do not build, sign, package, checksum, tag, or publish locally. Wait for the
 > `CI and Release` workflow on `main` to pass, then dispatch that workflow from
 > `main` with the version number without a `v` prefix. Wait for completion and

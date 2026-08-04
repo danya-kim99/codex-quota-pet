@@ -92,7 +92,14 @@ jobs:
             exit 1
           fi
 
+          notes_file="docs/releases/$tag.md"
+          if [[ ! -s "$notes_file" ]]; then
+            echo "Add human-readable release notes to $notes_file before publishing" >&2
+            exit 1
+          fi
+
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
 
       - name: Build arm64 Release
         run: |
@@ -174,6 +181,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
+          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
           ARCHIVE: ${{ steps.package.outputs.archive }}
           CHECKSUM: ${{ steps.package.outputs.checksum }}
         run: |
@@ -182,7 +190,7 @@ jobs:
             "$CHECKSUM" \
             --target "$GITHUB_SHA" \
             --title "Black Hole Codex Quota Indicator $TAG" \
-            --generate-notes
+            --notes-file "$NOTES_FILE"
 
       - name: Verify published release
         shell: bash
