@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Black Hole Characters"
+  short_description: "Generate, approve, integrate, and release characters"
+  default_prompt: "Use $add-black-hole-characters to add approved pixel characters to the black-hole app and prepare its preview release."

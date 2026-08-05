@@ -139,8 +139,8 @@ V3 design and uses the bundled manifest-driven asset set.
 - Objects spawn inside an edge of the selected 400 × 220, 320 × 176, or
   240 × 132 pt pet window. The feature does not create a desktop-wide overlay
   or inspect applications, files, or other windows.
-- The bundled set contains 28 approved models: twelve space objects, twelve
-  cute animals, and four characters. Category selection uses `2 : 2 : 1`
+- The bundled set contains 31 approved models: twelve space objects, twelve
+  cute animals, and seven characters. Category selection uses `2 : 2 : 1`
   weights, producing 40% space objects, 40% animals, and 20% characters, with
   no immediate model repeat.
 - At most three objects can be active. Their starting sides differ when
@@ -183,6 +183,10 @@ V3 design and uses the bundled manifest-driven asset set.
   ID, category, and PNG asset. Sprites load lazily through the existing cache
   approach. Adding a normal model or category requires assets and manifest data,
   not a new Swift animation branch.
+
+Three additional user-approved characters were added on 5 August 2026 from the
+approved cream-sweater, cargo-skirt, and botanical-shirt concepts. They use the
+existing character category weight and do not change interaction behavior.
 
 The V2 astronaut animation is the approved representative visual prototype.
 The slower V3 timing is approved through the three-object launch with varied

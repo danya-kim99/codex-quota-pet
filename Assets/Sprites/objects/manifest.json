@@ -157,6 +157,21 @@
       "id": "character-glasses",
       "category": "characters",
       "asset": "absorb-character-glasses"
+    },
+    {
+      "id": "character-cream-sweater",
+      "category": "characters",
+      "asset": "absorb-character-cream-sweater"
+    },
+    {
+      "id": "character-cargo-skirt",
+      "category": "characters",
+      "asset": "absorb-character-cargo-skirt"
+    },
+    {
+      "id": "character-botanical-shirt",
+      "category": "characters",
+      "asset": "absorb-character-botanical-shirt"
     }
   ]
 }

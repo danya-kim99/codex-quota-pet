@@ -111,8 +111,8 @@ boundary is recorded in `docs/ARCHITECTURE.md`.
 
 ## Optional pixel-art interaction
 
-Click the black hole to pull in a random pixel-art object. The v0.2.0 catalog
-contains 28 space objects, cute animals, and characters. Rapid clicks can launch
+Click the black hole to pull in a random pixel-art object. The current catalog
+contains 31 space objects, cute animals, and characters. Rapid clicks can launch
 up to three objects at once along different trajectories, with gravitational
 stretching and a pixel-breakup finish.
 

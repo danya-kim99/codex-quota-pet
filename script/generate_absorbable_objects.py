@@ -13,6 +13,8 @@ from PIL import Image, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 OBJECT_SOURCE = ROOT / "docs/concepts/absorbable-objects-contact-sheet-v1.png"
 CHARACTER_SOURCE = ROOT / "docs/concepts/characters-contact-sheet-v1.png"
+CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-05-v1.png"
+FINAL_CHARACTER_PAIR_SOURCE = ROOT / "docs/concepts/absorbable-people-06-07-v1.png"
 OUTPUT_DIR = ROOT / "Assets/Sprites/objects"
 PREVIEW = ROOT / "Assets/Sprites/previews/absorbable-objects-atlas.png"
 CANVAS_SIZE = (64, 64)
@@ -47,6 +49,9 @@ MODELS = [
     ("character-purple-shirt", "characters"),
     ("character-green-hoodie", "characters"),
     ("character-glasses", "characters"),
+    ("character-cream-sweater", "characters"),
+    ("character-cargo-skirt", "characters"),
+    ("character-botanical-shirt", "characters"),
 ]
 
 OBJECT_MODELS = MODELS[:24]
@@ -194,7 +199,7 @@ def validate(sprites: dict[str, Image.Image]) -> None:
 def save_preview(sprites: dict[str, Image.Image]) -> None:
     cell_size = (128, 112)
     columns = 7
-    rows = 4
+    rows = (len(MODELS) + columns - 1) // columns
     preview = Image.new(
         "RGB",
         (cell_size[0] * columns, cell_size[1] * rows),
@@ -254,7 +259,19 @@ def main() -> None:
         inset=20,
     )
     sprites.update(
-        extract_sheet(CHARACTER_SOURCE, CHARACTER_MODELS, columns=4, rows=1, inset=28)
+        extract_sheet(CHARACTER_SOURCE, CHARACTER_MODELS[:4], columns=4, rows=1, inset=28)
+    )
+    sprites.update(
+        extract_sheet(CREAM_SWEATER_SOURCE, CHARACTER_MODELS[4:5], columns=1, rows=1, inset=28)
+    )
+    sprites.update(
+        extract_sheet(
+            FINAL_CHARACTER_PAIR_SOURCE,
+            CHARACTER_MODELS[5:],
+            columns=2,
+            rows=1,
+            inset=28,
+        )
     )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
