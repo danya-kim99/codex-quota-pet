@@ -139,6 +139,22 @@ final class RateLimitDecodingTests: XCTestCase {
             QuotaTooltipView.panelSize(for: .medium).height
         )
 
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .large, style: .pixel),
+            CGSize(width: 420, height: 210)
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .medium, style: .pixel),
+            CGSize(width: 336, height: 168)
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.panelSize(for: .small, style: .pixel),
+            CGSize(width: 304, height: 148)
+        )
+        XCTAssertEqual(PixelQuotaTooltipView.largeCardSize, CGSize(width: 390, height: 180))
+        XCTAssertEqual(PixelQuotaTooltipView.mediumCardSize, CGSize(width: 312, height: 144))
+        XCTAssertEqual(PixelQuotaTooltipView.smallCardSize, CGSize(width: 280, height: 128))
+
         let screen = CGRect(x: 0, y: 0, width: 1_440, height: 900)
         for petSize in PetSize.allCases {
             let sceneSize = petSize.sceneSize
@@ -364,6 +380,9 @@ final class RateLimitDecodingTests: XCTestCase {
             "menu.hide_pet": ("Hide Pet", "Скрыть питомца"),
             "menu.show_pet": ("Show Pet", "Показать питомца"),
             "menu.size": ("Size", "Размер"),
+            "menu.tooltip_style": ("Tooltip Style", "Стиль подсказки"),
+            "tooltip_style.smooth": ("Smooth", "Обычный"),
+            "tooltip_style.pixel": ("Pixel", "Стилизованный"),
             "menu.hide_full_screen": ("Hide in Full Screen", "Скрывать в полноэкранном режиме"),
             "menu.launch_at_login": ("Launch at Login", "Запускать при входе"),
             "menu.approval_required": ("Approval Required", "Требуется разрешение"),
@@ -414,6 +433,13 @@ final class RateLimitDecodingTests: XCTestCase {
                 windowDurationMinutes: 10_080
             )
         )
+        XCTAssertNil(
+            QuotaTooltipView.dayIndicator(
+                resetDate: resetDate,
+                now: now,
+                windowDurationMinutes: nil
+            )
+        )
 
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
@@ -448,6 +474,47 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(QuotaTooltipView.quotaLevel(for: 10), .warning)
         XCTAssertEqual(QuotaTooltipView.quotaLevel(for: 9), .critical)
         XCTAssertEqual(QuotaTooltipView.quotaLevel(for: 0), .critical)
+        XCTAssertEqual(QuotaTooltipView.quotaLevel(for: nil), .normal)
+    }
+
+    func testSharedTooltipContentCoversBoundariesAndPartialResetData() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let resetDate = now.addingTimeInterval(2 * 86_400)
+        let content = QuotaTooltipContent(
+            remainingPercent: 125,
+            speedMode: .turbo,
+            connectionState: .reconnecting,
+            resetDate: resetDate,
+            windowDurationMinutes: nil,
+            now: now,
+            locale: Locale(identifier: "en_US"),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(content.progressFraction, 1)
+        XCTAssertEqual(content.progressPresentation, .turbo)
+        XCTAssertTrue(content.isStale)
+        XCTAssertNil(content.dayIndicator)
+        XCTAssertNotNil(content.compactResetText)
+        XCTAssertFalse(content.daysUntilResetText.isEmpty)
+
+        let missing = QuotaTooltipContent(
+            remainingPercent: nil,
+            speedMode: .standard,
+            connectionState: .disconnected,
+            resetDate: nil,
+            windowDurationMinutes: nil,
+            now: now,
+            locale: Locale(identifier: "ru_RU"),
+            calendar: calendar
+        )
+        XCTAssertEqual(missing.progressFraction, 0)
+        XCTAssertFalse(missing.isStale)
+        XCTAssertNil(missing.compactResetText)
+        XCTAssertNil(missing.dayIndicator)
+        XCTAssertFalse(missing.accessibilitySummary.isEmpty)
     }
 
     @MainActor
@@ -867,6 +934,67 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(AppState(defaults: defaults).petSize, .large)
     }
 
+    @MainActor
+    func testTooltipStyleDefaultsPersistsAndFallsBackFromInvalidValue() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let appState = AppState(defaults: defaults)
+        XCTAssertEqual(appState.tooltipStyle, .smooth)
+
+        appState.setTooltipStyle(.pixel)
+        XCTAssertEqual(appState.tooltipStyle, .pixel)
+        XCTAssertEqual(defaults.string(forKey: AppConstants.tooltipStyleKey), "pixel")
+        XCTAssertEqual(AppState(defaults: defaults).tooltipStyle, .pixel)
+
+        defaults.set("future-invalid-style", forKey: AppConstants.tooltipStyleKey)
+        XCTAssertEqual(AppState(defaults: defaults).tooltipStyle, .smooth)
+    }
+
+    @MainActor
+    func testOpenTooltipSwitchesStyleInPlaceWithoutQuotaTraffic() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appServer = FakeAppServer()
+        let appState = AppState(defaults: defaults, appServer: appServer)
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+        controller.setTooltipVisible(true)
+
+        let petFrame = try XCTUnwrap(controller.petFrame)
+        XCTAssertEqual(controller.tooltipFrame?.size, QuotaTooltipView.panelSize(for: .large))
+
+        appState.setTooltipStyle(.pixel)
+        controller.updateTooltipStyle()
+
+        XCTAssertTrue(controller.isTooltipVisible)
+        XCTAssertEqual(
+            controller.tooltipFrame?.size,
+            QuotaTooltipView.panelSize(for: .large, style: .pixel)
+        )
+        XCTAssertEqual(controller.petFrame, petFrame)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+        controller.hide()
+    }
+
+    @MainActor
+    func testTooltipLayoutPreservesPreferredSideWhenNewStyleFits() {
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1_600, height: 1_000)
+        let petFrame = CGRect(x: 600, y: 390, width: 400, height: 220)
+        let layout = PetPanelController.tooltipLayout(
+            petFrame: petFrame,
+            visibleFrame: visibleFrame,
+            tooltipStyle: .pixel,
+            preferredPlacement: .left
+        )
+
+        XCTAssertEqual(layout.placement, .left)
+        XCTAssertEqual(layout.size, PixelQuotaTooltipView.largePanelSize)
+        XCTAssertTrue(visibleFrame.contains(CGRect(origin: layout.origin, size: layout.size)))
+    }
+
     func testSmallAbsorptionSpawnPointsKeepObjectsInsideScene() {
         let object = AbsorbableObjectManifest.Object(
             id: "test",
@@ -999,6 +1127,24 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertTrue(appState.launchesAtLogin)
         XCTAssertTrue(controller.isContextMenuVisible)
 
+        controller.hide()
+    }
+
+    @MainActor
+    func testContextMenuTooltipStyleActionUpdatesPreferenceWithoutQuotaTraffic() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appServer = FakeAppServer()
+        let appState = AppState(defaults: defaults, appServer: appServer)
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+
+        controller.contextMenuActions(appState: appState).setTooltipStyle(.pixel)
+
+        XCTAssertEqual(appState.tooltipStyle, .pixel)
+        XCTAssertEqual(defaults.string(forKey: AppConstants.tooltipStyleKey), "pixel")
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
         controller.hide()
     }
 

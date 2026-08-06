@@ -14,6 +14,7 @@ final class AppState {
     private(set) var errorMessage: String?
     private(set) var isPetVisible = true
     private(set) var petSize: PetSize
+    private(set) var tooltipStyle: TooltipStyle
     private(set) var hidesInFullScreenApps: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
@@ -57,6 +58,9 @@ final class AppState {
         petSize = PetSize(
             rawValue: defaults.string(forKey: AppConstants.petSizeKey) ?? ""
         ) ?? .large
+        tooltipStyle = TooltipStyle(
+            rawValue: defaults.string(forKey: AppConstants.tooltipStyleKey) ?? ""
+        ) ?? .smooth
         hidesInFullScreenApps = defaults.bool(forKey: AppConstants.hideInFullScreenAppsKey)
     }
 
@@ -186,6 +190,12 @@ final class AppState {
         resetAbsorptionScene()
     }
 
+    func setTooltipStyle(_ style: TooltipStyle) {
+        guard style != tooltipStyle else { return }
+        tooltipStyle = style
+        defaults.set(style.rawValue, forKey: AppConstants.tooltipStyleKey)
+    }
+
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         hidesInFullScreenApps = isEnabled
         defaults.set(isEnabled, forKey: AppConstants.hideInFullScreenAppsKey)
@@ -209,6 +219,18 @@ final class AppState {
 
     func openLoginItemsSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+}
+
+enum TooltipStyle: String, CaseIterable, Sendable {
+    case smooth
+    case pixel
+
+    var title: String {
+        NSLocalizedString(
+            self == .smooth ? "tooltip_style.smooth" : "tooltip_style.pixel",
+            comment: "Tooltip visual style"
+        )
     }
 }
 

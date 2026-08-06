@@ -18,6 +18,9 @@ The menu also controls whether the main app launches when the user logs in.
 It also offers persistent S (240 × 132 pt), M (320 × 176 pt), and
 L (400 × 220 pt) pet sizes; the quota tooltip adapts to the pet size, while
 absorbed objects remain 48 × 48 pt at every size.
+The tooltip style can be switched between the original Smooth presentation and
+a code-native Pixel presentation from either the menu bar or the pet's context
+menu. The choice is saved between launches.
 VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
@@ -66,6 +69,14 @@ not lost.
 The tooltip follows the pet, chooses a visible side of the screen automatically,
 and stays hidden while the pet is being dragged.
 
+Choose **Tooltip Style → Smooth / Pixel** from the menu bar, or the corresponding
+**Стиль подсказки → Обычный / Стилизованный** control in Russian. Smooth keeps
+the original quota card. Pixel uses the black hole's stepped gold, orange, and
+purple visual language, with dedicated layouts for L/M and the compact S size.
+Both styles show the same quota, Standard/Turbo mode, reset information, stale
+state, localization, and VoiceOver summary. Switching an open tooltip updates it
+immediately without moving the pet or refreshing quota data.
+
 <p align="center">
   <img src="docs/images/quota-tooltip-en.png"
        alt="English Turbo-mode quota tooltip showing 89% available and five days until reset"
@@ -75,9 +86,9 @@ and stays hidden while the pet is being dragged.
 1. **Available quota** — the live percentage from the primary Codex rate-limit
    bucket. The value and bar use gold at 30% and above, orange from 10–29%, and
    purple below 10%.
-2. **Mode-aware progress bar** — Standard uses a smooth bar; Turbo adds the
-   lightning badge, chevrons, and a brighter leading edge. The mode comes from
-   the active Codex service tier rather than from the percentage.
+2. **Mode-aware progress** — Standard uses a plain fill or arc; Turbo adds a
+   lightning badge and static directional details. The mode comes from the
+   active Codex service tier rather than from the percentage.
 3. **Reset window** — segmented marks show the remaining days within the real
    quota window, followed by a localized countdown and reset date/time.
 
@@ -86,9 +97,9 @@ and stays hidden while the pet is being dragged.
 Secondary-click the visible black hole or accretion disk with a mouse, trackpad,
 or Control-click to open a custom pixel-art menu. It provides the current
 frequently used controls without repeating quota details: conditional retry,
-S/M/L size selection, fullscreen hiding, launch at login, hiding the pet, and
-quitting the app. Setting toggles update their checkmarks without closing the
-menu.
+S/M/L size selection, Smooth/Pixel tooltip style, fullscreen hiding, launch at
+login, hiding the pet, and quitting the app. Setting toggles update their
+checkmarks without closing the menu; choosing a tooltip style closes it.
 
 The menu uses the black hole's gold, orange, and purple palette with a reversible
 spaghettification animation. It stays on screen near the pointer, supports

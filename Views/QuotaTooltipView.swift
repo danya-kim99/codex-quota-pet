@@ -1,5 +1,86 @@
 import SwiftUI
 
+struct QuotaTooltipContent {
+    let remainingPercent: Int?
+    let speedMode: SpeedMode
+    let connectionState: ConnectionState
+    let resetDate: Date?
+    let windowDurationMinutes: Int64?
+    let now: Date
+    let locale: Locale
+    let calendar: Calendar
+
+    var progressFraction: CGFloat {
+        CGFloat(min(100, max(0, remainingPercent ?? 0))) / 100
+    }
+
+    var quotaLevel: QuotaTooltipView.QuotaLevel {
+        QuotaTooltipView.quotaLevel(for: remainingPercent)
+    }
+
+    var progressPresentation: QuotaTooltipView.ProgressPresentation {
+        QuotaTooltipView.progressPresentation(for: speedMode)
+    }
+
+    var dayIndicator: QuotaTooltipView.DayIndicator? {
+        QuotaTooltipView.dayIndicator(
+            resetDate: resetDate,
+            now: now,
+            windowDurationMinutes: windowDurationMinutes
+        )
+    }
+
+    var daysUntilResetText: String {
+        guard let resetDate else {
+            return NSLocalizedString("reset.unavailable", comment: "Missing reset time")
+        }
+        let remainingDays = max(0, Int(resetDate.timeIntervalSince(now) / 86_400))
+        let dayCount = QuotaTooltipView.localizedDayCount(
+            remainingDays,
+            locale: locale,
+            calendar: calendar
+        )
+        return String(
+            format: NSLocalizedString("reset.days.remaining", comment: "Days until reset"),
+            locale: locale,
+            dayCount
+        )
+    }
+
+    var compactResetText: String? {
+        guard let resetDate else { return nil }
+        let parts = QuotaTooltipView.resetDateParts(
+            resetDate,
+            relativeTo: now,
+            locale: locale,
+            calendar: calendar
+        )
+        return String(
+            format: NSLocalizedString("reset.compact.absolute", comment: "Compact reset time"),
+            locale: locale,
+            parts.date,
+            parts.time
+        )
+    }
+
+    var resetAccessibilityLabel: String {
+        [daysUntilResetText, compactResetText].compactMap { $0 }.joined(separator: ", ")
+    }
+
+    var isStale: Bool {
+        remainingPercent != nil && connectionState != .connected
+    }
+
+    var accessibilitySummary: String {
+        QuotaTooltipView.accessibilitySummary(
+            remainingPercent: remainingPercent,
+            speedMode: speedMode,
+            connectionState: connectionState,
+            resetDate: resetDate
+        )
+    }
+}
+
 struct QuotaTooltipView: View {
     enum Placement: Equatable {
         case above
@@ -41,6 +122,7 @@ struct QuotaTooltipView: View {
 
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
 
     private let gold = Color(red: 1, green: 0.76, blue: 0.31)
     private let orange = Color(red: 1, green: 0.34, blue: 0.16)
@@ -52,28 +134,37 @@ struct QuotaTooltipView: View {
         self.placement = placement
     }
 
-    private var remainingPercent: Int? {
-        appState.quota?.primary?.remainingPercent
-    }
-
-    private var speedMode: SpeedMode {
-        appState.speedMode
-    }
-
-    private var resetDate: Date? {
-        appState.quota?.primary?.resetDate
-    }
-
-    private var dayIndicator: DayIndicator? {
-        Self.dayIndicator(
-            resetDate: resetDate,
+    private var content: QuotaTooltipContent {
+        QuotaTooltipContent(
+            remainingPercent: appState.quota?.primary?.remainingPercent,
+            speedMode: appState.speedMode,
+            connectionState: appState.connectionState,
+            resetDate: appState.quota?.primary?.resetDate,
+            windowDurationMinutes: appState.quota?.primary?.windowDurationMins,
             now: Date(),
-            windowDurationMinutes: appState.quota?.primary?.windowDurationMins
+            locale: locale,
+            calendar: calendar
         )
     }
 
+    private var remainingPercent: Int? {
+        content.remainingPercent
+    }
+
+    private var speedMode: SpeedMode {
+        content.speedMode
+    }
+
+    private var resetDate: Date? {
+        content.resetDate
+    }
+
+    private var dayIndicator: DayIndicator? {
+        content.dayIndicator
+    }
+
     private var quotaColor: Color {
-        switch Self.quotaLevel(for: remainingPercent) {
+        switch content.quotaLevel {
         case .normal: gold
         case .warning: orange
         case .critical: purple
@@ -82,10 +173,36 @@ struct QuotaTooltipView: View {
 
     @ViewBuilder
     var body: some View {
+        let accessibilityScale = min(1.5, max(1, textScale))
+        let baseSize = Self.panelSize(
+            for: appState.petSize,
+            style: appState.tooltipStyle
+        )
+
+        Group {
+            if appState.tooltipStyle == .pixel {
+                PixelQuotaTooltipView(
+                    content: content,
+                    placement: placement,
+                    petSize: appState.petSize
+                )
+            } else {
+                smoothTooltip
+            }
+        }
+        .scaleEffect(accessibilityScale)
+        .frame(
+            width: baseSize.width * accessibilityScale,
+            height: baseSize.height * accessibilityScale
+        )
+    }
+
+    @ViewBuilder
+    private var smoothTooltip: some View {
         if appState.petSize == .small {
             smallTooltipContent
         } else {
-            let scaledPanelSize = Self.panelSize(for: appState.petSize)
+            let scaledPanelSize = Self.panelSize(for: appState.petSize, style: .smooth)
 
             tooltipContent
                 .scaleEffect(appState.petSize.scale)
@@ -260,11 +377,25 @@ struct QuotaTooltipView: View {
         )
     }
 
-    static func panelSize(for petSize: PetSize) -> CGSize {
-        petSize == .small ? smallPanelSize : panelSize(forScale: petSize.scale)
+    static func panelSize(for petSize: PetSize, style: TooltipStyle = .smooth) -> CGSize {
+        if style == .pixel {
+            return PixelQuotaTooltipView.panelSize(for: petSize)
+        }
+        return petSize == .small ? smallPanelSize : panelSize(forScale: petSize.scale)
     }
 
-    static func panelSize(forScale scale: CGFloat) -> CGSize {
+    static func panelSize(
+        forScale scale: CGFloat,
+        style: TooltipStyle = .smooth
+    ) -> CGSize {
+        if style == .pixel {
+            if scale <= PetSize.small.scale {
+                return PixelQuotaTooltipView.smallPanelSize
+            }
+            return scale < 0.9
+                ? PixelQuotaTooltipView.mediumPanelSize
+                : PixelQuotaTooltipView.largePanelSize
+        }
         if scale <= PetSize.small.scale {
             return smallPanelSize
         }
@@ -318,7 +449,7 @@ struct QuotaTooltipView: View {
 
     private var progressBar: some View {
         GeometryReader { geometry in
-            switch Self.progressPresentation(for: speedMode) {
+            switch content.progressPresentation {
             case .standard:
                 standardProgressBar(in: geometry.size)
             case .turbo:
@@ -387,7 +518,7 @@ struct QuotaTooltipView: View {
     }
 
     private var progressFraction: CGFloat {
-        CGFloat(remainingPercent ?? 0) / 100
+        content.progressFraction
     }
 
     private var resetRow: some View {
@@ -433,41 +564,15 @@ struct QuotaTooltipView: View {
     }
 
     private var daysUntilResetText: String {
-        guard let dayIndicator else {
-            return NSLocalizedString("reset.unavailable", comment: "Missing reset time")
-        }
-
-        let dayCount = Self.localizedDayCount(
-            dayIndicator.activeSegments,
-            locale: locale,
-            calendar: calendar
-        )
-
-        return String(
-            format: NSLocalizedString("reset.days.remaining", comment: "Days until reset"),
-            locale: locale,
-            dayCount
-        )
+        content.daysUntilResetText
     }
 
     private func compactResetText(_ date: Date) -> String {
-        let parts = Self.resetDateParts(
-            date,
-            relativeTo: Date(),
-            locale: locale,
-            calendar: calendar
-        )
-        return String(
-            format: NSLocalizedString("reset.compact.absolute", comment: "Compact reset time"),
-            locale: locale,
-            parts.date,
-            parts.time
-        )
+        content.compactResetText ?? ""
     }
 
     private var resetAccessibilityLabel: String {
-        guard let resetDate else { return daysUntilResetText }
-        return "\(daysUntilResetText), \(compactResetText(resetDate))"
+        content.resetAccessibilityLabel
     }
 
     static func progressPresentation(for speedMode: SpeedMode) -> ProgressPresentation {
@@ -479,15 +584,12 @@ struct QuotaTooltipView: View {
         now: Date,
         windowDurationMinutes: Int64?
     ) -> DayIndicator? {
-        guard let resetDate else { return nil }
+        guard let resetDate, let windowDurationMinutes, windowDurationMinutes > 0 else {
+            return nil
+        }
 
         let remainingDays = max(0, Int(resetDate.timeIntervalSince(now) / 86_400))
-        let totalSegments: Int
-        if let windowDurationMinutes, windowDurationMinutes > 0 {
-            totalSegments = max(1, Int(ceil(Double(windowDurationMinutes) / 1_440)))
-        } else {
-            totalSegments = max(1, remainingDays)
-        }
+        let totalSegments = max(1, Int(ceil(Double(windowDurationMinutes) / 1_440)))
 
         return DayIndicator(
             activeSegments: min(remainingDays, totalSegments),
@@ -549,13 +651,23 @@ struct QuotaTooltipView: View {
     ) -> String {
         var details: [String] = []
         if let remainingPercent {
+            let key = connectionState == .connected
+                ? "quota.percent.remaining"
+                : "accessibility.quota.last_known"
             details.append(
                 String(
                     format: NSLocalizedString(
-                        "quota.percent.remaining",
+                        key,
                         comment: "Accessible remaining quota"
                     ),
                     remainingPercent
+                )
+            )
+        } else {
+            details.append(
+                NSLocalizedString(
+                    "accessibility.quota.unavailable",
+                    comment: "Accessible unavailable quota"
                 )
             )
         }

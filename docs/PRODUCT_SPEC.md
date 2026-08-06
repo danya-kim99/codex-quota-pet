@@ -125,6 +125,136 @@ Acceptance criteria for this update:
   labels, automated tests pass, and `./script/build_and_run.sh --verify` builds
   and launches the app.
 
+## Approved Smooth and Pixel tooltip styles
+
+The selectable tooltip-style design freeze was approved for implementation on
+6 August 2026. The representative system prototype, including the system
+monospaced typography, style-dependent L/M/S geometry, Standard/Turbo states,
+English/Russian copy, quota colors, stale and missing-data states, and comparison
+with the unchanged Smooth presentation, was approved the same day.
+
+- The app exposes exactly two tooltip styles. `Smooth` is the current tooltip;
+  its normal-text-size typography, colors, layout, dimensions, pointer, progress
+  semantics, S composition, shadows, and absence of continuous animation remain
+  visually unchanged. `Pixel` is a code-native SwiftUI presentation aligned
+  with the approved black-hole sprites and pixel context menu. The concept PNGs
+  remain visual references and are not shipped as flattened tooltip assets.
+- `AppState` owns one persisted raw-value preference, `smooth` or `pixel`.
+  Fresh installs, migrated installs with no stored value, and invalid values use
+  `smooth`. Changing style never refreshes quota or starts another App Server
+  process.
+- The menu bar exposes `Tooltip Style -> Smooth / Pixel` in English and
+  `Стиль подсказки -> Обычный / Стилизованный` in Russian. The custom pixel
+  context menu exposes the same choice in a side submenu, grows only its fixed
+  panel height from 318 to 350 pt, and keeps its 386 pt width and existing row
+  geometry. Choosing a style closes the context menu. The main style icon uses
+  overlapping normal and stepped cards; submenu icons distinguish normal and
+  stepped cards, while the current selection uses the existing trailing
+  checkmark. Icons are static and decorative for accessibility.
+- Context-menu keyboard behavior matches the size submenu: Right Arrow enters,
+  Up and Down Arrow move selection, Left Arrow returns, Return or Space selects,
+  and Escape dismisses. VoiceOver reads the localized label and selected state.
+- Both presentations consume one shared semantic tooltip-content value covering
+  exact primary remaining percentage and quota level, Standard/Turbo, reset
+  countdown and absolute date, reset-duration availability, missing and stale
+  state, and the accessibility summary. Smooth and Pixel remain two focused
+  presentations; there is no theme engine, renderer protocol, factory, arbitrary
+  skin system, or speculative secondary/history content.
+- Pixel uses the system monospaced font at medium/semibold weights. No font is
+  bundled and no font dependency is added. The selected system face has complete
+  glyph coverage for the bundled English and Russian tooltip and picker copy.
+  Short structural labels and mode names use uppercase; dynamic phrases and
+  dates use normal localized casing.
+- Pixel reuses the approved pixel-context-menu background, inner-border, purple
+  hard-shadow, orange-accent, and bright-gold chrome palette. Its frame never
+  changes with quota. Quota content uses the existing Smooth colors: gold
+  `#FFC24F`, orange `#FF5729`, and purple `#AD45F0`.
+- At normal system text size, Pixel L uses a 420 x 210 pt panel with a
+  390 x 180 pt card. M uses the same composition at 80%, producing a
+  336 x 168 pt panel with a 312 x 144 pt card. S uses a dedicated
+  304 x 148 pt panel with a 280 x 128 pt card and circular quota indicator.
+  L/M show the title, mode badge, large percentage, linear progress, reset
+  window, countdown, and exact date. S shows the percentage in a circular
+  indicator with mode, countdown, and exact date beside it and omits reset
+  segments.
+- Standard uses a plain fill or arc and a mode badge without a bolt. Turbo adds
+  a static bolt, static chevrons only on the filled portion, and a static end
+  marker kept inside progress bounds. S places the bolt at the beginning of the
+  filled arc. No tooltip decoration loops or animates.
+- Tooltip quota colors use the current thresholds: 30-100% gold, 10-29% orange,
+  and 0-9% purple. At 0%, the track or ring is empty, chevrons and the end marker
+  are absent, and a known Turbo badge and bolt remain. At 100%, fill stops at the
+  inner bound. Missing quota uses an em dash and an empty neutral indicator while
+  retaining a known Standard/Turbo mode.
+- If `resetsAt` is unavailable, Pixel shows the localized unavailable message
+  without segments or a calendar row. If `resetsAt` exists but window duration
+  is unavailable or invalid, both presentations show countdown and exact date
+  without inventing reset-window segments. When both are valid, the full reset
+  presentation is shown.
+- During reconnecting with a last accepted snapshot, both styles retain the
+  values and accessibility summary. Pixel dims only its informational content
+  to 62% opacity while keeping its frame and pointer fully visible; it does not
+  add a stale badge. Smooth remains visually unchanged. VoiceOver identifies the
+  value as last known and announces the connection state.
+- The Pixel pointer is one code-native stepped shape rendered above, below, left,
+  or right. L-to-M scales it to 80%; S uses a compact form of the same geometry.
+  Borders, shadow, pointer, icons, bolt, chevrons, segments, and progress end
+  markers are hidden from accessibility.
+- Changing style while the tooltip is open updates it immediately without a
+  fade or morph, preserves the current side and pointer attachment when it fits,
+  resizes the native panel, and clamps it inside the current screen's visible
+  frame. If that side no longer fits, the controller chooses the next fitting
+  side before clamping. A hidden tooltip uses the selected style on its next
+  hover.
+- The tooltip belongs to the display containing the largest part of the pet,
+  stays inside that display's visible frame, and never moves the pet during a
+  style change. Dock and menu-bar insets continue to be respected.
+- The approved dimensions are bases for normal text size. At accessibility text
+  sizes, both presentations may expand and reflow inside the current visible
+  frame: percentage, mode, and the em dash are never truncated; reset text may
+  wrap to two lines; S keeps its circular composition but may grow vertically;
+  and compact system date formatting is preferred before reducing legibility.
+  There is no internal scrolling.
+- Pet and menu-bar VoiceOver summaries use the same semantic formatter and
+  include the exact percentage or localized unavailable state, Standard/Turbo,
+  connection state, last-known wording when stale, and reset date when known.
+  The visual style name is not included. The tooltip remains noninteractive and
+  does not add a keyboard stop.
+- Existing hover refresh, drag restoration, absorption and context-menu
+  suppression, size-change hiding, fullscreen suppression, pet hit testing,
+  hide/show behavior, and reconnect logic are unchanged for both styles. Opening
+  or switching a tooltip cannot add network traffic.
+- Pixel has no `TimelineView`, timer, continuous Canvas refresh, or rendering
+  task. It redraws only when observed data, mode, style, placement, or
+  accessibility environment changes. Reduce Motion therefore preserves the same
+  fully static content and presentation.
+- Secondary quota and local history do not add placeholders in this slice. A
+  future approved feature extends the shared semantic content and explicitly
+  defines Smooth, Pixel, and S compositions in the same change. Style persistence
+  stays independent from quota schema and local-history storage.
+
+Acceptance criteria for this update:
+
+- fresh, migrated, persisted, and invalid style values follow the approved
+  Smooth default and survive relaunch after selection;
+- localized menu-bar and pixel-context-menu pickers expose both styles with the
+  approved icons, checkmarks, dismissal, keyboard, and VoiceOver behavior;
+- switching an open tooltip is immediate, keeps it visible, preserves its side
+  when possible, stays on the owning display, and adds no quota refresh;
+- Smooth Standard/Turbo and S/M/L retain their approved normal-size visuals,
+  layout, content, pointer placement, hover/drag suppression, and accessibility;
+- Pixel Standard/Turbo and S/M/L render correctly in English and Russian at
+  0%, critical, warning, normal, 100%, missing quota, missing reset, missing
+  duration, connected, and stale/reconnecting states;
+- all four pointer placements, screen edges, multiple displays, long localized
+  values, and accessibility text sizes remain readable and inside the visible
+  frame;
+- formatting, preference, panel-size, placement, view-state, localization,
+  keyboard, and accessibility tests pass; the focused macOS test suite passes;
+  `./script/build_and_run.sh --verify` builds and launches the app; and
+  screenshot QA confirms the Smooth regression contract and approved Pixel
+  system without continuous idle rendering.
+
 ## Approved absorption interaction
 
 The approved design freeze is recorded in

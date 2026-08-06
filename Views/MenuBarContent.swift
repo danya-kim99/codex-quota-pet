@@ -5,6 +5,7 @@ struct MenuBarContent: View {
     let appState: AppState
     let togglePetVisibility: () -> Void
     let setPetSize: (PetSize) -> Void
+    let setTooltipStyle: (TooltipStyle) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
 
     var body: some View {
@@ -77,6 +78,18 @@ struct MenuBarContent: View {
             ) {
                 ForEach(PetSize.allCases, id: \.self) { size in
                     Text(size.label).tag(size)
+                }
+            }
+
+            Picker(
+                localized("menu.tooltip_style"),
+                selection: Binding(
+                    get: { appState.tooltipStyle },
+                    set: setTooltipStyle
+                )
+            ) {
+                ForEach(TooltipStyle.allCases, id: \.self) { style in
+                    Text(style.title).tag(style)
                 }
             }
 

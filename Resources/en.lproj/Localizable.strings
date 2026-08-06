@@ -15,6 +15,8 @@
 "reset.compact.absolute" = "%1$@, %2$@";
 "reset.unavailable" = "Limit reset time unavailable";
 "accessibility.quota" = "Codex quota";
+"accessibility.quota.unavailable" = "Quota unavailable";
+"accessibility.quota.last_known" = "Last known quota: %d%% remaining";
 "accessibility.absorb_object" = "Absorb Object";
 "accessibility.open_context_menu" = "Open Context Menu";
 "menu.quota.short" = "Quota";
@@ -25,9 +27,14 @@
 "menu.hide_pet" = "Hide Pet";
 "menu.show_pet" = "Show Pet";
 "menu.size" = "Size";
+"menu.tooltip_style" = "Tooltip Style";
+"tooltip_style.smooth" = "Smooth";
+"tooltip_style.pixel" = "Pixel";
 "menu.hide_full_screen" = "Hide in Full Screen";
 "menu.launch_at_login" = "Launch at Login";
 "menu.approval_required" = "Approval Required";
 "menu.open_login_items" = "Open Login Items";
 "menu.quit" = "Quit %@";
 "context_menu.quit" = "Quit";
+"pixel.quota.title" = "CODEX QUOTA";
+"pixel.reset.window" = "RESET WINDOW";

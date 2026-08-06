@@ -11,6 +11,7 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 appState: appDelegate.appState,
                 togglePetVisibility: appDelegate.togglePetVisibility,
                 setPetSize: appDelegate.setPetSize,
+                setTooltipStyle: appDelegate.setTooltipStyle,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps
             )
         } label: {
@@ -83,5 +84,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard size != appState.petSize else { return }
         appState.setPetSize(size)
         petPanel.resize(to: size)
+    }
+
+    func setTooltipStyle(_ style: TooltipStyle) {
+        guard style != appState.tooltipStyle else { return }
+        appState.setTooltipStyle(style)
+        petPanel.updateTooltipStyle()
     }
 }

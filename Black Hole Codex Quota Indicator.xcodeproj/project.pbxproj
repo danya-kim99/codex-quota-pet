@@ -23,6 +23,7 @@
 		A10000000000000000000010 /* Absorption.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* Absorption.swift */; };
 		A10000000000000000000011 /* objects in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* objects */; };
 		A10000000000000000000012 /* PixelContextMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PixelContextMenuView.swift */; };
+		A10000000000000000000013 /* PixelQuotaTooltipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* PixelQuotaTooltipView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +56,7 @@
 		A20000000000000000000014 /* Absorption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Absorption.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* objects */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Assets/Sprites/objects; sourceTree = "<group>"; };
 		A20000000000000000000016 /* PixelContextMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelContextMenuView.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* PixelQuotaTooltipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelQuotaTooltipView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +119,7 @@
 				A2000000000000000000000B /* BlackHoleView.swift */,
 				A2000000000000000000000F /* QuotaTooltipView.swift */,
 				A20000000000000000000016 /* PixelContextMenuView.swift */,
+				A20000000000000000000017 /* PixelQuotaTooltipView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -289,6 +292,7 @@
 				A1000000000000000000000A /* PetPanelController.swift in Sources */,
 				A1000000000000000000000D /* QuotaTooltipView.swift in Sources */,
 				A10000000000000000000012 /* PixelContextMenuView.swift in Sources */,
+				A10000000000000000000013 /* PixelQuotaTooltipView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -428,7 +432,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -440,7 +444,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.2;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -454,7 +458,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -466,7 +470,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.4.2;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

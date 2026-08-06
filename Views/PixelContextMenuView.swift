@@ -148,6 +148,7 @@ struct PixelContextMenuActions {
     let dismiss: () -> Void
     let retry: () -> Void
     let setPetSize: (PetSize) -> Void
+    let setTooltipStyle: (TooltipStyle) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
     let setLaunchesAtLogin: (Bool) -> Void
     let openLoginItems: () -> Void
@@ -156,9 +157,9 @@ struct PixelContextMenuActions {
 }
 
 struct PixelContextMenuView: View {
-    nonisolated static let panelSize = CGSize(width: 386, height: 318)
-    nonisolated static let mainWidth: CGFloat = 286
-    nonisolated static let submenuWidth: CGFloat = 92
+    nonisolated static let panelSize = CGSize(width: 386, height: 350)
+    nonisolated static let mainWidth: CGFloat = 232
+    nonisolated static let submenuWidth: CGFloat = 146
     nonisolated static let menuGap: CGFloat = 8
 
     let appState: AppState
@@ -169,7 +170,9 @@ struct PixelContextMenuView: View {
     @FocusState private var hasKeyboardFocus: Bool
     @State private var selectedItem: ItemID = .size
     @State private var selectedSize: PetSize?
+    @State private var selectedTooltipStyle: TooltipStyle?
     @State private var showsSizeSubmenu = true
+    @State private var showsTooltipStyleSubmenu = false
 
     var body: some View {
         TimelineView(
@@ -219,11 +222,12 @@ struct PixelContextMenuView: View {
             return .handled
         }
         .onKeyPress(.rightArrow) {
-            enterSizeSubmenu()
+            enterSelectedSubmenu()
             return .handled
         }
         .onKeyPress(.leftArrow) {
             selectedSize = nil
+            selectedTooltipStyle = nil
             return .handled
         }
         .onKeyPress(.return) {
@@ -249,13 +253,13 @@ struct PixelContextMenuView: View {
 
             HStack(alignment: .top, spacing: Self.menuGap) {
                 if !presentation.placement.opensRight {
-                    sizeSubmenuSlot
+                    submenuSlot
                 }
 
                 mainMenu
 
                 if presentation.placement.opensRight {
-                    sizeSubmenuSlot
+                    submenuSlot
                 }
             }
 
@@ -280,6 +284,13 @@ struct PixelContextMenuView: View {
                 .size,
                 title: localized("menu.size"),
                 icon: .size,
+                showsDisclosure: true
+            )
+
+            row(
+                .tooltipStyle,
+                title: localized("menu.tooltip_style"),
+                icon: .style,
                 showsDisclosure: true
             )
 
@@ -333,7 +344,7 @@ struct PixelContextMenuView: View {
     }
 
     @ViewBuilder
-    private var sizeSubmenuSlot: some View {
+    private var submenuSlot: some View {
         if showsSizeSubmenu {
             VStack(spacing: 0) {
                 ForEach(PetSize.allCases, id: \.self) { size in
@@ -357,7 +368,31 @@ struct PixelContextMenuView: View {
             .padding(7)
             .frame(width: Self.submenuWidth)
             .background(PixelMenuBackground())
-            .padding(.top, 38)
+            .padding(.top, submenuTopPadding)
+        } else if showsTooltipStyleSubmenu {
+            VStack(spacing: 0) {
+                ForEach(TooltipStyle.allCases, id: \.self) { style in
+                    PixelMenuRow(
+                        title: style.title,
+                        icon: style == .smooth ? .smooth : .pixel,
+                        isSelected: selectedTooltipStyle == style,
+                        isChecked: appState.tooltipStyle == style,
+                        showsDisclosure: false,
+                        isEnabled: true,
+                        isDestructive: false
+                    ) {
+                        actions.setTooltipStyle(style)
+                    } onHover: { isHovering in
+                        guard isHovering else { return }
+                        selectedItem = .tooltipStyle
+                        selectedTooltipStyle = style
+                    }
+                }
+            }
+            .padding(7)
+            .frame(width: Self.submenuWidth)
+            .background(PixelMenuBackground())
+            .padding(.top, submenuTopPadding)
         } else {
             Color.clear
                 .frame(width: Self.submenuWidth, height: 1)
@@ -376,7 +411,9 @@ struct PixelContextMenuView: View {
         PixelMenuRow(
             title: title,
             icon: icon,
-            isSelected: selectedSize == nil && selectedItem == item,
+            isSelected: selectedSize == nil
+                && selectedTooltipStyle == nil
+                && selectedItem == item,
             isChecked: isChecked,
             showsDisclosure: showsDisclosure,
             isEnabled: true,
@@ -386,8 +423,10 @@ struct PixelContextMenuView: View {
         } onHover: { isHovering in
             guard isHovering else { return }
             selectedSize = nil
+            selectedTooltipStyle = nil
             selectedItem = item
             showsSizeSubmenu = item == .size
+            showsTooltipStyleSubmenu = item == .tooltipStyle
         }
     }
 
@@ -410,7 +449,7 @@ struct PixelContextMenuView: View {
         if appState.connectionState != .connected {
             items.append(.retry)
         }
-        items += [.size, .hideFullScreen, .launchAtLogin]
+        items += [.size, .tooltipStyle, .hideFullScreen, .launchAtLogin]
         if appState.launchAtLoginStatus == .requiresApproval {
             items.append(.openLoginItems)
         }
@@ -426,24 +465,53 @@ struct PixelContextMenuView: View {
             self.selectedSize = sizes[(index + offset + sizes.count) % sizes.count]
             return
         }
+        if let selectedTooltipStyle,
+           let index = TooltipStyle.allCases.firstIndex(of: selectedTooltipStyle) {
+            let styles = TooltipStyle.allCases
+            self.selectedTooltipStyle = styles[
+                (index + offset + styles.count) % styles.count
+            ]
+            return
+        }
 
         let items = interactiveItems
         guard !items.isEmpty else { return }
         let index = items.firstIndex(of: selectedItem) ?? 0
         selectedItem = items[(index + offset + items.count) % items.count]
         showsSizeSubmenu = selectedItem == .size
+        showsTooltipStyleSubmenu = selectedItem == .tooltipStyle
     }
 
     private func enterSizeSubmenu() {
         guard presentation.phase == .open, selectedItem == .size else { return }
         showsSizeSubmenu = true
+        showsTooltipStyleSubmenu = false
+        selectedTooltipStyle = nil
         selectedSize = appState.petSize
+    }
+
+    private func enterTooltipStyleSubmenu() {
+        guard presentation.phase == .open, selectedItem == .tooltipStyle else { return }
+        showsSizeSubmenu = false
+        showsTooltipStyleSubmenu = true
+        selectedSize = nil
+        selectedTooltipStyle = appState.tooltipStyle
+    }
+
+    private func enterSelectedSubmenu() {
+        if selectedItem == .size {
+            enterSizeSubmenu()
+        } else if selectedItem == .tooltipStyle {
+            enterTooltipStyleSubmenu()
+        }
     }
 
     private func activateSelection() {
         guard presentation.phase == .open else { return }
         if let selectedSize {
             actions.setPetSize(selectedSize)
+        } else if let selectedTooltipStyle {
+            actions.setTooltipStyle(selectedTooltipStyle)
         } else {
             activate(selectedItem)
         }
@@ -456,6 +524,8 @@ struct PixelContextMenuView: View {
             actions.retry()
         case .size:
             enterSizeSubmenu()
+        case .tooltipStyle:
+            enterTooltipStyleSubmenu()
         case .hideFullScreen:
             actions.setHidesInFullScreenApps(!appState.hidesInFullScreenApps)
         case .launchAtLogin:
@@ -510,9 +580,15 @@ struct PixelContextMenuView: View {
         NSLocalizedString(key, comment: "Black-hole context menu item")
     }
 
+    private var submenuTopPadding: CGFloat {
+        let firstRowOffset: CGFloat = appState.connectionState == .connected ? 7 : 38
+        return firstRowOffset + (showsTooltipStyleSubmenu ? 31 : 0)
+    }
+
     private enum ItemID: Equatable {
         case retry
         case size
+        case tooltipStyle
         case hideFullScreen
         case launchAtLogin
         case openLoginItems
@@ -542,6 +618,7 @@ private struct PixelMenuRow: View {
                 Text(title)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .minimumScaleFactor(0.78)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if showsDisclosure {
@@ -658,7 +735,7 @@ private struct PixelPanelShape: Shape {
     }
 }
 
-private enum PixelPalette {
+enum PixelPalette {
     static let background = Color(red: 0.063, green: 0.043, blue: 0.094)
     static let border = Color(red: 0.557, green: 0.431, blue: 0.125)
     static let innerBorder = Color(red: 0.294, green: 0.204, blue: 0.118)
@@ -674,6 +751,9 @@ private enum PixelPalette {
 private enum PixelMenuIcon {
     case retry
     case size
+    case style
+    case smooth
+    case pixel
     case fullscreen
     case login
     case lock
@@ -697,6 +777,21 @@ private enum PixelMenuIcon {
             [
                 "###......###", "#..........#", "#..........#", "............",
                 "............", "#..........#", "#..........#", "###......###"
+            ]
+        case .style:
+            [
+                ".######.....", ".#....#.....", ".#.##.#.###.", ".#.##.#.#.#.",
+                ".#....#.###.", ".######.....", "........###.", "........#.#."
+            ]
+        case .smooth:
+            [
+                "...######...", ".##......##.", "##........##", "##........##",
+                "##........##", "##........##", ".##......##.", "...######..."
+            ]
+        case .pixel:
+            [
+                "..########..", ".##......##.", "##........##", "##..####..##",
+                "##..####..##", "##........##", ".##......##.", "..########.."
             ]
         case .fullscreen:
             [

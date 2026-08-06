@@ -15,6 +15,8 @@
 "reset.compact.absolute" = "%1$@, %2$@";
 "reset.unavailable" = "Время обновления лимита недоступно";
 "accessibility.quota" = "Квота Codex";
+"accessibility.quota.unavailable" = "Квота недоступна";
+"accessibility.quota.last_known" = "Последнее известное значение квоты: осталось %d%%";
 "accessibility.absorb_object" = "Втянуть объект";
 "accessibility.open_context_menu" = "Открыть контекстное меню";
 "menu.quota.short" = "Квота";
@@ -25,9 +27,14 @@
 "menu.hide_pet" = "Скрыть питомца";
 "menu.show_pet" = "Показать питомца";
 "menu.size" = "Размер";
+"menu.tooltip_style" = "Стиль подсказки";
+"tooltip_style.smooth" = "Обычный";
+"tooltip_style.pixel" = "Стилизованный";
 "menu.hide_full_screen" = "Скрывать в полноэкранном режиме";
 "menu.launch_at_login" = "Запускать при входе";
 "menu.approval_required" = "Требуется разрешение";
 "menu.open_login_items" = "Открыть объекты входа";
 "menu.quit" = "Завершить %@";
 "context_menu.quit" = "Выход";
+"pixel.quota.title" = "КВОТА CODEX";
+"pixel.reset.window" = "ОКНО СБРОСА";
