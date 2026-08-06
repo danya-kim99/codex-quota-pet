@@ -980,6 +980,22 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testPixelTooltipDisablesWindowAnimationWithoutChangingSmooth() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+
+        XCTAssertEqual(controller.tooltipAnimationBehavior, .default)
+        appState.setTooltipStyle(.pixel)
+        controller.updateTooltipStyle()
+        XCTAssertEqual(controller.tooltipAnimationBehavior, NSWindow.AnimationBehavior.none)
+        controller.hide()
+    }
+
+    @MainActor
     func testTooltipLayoutPreservesPreferredSideWhenNewStyleFits() {
         let visibleFrame = CGRect(x: 0, y: 0, width: 1_600, height: 1_000)
         let petFrame = CGRect(x: 600, y: 390, width: 400, height: 220)

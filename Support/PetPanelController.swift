@@ -44,6 +44,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         tooltipPanel?.frame
     }
 
+    var tooltipAnimationBehavior: NSWindow.AnimationBehavior? {
+        tooltipPanel?.animationBehavior
+    }
+
     var isContextMenuVisible: Bool {
         contextMenuPanel?.isVisible == true
     }
@@ -620,6 +624,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         refreshContent: Bool = false
     ) {
         guard let panel, let tooltipPanel, let appState else { return }
+        tooltipPanel.animationBehavior = appState.tooltipStyle == .pixel ? .none : .default
 
         let refreshedHostingView = refreshContent
             ? NSHostingView(
