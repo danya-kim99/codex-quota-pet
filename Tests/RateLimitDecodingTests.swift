@@ -174,6 +174,21 @@ final class RateLimitDecodingTests: XCTestCase {
         }
     }
 
+    func testPixelTurboRingChevronsStayWithinArc() {
+        let outerRadius = PixelQuotaTooltipView.smallRingSize / 2
+        let innerRadius = outerRadius - PixelQuotaTooltipView.smallRingLineWidth
+        let chevronHalfHeight = PixelQuotaTooltipView.smallRingChevronSize.height / 2
+
+        XCTAssertGreaterThanOrEqual(
+            PixelQuotaTooltipView.smallRingRadius - chevronHalfHeight,
+            innerRadius
+        )
+        XCTAssertLessThanOrEqual(
+            PixelQuotaTooltipView.smallRingRadius + chevronHalfHeight,
+            outerRadius
+        )
+    }
+
     func testPetSizeOptionsUseApprovedDimensions() {
         XCTAssertEqual(PetSize.allCases, [.small, .medium, .large])
         XCTAssertEqual(PetSize.small.label, "S")

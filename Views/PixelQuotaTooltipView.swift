@@ -7,6 +7,12 @@ struct PixelQuotaTooltipView: View {
     nonisolated static let mediumPanelSize = CGSize(width: 336, height: 168)
     nonisolated static let smallCardSize = CGSize(width: 280, height: 128)
     nonisolated static let smallPanelSize = CGSize(width: 304, height: 148)
+    nonisolated static let smallRingSize: CGFloat = 80
+    nonisolated static let smallRingLineWidth: CGFloat = 9
+    nonisolated static let smallRingChevronSize = CGSize(width: 6, height: 7)
+    nonisolated static var smallRingRadius: CGFloat {
+        (smallRingSize - smallRingLineWidth) / 2
+    }
 
     let content: QuotaTooltipContent
     let placement: QuotaTooltipView.Placement
@@ -226,14 +232,21 @@ struct PixelQuotaTooltipView: View {
     private var smallRing: some View {
         ZStack {
             Circle()
-                .stroke(PixelPalette.hoverBackground, lineWidth: 9)
+                .strokeBorder(
+                    PixelPalette.hoverBackground,
+                    lineWidth: Self.smallRingLineWidth
+                )
 
             if content.progressFraction > 0 {
                 Circle()
+                    .inset(by: Self.smallRingLineWidth / 2)
                     .trim(from: 0, to: content.progressFraction)
                     .stroke(
                         quotaColor,
-                        style: StrokeStyle(lineWidth: 9, lineCap: .butt)
+                        style: StrokeStyle(
+                            lineWidth: Self.smallRingLineWidth,
+                            lineCap: .butt
+                        )
                     )
                     .rotationEffect(.degrees(-90))
             }
@@ -243,8 +256,11 @@ struct PixelQuotaTooltipView: View {
                     let markerFraction = 0.06 + CGFloat(index) * 0.12
                     if markerFraction <= content.progressFraction {
                         PixelRingChevron()
-                            .frame(width: 6, height: 7)
-                            .offset(y: -35)
+                            .frame(
+                                width: Self.smallRingChevronSize.width,
+                                height: Self.smallRingChevronSize.height
+                            )
+                            .offset(y: -Self.smallRingRadius)
                             .rotationEffect(.degrees(360 * markerFraction))
                     }
                 }
@@ -252,7 +268,7 @@ struct PixelQuotaTooltipView: View {
                 PixelBolt()
                     .fill(PixelPalette.orange)
                     .frame(width: 9, height: 15)
-                    .offset(y: -37)
+                    .offset(y: -Self.smallRingRadius)
                     .accessibilityHidden(true)
             }
 
@@ -261,7 +277,7 @@ struct PixelQuotaTooltipView: View {
                 .foregroundStyle(quotaColor)
                 .monospacedDigit()
         }
-        .frame(width: 80, height: 80)
+        .frame(width: Self.smallRingSize, height: Self.smallRingSize)
     }
 
     private var resetRow: some View {
