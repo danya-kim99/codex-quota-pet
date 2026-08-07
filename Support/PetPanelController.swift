@@ -982,7 +982,9 @@ private final class PetHostingView: NSHostingView<BlackHoleView> {
             remainingPercent: rootView.appState.quota?.primary?.remainingPercent,
             speedMode: rootView.appState.speedMode,
             connectionState: rootView.appState.connectionState,
-            resetDate: rootView.appState.quota?.primary?.resetDate
+            resetDate: rootView.appState.quota?.primary?.resetDate,
+            history: rootView.appState.quotaHistory,
+            showsQuotaDynamics: rootView.appState.showsQuotaDynamics
         )
     }
 

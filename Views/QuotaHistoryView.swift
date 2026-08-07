@@ -9,6 +9,7 @@ struct QuotaHistorySection: View {
     let presentation: QuotaHistoryPresentation
     let style: Style
     let quotaColor: Color
+    let currentUnavailable: Bool
 
     @Environment(\.locale) private var locale
 
@@ -23,7 +24,10 @@ struct QuotaHistorySection: View {
 
                 Spacer(minLength: 4)
 
-                Text(presentation.endpointText(locale: locale))
+                Text(presentation.compactSummary(
+                    locale: locale,
+                    liveCurrentUnavailable: currentUnavailable
+                ))
                     .font(valueFont)
                     .foregroundStyle(quotaColor)
                     .monospacedDigit()
@@ -31,33 +35,30 @@ struct QuotaHistorySection: View {
                     .minimumScaleFactor(0.72)
             }
 
-            if let duration = presentation.durationText(locale: locale, compact: false),
-               presentation.hasComparableChange {
-                Text(duration)
-                    .font(durationFont)
-                    .foregroundStyle(secondaryColor)
-                    .lineLimit(1)
-            }
-
             if presentation.points.count >= 2 {
                 QuotaHistoryChart(
                     presentation: presentation,
                     lineColor: quotaColor,
-                    usesPixelSteps: style == .pixel
+                    labelColor: secondaryColor,
+                    usesPixelSteps: style == .pixel,
+                    currentUnavailable: currentUnavailable
                 )
-                .frame(height: 38)
+                .frame(height: 52)
                 .accessibilityHidden(true)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(presentation.accessibilitySummary(locale: locale))
+        .accessibilityLabel(presentation.accessibilitySummary(
+            locale: locale,
+            liveCurrentUnavailable: currentUnavailable
+        ))
     }
 
     private var titleFont: Font {
         switch style {
-        case .smooth: .system(size: 9, weight: .medium, design: .rounded)
-        case .pixel: .system(size: 9, weight: .semibold, design: .monospaced)
+        case .smooth: .system(size: 10, weight: .medium, design: .rounded)
+        case .pixel: .system(size: 10, weight: .semibold, design: .monospaced)
         }
     }
 
@@ -68,15 +69,8 @@ struct QuotaHistorySection: View {
         }
     }
 
-    private var durationFont: Font {
-        switch style {
-        case .smooth: .system(size: 9, weight: .regular, design: .rounded)
-        case .pixel: .system(size: 8, weight: .medium, design: .monospaced)
-        }
-    }
-
     private var secondaryColor: Color {
-        style == .pixel ? PixelPalette.mutedGold : .secondary
+        style == .pixel ? PixelPalette.mutedGold : .white.opacity(0.62)
     }
 }
 
@@ -84,11 +78,15 @@ struct QuotaHistoryCompactText: View {
     let presentation: QuotaHistoryPresentation
     let style: QuotaHistorySection.Style
     let color: Color
+    let currentUnavailable: Bool
 
     @Environment(\.locale) private var locale
 
     var body: some View {
-        Text(presentation.compactSummary(locale: locale))
+        Text(presentation.compactSummary(
+            locale: locale,
+            liveCurrentUnavailable: currentUnavailable
+        ))
             .font(
                 style == .pixel
                     ? .system(size: 9, weight: .semibold, design: .monospaced)
@@ -98,41 +96,112 @@ struct QuotaHistoryCompactText: View {
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .accessibilityLabel(presentation.accessibilitySummary(locale: locale))
+            .accessibilityLabel(presentation.accessibilitySummary(
+                locale: locale,
+                liveCurrentUnavailable: currentUnavailable
+            ))
     }
 }
 
 private struct QuotaHistoryChart: View {
     let presentation: QuotaHistoryPresentation
     let lineColor: Color
+    let labelColor: Color
     let usesPixelSteps: Bool
+    let currentUnavailable: Bool
 
     private let resetColor = Color(red: 0.68, green: 0.27, blue: 0.94)
 
+    private var axisFont: Font {
+        .system(
+            size: 10,
+            weight: .medium,
+            design: usesPixelSteps ? .monospaced : .rounded
+        )
+    }
+
+    private var boundaryFont: Font {
+        .system(
+            size: 10,
+            weight: .semibold,
+            design: usesPixelSteps ? .monospaced : .rounded
+        )
+    }
+
     var body: some View {
+        let rangeStartLabel = NSLocalizedString(
+            "history.chart.range_start",
+            comment: "Quota history chart range start"
+        )
+        let nowLabel = NSLocalizedString(
+            "history.chart.now",
+            comment: "Quota history chart current time"
+        )
+        let gapLabel = NSLocalizedString(
+            "history.chart.gap",
+            comment: "Quota history chart continuity gap"
+        )
+        let resetLabel = NSLocalizedString(
+            "history.chart.reset",
+            comment: "Quota history chart reset boundary"
+        )
+
         Canvas(opaque: false, colorMode: .nonLinear, rendersAsynchronously: false) {
             context,
             size in
-            guard size.width > 0, size.height > 0 else { return }
+            guard size.width > 56, size.height > 32 else { return }
             let points = presentation.points
+            let plotRect = CGRect(
+                x: 34,
+                y: 10,
+                width: size.width - 40,
+                height: size.height - 23
+            )
             let plotPoint: (QuotaHistoryPoint) -> CGPoint = { point in
                 let range = max(1, presentation.rangeEnd.timeIntervalSince(presentation.rangeStart))
                 let elapsed = point.observedAt.timeIntervalSince(presentation.rangeStart)
-                let x = min(size.width, max(0, CGFloat(elapsed / range) * size.width))
-                let inset: CGFloat = 3
+                let x = plotRect.minX
+                    + min(1, max(0, CGFloat(elapsed / range))) * plotRect.width
                 let fraction = CGFloat(min(100, max(0, point.remainingPercent))) / 100
-                let y = inset + (1 - fraction) * max(0, size.height - inset * 2)
+                let y = plotRect.minY + (1 - fraction) * plotRect.height
                 return CGPoint(x: x, y: y)
             }
 
             for fraction in [CGFloat(0.25), CGFloat(0.75)] {
                 var grid = Path()
-                let y = size.height * fraction
-                grid.move(to: CGPoint(x: 0, y: y))
-                grid.addLine(to: CGPoint(x: size.width, y: y))
+                let y = plotRect.minY + plotRect.height * fraction
+                grid.move(to: CGPoint(x: plotRect.minX, y: y))
+                grid.addLine(to: CGPoint(x: plotRect.maxX, y: y))
                 context.stroke(grid, with: .color(.white.opacity(0.08)), lineWidth: 1)
             }
 
+            context.draw(
+                Text("100%").font(axisFont).foregroundStyle(labelColor),
+                at: CGPoint(x: plotRect.minX - 4, y: plotRect.minY),
+                anchor: .trailing
+            )
+            context.draw(
+                Text("0%").font(axisFont).foregroundStyle(labelColor),
+                at: CGPoint(x: plotRect.minX - 4, y: plotRect.maxY),
+                anchor: .trailing
+            )
+            context.draw(
+                Text(rangeStartLabel).font(axisFont).foregroundStyle(labelColor),
+                at: CGPoint(x: plotRect.minX + 10, y: size.height),
+                anchor: .bottomLeading
+            )
+            context.draw(
+                Text(nowLabel).font(axisFont).foregroundStyle(labelColor),
+                at: CGPoint(x: plotRect.maxX, y: size.height),
+                anchor: .bottomTrailing
+            )
+
+            let latestGapIndex = points.indices.reversed().first {
+                points[$0].boundaryBefore == .gap
+            }
+            let latestResetIndex = points.indices.reversed().first {
+                points[$0].boundaryBefore == .reset
+            }
             for index in points.indices where index > points.startIndex {
                 let previous = points[points.index(before: index)]
                 let current = points[index]
@@ -156,35 +225,84 @@ private struct QuotaHistoryChart: View {
                         )
                     )
                 } else if current.boundaryBefore == .reset {
+                    let resetPoint = CGPoint(
+                        x: (start.x + end.x) / 2,
+                        y: plotRect.midY
+                    )
                     var diamond = Path()
-                    diamond.move(to: CGPoint(x: end.x, y: end.y - 5))
-                    diamond.addLine(to: CGPoint(x: end.x + 5, y: end.y))
-                    diamond.addLine(to: CGPoint(x: end.x, y: end.y + 5))
-                    diamond.addLine(to: CGPoint(x: end.x - 5, y: end.y))
+                    diamond.move(to: CGPoint(x: resetPoint.x, y: resetPoint.y - 5))
+                    diamond.addLine(to: CGPoint(x: resetPoint.x + 5, y: resetPoint.y))
+                    diamond.addLine(to: CGPoint(x: resetPoint.x, y: resetPoint.y + 5))
+                    diamond.addLine(to: CGPoint(x: resetPoint.x - 5, y: resetPoint.y))
                     diamond.closeSubpath()
+                    context.fill(diamond, with: .color(.black.opacity(0.72)))
                     context.stroke(diamond, with: .color(resetColor), lineWidth: 2)
+                    if index == latestResetIndex {
+                        let labelX = min(
+                            plotRect.maxX - 20,
+                            max(plotRect.minX + 20, resetPoint.x)
+                        )
+                        context.draw(
+                            Text(resetLabel)
+                                .font(boundaryFont)
+                                .foregroundStyle(resetColor),
+                            at: CGPoint(x: labelX, y: 0),
+                            anchor: .top
+                        )
+                    }
                 } else if current.boundaryBefore == .gap {
-                    var gap = Path()
-                    gap.move(to: CGPoint(x: end.x, y: 2))
-                    gap.addLine(to: CGPoint(x: end.x, y: size.height - 2))
+                    let gapRect = CGRect(
+                        x: min(start.x, end.x),
+                        y: plotRect.minY,
+                        width: abs(end.x - start.x),
+                        height: plotRect.height
+                    )
+                    let gap = Path(gapRect)
+                    context.fill(gap, with: .color(.white.opacity(0.035)))
                     context.stroke(
                         gap,
                         with: .color(.white.opacity(0.42)),
                         style: StrokeStyle(lineWidth: 1, dash: [3, 3])
                     )
+                    if index == latestGapIndex, gapRect.width >= 44 {
+                        context.draw(
+                            Text(gapLabel)
+                                .font(boundaryFont)
+                                .foregroundStyle(labelColor),
+                            at: CGPoint(x: gapRect.midX, y: 0),
+                            anchor: .top
+                        )
+                    }
                 }
             }
 
-            if let first = points.first, let last = points.last {
-                for point in [plotPoint(first), plotPoint(last)] {
-                    let marker = Path(ellipseIn: CGRect(
-                        x: point.x - 2.5,
-                        y: point.y - 2.5,
-                        width: 5,
-                        height: 5
-                    ))
-                    context.fill(marker, with: .color(lineColor))
-                }
+            if let first = points.first {
+                let point = plotPoint(first)
+                let marker = Path(ellipseIn: CGRect(
+                    x: point.x - 2.5,
+                    y: point.y - 2.5,
+                    width: 5,
+                    height: 5
+                ))
+                context.fill(marker, with: .color(lineColor))
+            }
+            if !currentUnavailable, let last = points.last {
+                let point = plotPoint(last)
+                let outerMarker = Path(ellipseIn: CGRect(
+                    x: point.x - 4.5,
+                    y: point.y - 4.5,
+                    width: 9,
+                    height: 9
+                ))
+                context.fill(outerMarker, with: .color(.black.opacity(0.72)))
+                context.stroke(outerMarker, with: .color(lineColor), lineWidth: 2)
+                let centerMarker = Path(ellipseIn: CGRect(
+                    x: point.x - 1.5,
+                    y: point.y - 1.5,
+                    width: 3,
+                    height: 3
+                ))
+                context.fill(centerMarker, with: .color(lineColor))
             }
         }
     }

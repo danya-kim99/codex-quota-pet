@@ -147,6 +147,7 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
     let startPercent: Int?
     let endPercent: Int?
     let observedDuration: TimeInterval?
+    let summarizesEarlierSegment: Bool
     let currentUnavailable: Bool
     let containsReset: Bool
     let containsGap: Bool
@@ -159,6 +160,7 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
             startPercent: nil,
             endPercent: nil,
             observedDuration: nil,
+            summarizesEarlierSegment: false,
             currentUnavailable: false,
             containsReset: false,
             containsGap: false
@@ -188,16 +190,19 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
             )
         }
 
-        let comparable = comparablePrimarySegment(in: recent, currentUnavailable: currentUnavailable)
+        let summary = summarySegment(in: recent, currentUnavailable: currentUnavailable)
         return Self(
             points: decimated(allPoints),
             rangeStart: rangeStart,
             rangeEnd: now,
-            startPercent: comparable.first?.primary?.remainingPercent,
-            endPercent: comparable.last?.primary?.remainingPercent,
-            observedDuration: comparable.count >= 2
-                ? comparable.last!.observedAt.timeIntervalSince(comparable.first!.observedAt)
+            startPercent: summary.samples.first?.primary?.remainingPercent,
+            endPercent: summary.samples.last?.primary?.remainingPercent,
+            observedDuration: summary.samples.count >= 2
+                ? summary.samples.last!.observedAt.timeIntervalSince(
+                    summary.samples.first!.observedAt
+                )
                 : nil,
+            summarizesEarlierSegment: summary.isEarlier,
             currentUnavailable: currentUnavailable,
             containsReset: allPoints.contains { $0.boundaryBefore == .reset },
             containsGap: allPoints.contains { $0.boundaryBefore == .gap }
@@ -208,8 +213,11 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         startPercent != nil && endPercent != nil && observedDuration != nil
     }
 
-    func endpointText(locale: Locale) -> String {
-        if currentUnavailable {
+    func endpointText(
+        locale: Locale,
+        liveCurrentUnavailable: Bool? = nil
+    ) -> String {
+        if liveCurrentUnavailable ?? currentUnavailable {
             return NSLocalizedString(
                 "history.current_unavailable",
                 comment: "Current quota unavailable in local history"
@@ -221,8 +229,9 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
                 comment: "Local quota history is collecting"
             )
         }
+        let endpoint: String
         if startPercent == endPercent {
-            return String(
+            endpoint = String(
                 format: NSLocalizedString(
                     "history.unchanged.format",
                     comment: "Unchanged observed quota percentage"
@@ -230,15 +239,25 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
                 locale: locale,
                 endPercent
             )
+        } else {
+            endpoint = String(
+                format: NSLocalizedString(
+                    "history.endpoint.format",
+                    comment: "Observed quota start and end percentages"
+                ),
+                locale: locale,
+                startPercent,
+                endPercent
+            )
         }
+        guard summarizesEarlierSegment else { return endpoint }
         return String(
             format: NSLocalizedString(
-                "history.endpoint.format",
-                comment: "Observed quota start and end percentages"
+                "history.earlier.format",
+                comment: "Earlier completed quota history segment"
             ),
             locale: locale,
-            startPercent,
-            endPercent
+            endpoint
         )
     }
 
@@ -280,9 +299,17 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         )
     }
 
-    func compactSummary(locale: Locale) -> String {
-        let endpoint = endpointText(locale: locale)
-        guard let duration = durationText(locale: locale, compact: true),
+    func compactSummary(
+        locale: Locale,
+        liveCurrentUnavailable: Bool? = nil
+    ) -> String {
+        let isCurrentUnavailable = liveCurrentUnavailable ?? currentUnavailable
+        let endpoint = endpointText(
+            locale: locale,
+            liveCurrentUnavailable: isCurrentUnavailable
+        )
+        guard !isCurrentUnavailable,
+              let duration = durationText(locale: locale, compact: true),
               hasComparableChange else {
             return endpoint
         }
@@ -297,9 +324,18 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         )
     }
 
-    func accessibilitySummary(locale: Locale) -> String {
-        var details = [endpointText(locale: locale)]
-        if let duration = durationText(locale: locale, compact: false), hasComparableChange {
+    func accessibilitySummary(
+        locale: Locale,
+        liveCurrentUnavailable: Bool? = nil
+    ) -> String {
+        let isCurrentUnavailable = liveCurrentUnavailable ?? currentUnavailable
+        var details = [endpointText(
+            locale: locale,
+            liveCurrentUnavailable: isCurrentUnavailable
+        )]
+        if !isCurrentUnavailable,
+           let duration = durationText(locale: locale, compact: false),
+           hasComparableChange {
             details.append(duration)
         }
         if containsReset {
@@ -321,24 +357,35 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         return details.joined(separator: ", ")
     }
 
-    private static func comparablePrimarySegment(
+    private static func summarySegment(
         in samples: [QuotaHistorySample],
         currentUnavailable: Bool
-    ) -> [QuotaHistorySample] {
-        guard !currentUnavailable,
-              let lastIndex = samples.lastIndex(where: { $0.primary != nil }) else {
-            return []
-        }
+    ) -> (samples: [QuotaHistorySample], isEarlier: Bool) {
+        guard !currentUnavailable else { return ([], false) }
 
-        var firstIndex = lastIndex
-        while firstIndex > samples.startIndex {
-            guard samples[firstIndex].primaryBoundary == .continuous,
-                  samples[samples.index(before: firstIndex)].primary != nil else {
-                break
+        var segments: [[QuotaHistorySample]] = []
+        var current: [QuotaHistorySample] = []
+        for sample in samples {
+            guard sample.primary != nil else {
+                if !current.isEmpty { segments.append(current) }
+                current = []
+                continue
             }
-            firstIndex = samples.index(before: firstIndex)
+            if current.isEmpty || sample.primaryBoundary != .continuous {
+                if !current.isEmpty { segments.append(current) }
+                current = [sample]
+            } else {
+                current.append(sample)
+            }
         }
-        return Array(samples[firstIndex...lastIndex])
+        if !current.isEmpty { segments.append(current) }
+
+        guard let latest = segments.last else { return ([], false) }
+        if latest.count >= 2 { return (latest, false) }
+        if let earlier = segments.dropLast().last(where: { $0.count >= 2 }) {
+            return (earlier, true)
+        }
+        return (latest, false)
     }
 
     private static func decimated(_ points: [QuotaHistoryPoint]) -> [QuotaHistoryPoint] {
@@ -434,6 +481,7 @@ actor QuotaHistoryStore {
                     || forceGap
                     || needsHeartbeat
                     || clockMovedBackward else {
+                cachedPresentation = nil
                 return update(at: observedAt)
             }
 

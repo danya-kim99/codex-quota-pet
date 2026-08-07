@@ -92,14 +92,21 @@ final class QuotaHistoryTests: XCTestCase {
             secondaryPercent: 40
         )
 
-        _ = await store.record(snapshot: snapshot, at: start, forceGap: true)
-        _ = await store.record(
+        let initial = await store.record(snapshot: snapshot, at: start, forceGap: true)
+        let duplicate = await store.record(
             snapshot: snapshot,
             at: start.addingTimeInterval(10 * 60),
             forceGap: false
         )
         let samplesBeforeHeartbeat = await store.storedSamples()
         XCTAssertEqual(samplesBeforeHeartbeat.count, 1)
+        XCTAssertEqual(duplicate.sampleCount, initial.sampleCount)
+        XCTAssertEqual(duplicate.revision, initial.revision)
+        XCTAssertEqual(duplicate.presentation.rangeEnd, start.addingTimeInterval(10 * 60))
+        XCTAssertEqual(
+            duplicate.presentation.rangeStart,
+            start.addingTimeInterval(10 * 60 - QuotaHistoryPresentation.rangeDuration)
+        )
 
         _ = await store.record(
             snapshot: snapshot,
@@ -149,11 +156,138 @@ final class QuotaHistoryTests: XCTestCase {
         )
         XCTAssertTrue(presentation.containsReset)
         XCTAssertTrue(presentation.containsGap)
+        XCTAssertFalse(presentation.summarizesEarlierSegment)
         XCTAssertEqual(presentation.startPercent, samples[900].primary?.remainingPercent)
         XCTAssertEqual(presentation.endPercent, samples.last?.primary?.remainingPercent)
         XCTAssertEqual(
             presentation.observedDuration,
             samples.last!.observedAt.timeIntervalSince(samples[900].observedAt)
+        )
+    }
+
+    func testPresentationKeepsEarlierCompletedSegmentUntilCurrentSegmentIsComparable() {
+        let now = Date(timeIntervalSince1970: 4_500_000)
+        let reset = Int64(now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970)
+
+        func sample(
+            _ remainingPercent: Int?,
+            minutesAgo: TimeInterval,
+            boundary: QuotaHistoryBoundary
+        ) -> QuotaHistorySample {
+            var sample = QuotaHistorySample(
+                snapshot: Self.snapshot(
+                    remainingPercent: remainingPercent,
+                    resetsAt: remainingPercent == nil ? nil : reset
+                ),
+                observedAt: now.addingTimeInterval(-minutesAgo * 60)
+            )
+            sample.primaryBoundary = boundary
+            return sample
+        }
+
+        let completed = [
+            sample(85, minutesAgo: 40, boundary: .baseline),
+            sample(77, minutesAgo: 30, boundary: .continuous)
+        ]
+        let repeatedLifecycleGaps = completed + [
+            sample(77, minutesAgo: 20, boundary: .gap),
+            sample(77, minutesAgo: 10, boundary: .gap)
+        ]
+
+        let earlier = QuotaHistoryPresentation.make(
+            samples: repeatedLifecycleGaps,
+            now: now
+        )
+        XCTAssertTrue(earlier.summarizesEarlierSegment)
+        XCTAssertEqual(earlier.startPercent, 85)
+        XCTAssertEqual(earlier.endPercent, 77)
+        XCTAssertEqual(earlier.observedDuration, 10 * 60)
+
+        let resetFallback = QuotaHistoryPresentation.make(
+            samples: completed + [sample(100, minutesAgo: 10, boundary: .reset)],
+            now: now
+        )
+        XCTAssertTrue(resetFallback.summarizesEarlierSegment)
+        XCTAssertEqual(resetFallback.startPercent, 85)
+        XCTAssertEqual(resetFallback.endPercent, 77)
+
+        let resetCurrent = QuotaHistoryPresentation.make(
+            samples: completed + [
+                sample(100, minutesAgo: 10, boundary: .reset),
+                sample(99, minutesAgo: 0, boundary: .continuous)
+            ],
+            now: now
+        )
+        XCTAssertFalse(resetCurrent.summarizesEarlierSegment)
+        XCTAssertEqual(resetCurrent.startPercent, 100)
+        XCTAssertEqual(resetCurrent.endPercent, 99)
+
+        let current = QuotaHistoryPresentation.make(
+            samples: repeatedLifecycleGaps + [
+                sample(76, minutesAgo: 0, boundary: .continuous)
+            ],
+            now: now
+        )
+        XCTAssertFalse(current.summarizesEarlierSegment)
+        XCTAssertEqual(current.startPercent, 77)
+        XCTAssertEqual(current.endPercent, 76)
+        XCTAssertEqual(current.observedDuration, 10 * 60)
+
+        let unavailable = QuotaHistoryPresentation.make(
+            samples: completed + [
+                sample(nil, minutesAgo: 0, boundary: .gap)
+            ],
+            now: now
+        )
+        XCTAssertTrue(unavailable.currentUnavailable)
+        XCTAssertFalse(unavailable.summarizesEarlierSegment)
+        XCTAssertNil(unavailable.startPercent)
+
+        let fresh = QuotaHistoryPresentation.make(
+            samples: [sample(77, minutesAgo: 0, boundary: .baseline)],
+            now: now
+        )
+        XCTAssertFalse(fresh.summarizesEarlierSegment)
+        XCTAssertFalse(fresh.hasComparableChange)
+
+        let expired = QuotaHistoryPresentation.make(
+            samples: [
+                sample(85, minutesAgo: 26 * 60, boundary: .baseline),
+                sample(77, minutesAgo: 25 * 60, boundary: .continuous),
+                sample(77, minutesAgo: 0, boundary: .gap)
+            ],
+            now: now
+        )
+        XCTAssertFalse(expired.summarizesEarlierSegment)
+        XCTAssertFalse(expired.hasComparableChange)
+
+        let unavailableText = NSLocalizedString(
+            "history.current_unavailable",
+            comment: "Current quota unavailable in local history"
+        )
+        XCTAssertEqual(
+            earlier.compactSummary(
+                locale: Locale(identifier: "en"),
+                liveCurrentUnavailable: true
+            ),
+            unavailableText
+        )
+        XCTAssertTrue(
+            earlier.accessibilitySummary(
+                locale: Locale(identifier: "en"),
+                liveCurrentUnavailable: true
+            ).hasPrefix(unavailableText)
+        )
+        XCTAssertTrue(
+            QuotaTooltipView.accessibilitySummary(
+                remainingPercent: nil,
+                speedMode: .standard,
+                connectionState: .connecting,
+                resetDate: nil,
+                history: earlier,
+                showsQuotaDynamics: true,
+                locale: Locale(identifier: "en")
+            ).contains(unavailableText)
         )
     }
 
@@ -351,11 +485,41 @@ final class QuotaHistoryTests: XCTestCase {
         )
 
         let reloadedStore = QuotaHistoryStore(fileURL: fileURL)
-        let reloaded = await reloadedStore.load(at: start.addingTimeInterval(6 * 60 * 60))
+        let reloadedAt = start.addingTimeInterval(6 * 60 * 60)
+        let reloaded = await reloadedStore.load(at: reloadedAt)
         XCTAssertEqual(reloaded.sampleCount, 7)
         XCTAssertEqual(reloaded.presentation.startPercent, 85)
         XCTAssertEqual(reloaded.presentation.endPercent, 77)
         XCTAssertEqual(reloaded.presentation.observedDuration, 6 * 60 * 60)
+
+        let firstLiveSnapshot = await reloadedStore.record(
+            snapshot: Self.snapshot(remainingPercent: 77, resetsAt: reset),
+            at: reloadedAt.addingTimeInterval(60),
+            forceGap: true
+        )
+        XCTAssertTrue(firstLiveSnapshot.presentation.summarizesEarlierSegment)
+        XCTAssertEqual(firstLiveSnapshot.presentation.startPercent, 85)
+        XCTAssertEqual(firstLiveSnapshot.presentation.endPercent, 77)
+
+        let unchangedCurrentSegment = await reloadedStore.record(
+            snapshot: Self.snapshot(remainingPercent: 77, resetsAt: reset),
+            at: reloadedAt.addingTimeInterval(61 * 60),
+            forceGap: false
+        )
+        XCTAssertFalse(unchangedCurrentSegment.presentation.summarizesEarlierSegment)
+        XCTAssertEqual(unchangedCurrentSegment.presentation.startPercent, 77)
+        XCTAssertEqual(unchangedCurrentSegment.presentation.endPercent, 77)
+        XCTAssertEqual(unchangedCurrentSegment.presentation.observedDuration, 60 * 60)
+
+        let currentSegment = await reloadedStore.record(
+            snapshot: Self.snapshot(remainingPercent: 76, resetsAt: reset),
+            at: reloadedAt.addingTimeInterval(62 * 60),
+            forceGap: false
+        )
+        XCTAssertFalse(currentSegment.presentation.summarizesEarlierSegment)
+        XCTAssertEqual(currentSegment.presentation.startPercent, 77)
+        XCTAssertEqual(currentSegment.presentation.endPercent, 76)
+        XCTAssertEqual(currentSegment.presentation.observedDuration, 61 * 60)
     }
 
     @MainActor
@@ -481,8 +645,13 @@ final class QuotaHistoryTests: XCTestCase {
         let translations = [
             "menu.show_quota_dynamics": ("Show Quota Dynamics", "Показывать динамику квоты"),
             "menu.clear_quota_history": ("Clear Local History…", "Очистить локальную историю…"),
-            "history.title": ("Observed · 24 h", "Наблюдения · 24 ч"),
+            "history.title": ("Last 24 h", "Последние 24 ч"),
+            "history.earlier.format": ("Earlier: %@", "Ранее: %@"),
             "history.collecting": ("Collecting local history…", "Собираем локальную историю…"),
+            "history.chart.range_start": ("24 h ago", "24 ч назад"),
+            "history.chart.now": ("Now", "Сейчас"),
+            "history.chart.gap": ("Gap", "Перерыв"),
+            "history.chart.reset": ("Reset", "Сброс"),
             "history.issue.not_saved": ("History not saved", "История не сохранена")
         ]
 

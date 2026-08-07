@@ -272,7 +272,8 @@ struct QuotaTooltipView: View {
                     QuotaHistoryCompactText(
                         presentation: content.history,
                         style: .smooth,
-                        color: quotaColor
+                        color: quotaColor,
+                        currentUnavailable: content.remainingPercent == nil
                     )
                 }
             }
@@ -424,7 +425,8 @@ struct QuotaTooltipView: View {
                 QuotaHistorySection(
                     presentation: content.history,
                     style: .smooth,
-                    quotaColor: quotaColor
+                    quotaColor: quotaColor,
+                    currentUnavailable: content.remainingPercent == nil
                 )
             }
         }
@@ -818,7 +820,10 @@ struct QuotaTooltipView: View {
             details.append(resetDate.formatted(date: .abbreviated, time: .shortened))
         }
         if showsQuotaDynamics {
-            details.append(history.accessibilitySummary(locale: locale))
+            details.append(history.accessibilitySummary(
+                locale: locale,
+                liveCurrentUnavailable: remainingPercent == nil
+            ))
         }
         return details.joined(separator: ", ")
     }

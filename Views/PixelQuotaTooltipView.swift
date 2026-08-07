@@ -99,7 +99,8 @@ struct PixelQuotaTooltipView: View {
                     QuotaHistorySection(
                         presentation: content.history,
                         style: .pixel,
-                        quotaColor: quotaColor
+                        quotaColor: quotaColor,
+                        currentUnavailable: content.remainingPercent == nil
                     )
                 }
             }
@@ -150,7 +151,8 @@ struct PixelQuotaTooltipView: View {
                         QuotaHistoryCompactText(
                             presentation: content.history,
                             style: .pixel,
-                            color: quotaColor
+                            color: quotaColor,
+                            currentUnavailable: content.remainingPercent == nil
                         )
                     }
                 }

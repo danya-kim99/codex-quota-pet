@@ -310,6 +310,10 @@ The local quota-history design freeze was approved for implementation on
 7 August 2026. It extends the approved Smooth/Pixel tooltip system without
 claiming access to exact tokens or complete account activity.
 
+The relaunch-continuity and chart-clarity amendment was approved for
+implementation on 8 August 2026. It keeps every existing history boundary and
+storage rule while making retained history visibly survive app lifecycle gaps.
+
 - History contains only locally observed integer percentage snapshots and the
   minimum reset-window and limit identity metadata required to decide whether
   adjacent observations are comparable. It never stores tokens, cost, request
@@ -380,15 +384,31 @@ Presentation:
   fixed range and Y is fixed at 0...100% so small movements are not exaggerated.
 - L and M show a static chart plus the latest uninterrupted comparable segment.
   Smooth uses an antialiased line; Pixel uses a stepped line. Both use identical
-  data semantics and the current quota color. A reset is a line break with an
-  outlined diamond; other lost-continuity boundaries are breaks with a neutral
-  dashed mark. Flat observations remain horizontal.
+  data semantics and the current quota color. The chart title is `Last 24 h` /
+  `Последние 24 ч`; compact endpoints and observed duration share its header.
+  Minimal `100%` / `0%` and `24 h ago` / `now` (`24 ч назад` / `сейчас`)
+  anchors explain the fixed axes without a full legend. The current endpoint is
+  an outlined marker. A reset stays a line break with an outlined diamond and a
+  direct `Reset` / `Сброс` label; its diamond sits between the adjacent
+  observations rather than pretending to be a measured percentage. Other
+  lost-continuity boundaries become a neutral lightly filled dashed span, with
+  the most recent span directly labeled `Gap` / `Перерыв` when it fits. Flat
+  observations remain horizontal. These additions do not change panel geometry.
 - User copy shows endpoints instead of percentage-point notation: for example,
   `85% → 77%` with `over 6 hours observed`, and in compact form
   `85% → 77% · 6 h`. Russian uses `за 6 часов наблюдений` and `6 ч`.
   No `p.p.` / `п.п.` abbreviation is shown. An unchanged segment says that the
-  current percentage is unchanged; one comparable point says history is being
-  collected; a missing current primary says the current value is unavailable.
+  current percentage is unchanged. When the latest segment has only one point,
+  the most recent earlier segment of at least two comparable points inside the
+  24-hour range remains visible as `Earlier: 85% → 77% · 6 h` /
+  `Ранее: 85% → 77% · 6 ч`. Repeated one-point lifecycle segments do not hide
+  that earlier completed segment. The summary switches to the latest segment as
+  soon as it has two comparable points. `Collecting local history…` is reserved
+  for a store with no such completed segment. A missing current primary still
+  takes precedence and says that the current value is unavailable. Live primary
+  availability from `AppState` wins over an older persisted endpoint during
+  startup, so retained history is never presented as the current value. The
+  earlier summary never connects points or infers quota use across a gap.
 - With dynamics visible, normal-size panel geometry is Smooth L 360 x 252 pt,
   Smooth M 288 x 201.6 pt, Smooth S 272 x 158 pt, Pixel L 420 x 290 pt,
   Pixel M 336 x 232 pt, and Pixel S 304 x 174 pt. L/M show the chart; S keeps
@@ -437,15 +457,17 @@ Accessibility, localization, and performance:
 Acceptance criteria for this update:
 
 - empty/fresh, relaunch, deduplication, heartbeat, 30-day pruning, hard cap,
-  and primary/secondary absence are covered by focused tests;
+  repeated lifecycle gaps, earlier-summary fallback and handoff to the current
+  segment, and primary/secondary absence are covered by focused tests;
 - same-window drop, reset rollover, correction, account/plan change, startup,
   reconnect, wake, long gap, duplicate, missing metadata, and clock changes
   produce the frozen boundaries without inventing usage;
 - atomic failure, corrupt JSON, unsupported version, quarantine failure,
   unwritable storage, in-memory continuation, retry, and confirmed clear are
   safe and do not affect live quota behavior;
-- Smooth and Pixel L/M/S render the approved endpoint copy, graph/compact
-  composition, Standard/Turbo, Reduce Motion, stale, missing, English, Russian,
+- Smooth and Pixel L/M/S render the approved current/earlier endpoint copy,
+  direct axis, gap, reset, and current-point cues, graph/compact composition,
+  Standard/Turbo, Reduce Motion, stale, missing, English, Russian,
   accessibility, and visible/hidden geometry states;
 - all tooltip placements, display edges, accessibility text sizes, hover,
   click, drag, resize, style changes, hide/fullscreen, reconnect, and context
