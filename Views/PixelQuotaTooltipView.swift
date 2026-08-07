@@ -3,10 +3,18 @@ import SwiftUI
 struct PixelQuotaTooltipView: View {
     nonisolated static let largeCardSize = CGSize(width: 390, height: 180)
     nonisolated static let largePanelSize = CGSize(width: 420, height: 210)
+    nonisolated static let largeHistoryCardSize = CGSize(width: 390, height: 260)
+    nonisolated static let largeHistoryPanelSize = CGSize(width: 420, height: 290)
     nonisolated static let mediumCardSize = CGSize(width: 312, height: 144)
     nonisolated static let mediumPanelSize = CGSize(width: 336, height: 168)
+    nonisolated static let mediumHistoryCardSize = CGSize(width: 312, height: 208)
+    nonisolated static let mediumHistoryPanelSize = CGSize(width: 336, height: 232)
     nonisolated static let smallCardSize = CGSize(width: 280, height: 128)
     nonisolated static let smallPanelSize = CGSize(width: 304, height: 148)
+    nonisolated static let smallHistoryCardSize = CGSize(width: 280, height: 154)
+    nonisolated static let smallHistoryPanelSize = CGSize(width: 304, height: 174)
+    nonisolated static let purpleShadowOffset = CGSize(width: 5, height: -5)
+    nonisolated static let blackShadowOffset = CGSize(width: 9, height: -9)
     nonisolated static let smallRingSize: CGFloat = 80
     nonisolated static let smallRingLineWidth: CGFloat = 9
     nonisolated static let smallRingChevronSize = CGSize(width: 6, height: 7)
@@ -22,11 +30,11 @@ struct PixelQuotaTooltipView: View {
     private let orange = Color(red: 1, green: 0.34, blue: 0.16)
     private let purple = Color(red: 0.68, green: 0.27, blue: 0.94)
 
-    static func panelSize(for petSize: PetSize) -> CGSize {
+    static func panelSize(for petSize: PetSize, showsHistory: Bool = false) -> CGSize {
         switch petSize {
-        case .large: largePanelSize
-        case .medium: mediumPanelSize
-        case .small: smallPanelSize
+        case .large: showsHistory ? largeHistoryPanelSize : largePanelSize
+        case .medium: showsHistory ? mediumHistoryPanelSize : mediumPanelSize
+        case .small: showsHistory ? smallHistoryPanelSize : smallPanelSize
         }
     }
 
@@ -39,13 +47,20 @@ struct PixelQuotaTooltipView: View {
                 .scaleEffect(petSize == .medium ? 0.8 : 1)
                 .frame(
                     width: Self.panelSize(for: petSize).width,
-                    height: Self.panelSize(for: petSize).height
+                    height: Self.panelSize(
+                        for: petSize,
+                        showsHistory: content.showsQuotaDynamics
+                    ).height
                 )
         }
     }
 
     private var largeTooltip: some View {
-        pixelCard(size: Self.largeCardSize) {
+        pixelCard(
+            size: content.showsQuotaDynamics
+                ? Self.largeHistoryCardSize
+                : Self.largeCardSize
+        ) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 12) {
                     Text(localized("pixel.quota.title"))
@@ -73,6 +88,20 @@ struct PixelQuotaTooltipView: View {
                     .padding(.bottom, 12)
 
                 resetRow
+
+                if content.showsQuotaDynamics {
+                    Rectangle()
+                        .fill(PixelPalette.innerBorder)
+                        .frame(height: 2)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
+
+                    QuotaHistorySection(
+                        presentation: content.history,
+                        style: .pixel,
+                        quotaColor: quotaColor
+                    )
+                }
             }
             .padding(.horizontal, 19)
             .padding(.vertical, 17)
@@ -82,14 +111,20 @@ struct PixelQuotaTooltipView: View {
         .padding(.vertical, 15)
         .frame(
             width: Self.largePanelSize.width,
-            height: Self.largePanelSize.height,
+            height: content.showsQuotaDynamics
+                ? Self.largeHistoryPanelSize.height
+                : Self.largePanelSize.height,
             alignment: panelAlignment
         )
         .accessibilityHidden(true)
     }
 
     private var smallTooltip: some View {
-        pixelCard(size: Self.smallCardSize) {
+        pixelCard(
+            size: content.showsQuotaDynamics
+                ? Self.smallHistoryCardSize
+                : Self.smallCardSize
+        ) {
             HStack(spacing: 14) {
                 smallRing
 
@@ -107,6 +142,17 @@ struct PixelQuotaTooltipView: View {
                         .frame(height: 2)
 
                     smallResetRows
+
+                    if content.showsQuotaDynamics {
+                        Rectangle()
+                            .fill(PixelPalette.innerBorder)
+                            .frame(height: 2)
+                        QuotaHistoryCompactText(
+                            presentation: content.history,
+                            style: .pixel,
+                            color: quotaColor
+                        )
+                    }
                 }
             }
             .padding(.horizontal, 15)
@@ -117,7 +163,9 @@ struct PixelQuotaTooltipView: View {
         .padding(.vertical, 10)
         .frame(
             width: Self.smallPanelSize.width,
-            height: Self.smallPanelSize.height,
+            height: content.showsQuotaDynamics
+                ? Self.smallHistoryPanelSize.height
+                : Self.smallPanelSize.height,
             alignment: panelAlignment
         )
         .accessibilityHidden(true)
@@ -131,34 +179,43 @@ struct PixelQuotaTooltipView: View {
             .foregroundStyle(PixelPalette.highlightText)
             .frame(width: size.width, height: size.height)
             .background {
-                PixelTooltipPanelShape()
-                    .fill(PixelPalette.background)
-                    .shadow(
-                        color: PixelPalette.purple.opacity(0.7),
-                        radius: 0,
-                        x: 5,
-                        y: -5
-                    )
-                    .shadow(color: .black.opacity(0.58), radius: 0, x: 9, y: -9)
-                    .overlay {
-                        PixelTooltipPanelShape()
-                            .stroke(PixelPalette.brightGold, lineWidth: 3)
-                    }
-                    .overlay {
-                        PixelTooltipPanelShape(inset: 6)
-                            .stroke(PixelPalette.innerBorder, lineWidth: 2)
-                    }
-                    .overlay(alignment: .topLeading) {
-                        PixelCornerAccent()
-                            .foregroundStyle(PixelPalette.orange)
-                            .padding(8)
-                    }
-                    .overlay(alignment: .bottomTrailing) {
-                        PixelCornerAccent()
-                            .foregroundStyle(PixelPalette.purple)
-                            .rotationEffect(.degrees(180))
-                            .padding(8)
-                    }
+                ZStack {
+                    PixelTooltipPanelShape()
+                        .fill(.black.opacity(0.58))
+                        .offset(
+                            x: Self.blackShadowOffset.width,
+                            y: Self.blackShadowOffset.height
+                        )
+
+                    PixelTooltipPanelShape()
+                        .fill(PixelPalette.purple.opacity(0.7))
+                        .offset(
+                            x: Self.purpleShadowOffset.width,
+                            y: Self.purpleShadowOffset.height
+                        )
+
+                    PixelTooltipPanelShape()
+                        .fill(PixelPalette.background)
+                        .overlay {
+                            PixelTooltipPanelShape()
+                                .stroke(PixelPalette.brightGold, lineWidth: 3)
+                        }
+                        .overlay {
+                            PixelTooltipPanelShape(inset: 6)
+                                .stroke(PixelPalette.innerBorder, lineWidth: 2)
+                        }
+                        .overlay(alignment: .topLeading) {
+                            PixelCornerAccent()
+                                .foregroundStyle(PixelPalette.orange)
+                                .padding(8)
+                        }
+                        .overlay(alignment: .bottomTrailing) {
+                            PixelCornerAccent()
+                                .foregroundStyle(PixelPalette.purple)
+                                .rotationEffect(.degrees(180))
+                                .padding(8)
+                        }
+                }
             }
             .overlay(alignment: pointerAlignment) {
                 pixelPointer
@@ -297,7 +354,7 @@ struct PixelQuotaTooltipView: View {
                     .foregroundStyle(PixelPalette.mutedGold)
                     .tracking(0.5)
 
-                Text(content.daysUntilResetText)
+                Text(content.resetCountdownText)
                     .font(pixelFont(size: 11, weight: .semibold))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -326,7 +383,7 @@ struct PixelQuotaTooltipView: View {
                 PixelTooltipIcon(kind: .clock)
                     .frame(width: 12, height: 12)
                     .foregroundStyle(PixelPalette.mutedGold)
-                Text(content.daysUntilResetText)
+                Text(content.resetCountdownText)
                     .font(pixelFont(size: 10, weight: .semibold))
                     .lineLimit(2)
             }

@@ -6,6 +6,8 @@ struct MenuBarContent: View {
     let togglePetVisibility: () -> Void
     let setPetSize: (PetSize) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
+    let setShowsQuotaDynamics: (Bool) -> Void
+    let clearQuotaHistory: () -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
 
     var body: some View {
@@ -91,6 +93,22 @@ struct MenuBarContent: View {
                 ForEach(TooltipStyle.allCases, id: \.self) { style in
                     Text(style.title).tag(style)
                 }
+            }
+
+            Toggle(
+                localized("menu.show_quota_dynamics"),
+                isOn: Binding(
+                    get: { appState.showsQuotaDynamics },
+                    set: setShowsQuotaDynamics
+                )
+            )
+
+            Button(localized("menu.clear_quota_history")) {
+                clearQuotaHistory()
+            }
+
+            if let issue = appState.quotaHistoryIssue {
+                Text(localized(issue.localizationKey))
             }
 
             Toggle(

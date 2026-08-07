@@ -13,6 +13,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var restoreTooltipAfterDrag = false
     private var dragCompletionTask: Task<Void, Never>?
     private var contextMenuAnimationTask: Task<Void, Never>?
+    private var resetCountdownTask: Task<Void, Never>?
     private var contextMenuDismissCompletion: (() -> Void)?
     private var pointerMonitor: Any?
     private var outsidePointerMonitor: Any?
@@ -38,6 +39,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     var isTooltipVisible: Bool {
         tooltipPanel?.isVisible == true
+    }
+
+    var isResetCountdownUpdateActive: Bool {
+        resetCountdownTask != nil
     }
 
     var tooltipFrame: CGRect? {
@@ -186,6 +191,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func updateTooltipStyle() {
+        updateTooltipLayout()
+    }
+
+    func updateTooltipLayout() {
         let wasVisible = tooltipPanel?.isVisible == true
         repositionTooltip(preferredPlacement: tooltipPlacement, refreshContent: true)
         if wasVisible {
@@ -194,12 +203,19 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func setTooltipVisible(_ isVisible: Bool) {
+        if !isVisible {
+            stopResetCountdownUpdates()
+        }
         guard let tooltipPanel, !isDraggingPet, contextMenuPanel == nil else { return }
 
         if isVisible {
-            repositionTooltip()
+            let wasVisible = tooltipPanel.isVisible
+            repositionTooltip(refreshContent: !wasVisible)
             if !tooltipPanel.isVisible {
                 tooltipPanel.orderFrontRegardless()
+            }
+            if resetCountdownTask == nil {
+                startResetCountdownUpdates()
             }
         } else if tooltipPanel.isVisible {
             tooltipPanel.orderOut(nil)
@@ -217,6 +233,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         isDraggingPet = true
         restoreTooltipAfterDrag = tooltipPanel?.isVisible == true
         dragCompletionTask?.cancel()
+        stopResetCountdownUpdates()
         tooltipPanel?.orderOut(nil)
     }
 
@@ -357,6 +374,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 }
                 self.dismissContextMenu(animated: true)
             },
+            setShowsQuotaDynamics: { [weak self, weak appState] isEnabled in
+                guard let self, let appState else { return }
+                appState.setShowsQuotaDynamics(isEnabled)
+                self.updateTooltipLayout()
+            },
             setHidesInFullScreenApps: { [weak self, weak appState] isEnabled in
                 guard let self, let appState else { return }
                 appState.setHidesInFullScreenApps(isEnabled)
@@ -450,6 +472,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         petFrame: CGRect,
         visibleFrame: CGRect,
         tooltipStyle: TooltipStyle = .smooth,
+        showsHistory: Bool = false,
         preferredPlacement: QuotaTooltipView.Placement? = nil,
         tooltipSize: CGSize? = nil
     ) -> (
@@ -463,7 +486,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             petFrame.height / PetSize.large.sceneSize.height
         )
         let size = tooltipSize
-            ?? QuotaTooltipView.panelSize(forScale: petScale, style: tooltipStyle)
+            ?? QuotaTooltipView.panelSize(
+                forScale: petScale,
+                style: tooltipStyle,
+                showsHistory: showsHistory
+            )
         let halfHole = CGSize(
             width: QuotaTooltipView.petAnchorHalfSize.width * petScale,
             height: QuotaTooltipView.petAnchorHalfSize.height * petScale
@@ -590,6 +617,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             petFrame: panel.frame,
             visibleFrame: visibleFrame,
             tooltipStyle: appState.tooltipStyle,
+            showsHistory: appState.showsQuotaDynamics,
             tooltipSize: hostingView.fittingSize
         )
         let tooltipPanel = NSPanel(
@@ -638,6 +666,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             petFrame: panel.frame,
             visibleFrame: Self.visibleFrame(for: panel.frame),
             tooltipStyle: appState.tooltipStyle,
+            showsHistory: appState.showsQuotaDynamics,
             preferredPlacement: preferredPlacement,
             tooltipSize: measuredSize
         )
@@ -656,6 +685,42 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 rootView: QuotaTooltipView(appState: appState, placement: layout.placement)
             )
         }
+    }
+
+    private func startResetCountdownUpdates() {
+        resetCountdownTask = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled {
+                let delay = QuotaTooltipView.resetCountdownUpdateDelay(
+                    resetDate: self.appState?.quota?.primary?.resetDate,
+                    now: Date()
+                )
+                do {
+                    try await Task.sleep(
+                        nanoseconds: UInt64(delay * 1_000_000_000)
+                    )
+                } catch {
+                    return
+                }
+                guard self.tooltipPanel?.isVisible == true else { return }
+                self.refreshTooltipCountdown()
+            }
+        }
+    }
+
+    private func stopResetCountdownUpdates() {
+        resetCountdownTask?.cancel()
+        resetCountdownTask = nil
+    }
+
+    private func refreshTooltipCountdown() {
+        guard let appState,
+              let hostingView = tooltipPanel?.contentView as? NSHostingView<QuotaTooltipView> else {
+            return
+        }
+        hostingView.rootView = QuotaTooltipView(
+            appState: appState,
+            placement: tooltipPlacement
+        )
     }
 
     private func waitForDragToEnd() {

@@ -149,6 +149,7 @@ struct PixelContextMenuActions {
     let retry: () -> Void
     let setPetSize: (PetSize) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
+    let setShowsQuotaDynamics: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
     let setLaunchesAtLogin: (Bool) -> Void
     let openLoginItems: () -> Void
@@ -157,10 +158,23 @@ struct PixelContextMenuActions {
 }
 
 struct PixelContextMenuView: View {
-    nonisolated static let panelSize = CGSize(width: 386, height: 350)
     nonisolated static let mainWidth: CGFloat = 232
     nonisolated static let submenuWidth: CGFloat = 146
     nonisolated static let menuGap: CGFloat = 8
+    nonisolated static let purpleShadowOffset = CGSize(width: 4, height: -4)
+    nonisolated static let blackShadowOffset = CGSize(width: 8, height: -8)
+    nonisolated static let shadowTopInset = max(
+        -purpleShadowOffset.height,
+        -blackShadowOffset.height
+    )
+    nonisolated static let shadowTrailingInset = max(
+        purpleShadowOffset.width,
+        blackShadowOffset.width
+    )
+    nonisolated static let panelSize = CGSize(
+        width: mainWidth + menuGap + submenuWidth + shadowTrailingInset,
+        height: 381
+    )
 
     let appState: AppState
     @ObservedObject var presentation: ContextMenuPresentation
@@ -262,6 +276,8 @@ struct PixelContextMenuView: View {
                     submenuSlot
                 }
             }
+            .padding(.top, Self.shadowTopInset)
+            .padding(.trailing, Self.shadowTrailingInset)
 
             if presentation.placement.opensBelow {
                 Spacer(minLength: 0)
@@ -292,6 +308,13 @@ struct PixelContextMenuView: View {
                 title: localized("menu.tooltip_style"),
                 icon: .style,
                 showsDisclosure: true
+            )
+
+            row(
+                .quotaDynamics,
+                title: localized("menu.show_quota_dynamics"),
+                icon: .history,
+                isChecked: appState.showsQuotaDynamics
             )
 
             row(
@@ -449,7 +472,7 @@ struct PixelContextMenuView: View {
         if appState.connectionState != .connected {
             items.append(.retry)
         }
-        items += [.size, .tooltipStyle, .hideFullScreen, .launchAtLogin]
+        items += [.size, .tooltipStyle, .quotaDynamics, .hideFullScreen, .launchAtLogin]
         if appState.launchAtLoginStatus == .requiresApproval {
             items.append(.openLoginItems)
         }
@@ -526,6 +549,8 @@ struct PixelContextMenuView: View {
             enterSizeSubmenu()
         case .tooltipStyle:
             enterTooltipStyleSubmenu()
+        case .quotaDynamics:
+            actions.setShowsQuotaDynamics(!appState.showsQuotaDynamics)
         case .hideFullScreen:
             actions.setHidesInFullScreenApps(!appState.hidesInFullScreenApps)
         case .launchAtLogin:
@@ -589,6 +614,7 @@ struct PixelContextMenuView: View {
         case retry
         case size
         case tooltipStyle
+        case quotaDynamics
         case hideFullScreen
         case launchAtLogin
         case openLoginItems
@@ -688,18 +714,32 @@ private struct PixelDivider: View {
 
 private struct PixelMenuBackground: View {
     var body: some View {
-        PixelPanelShape()
-            .fill(PixelPalette.background)
-            .overlay {
-                PixelPanelShape()
-                    .stroke(PixelPalette.border, lineWidth: 2)
-            }
-            .overlay {
-                PixelPanelShape(inset: 4)
-                    .stroke(PixelPalette.innerBorder, lineWidth: 1)
-            }
-            .shadow(color: PixelPalette.purple.opacity(0.58), radius: 0, x: 4, y: -4)
-            .shadow(color: .black.opacity(0.55), radius: 0, x: 8, y: -8)
+        ZStack {
+            PixelPanelShape()
+                .fill(.black.opacity(0.55))
+                .offset(
+                    x: PixelContextMenuView.blackShadowOffset.width,
+                    y: PixelContextMenuView.blackShadowOffset.height
+                )
+
+            PixelPanelShape()
+                .fill(PixelPalette.purple.opacity(0.58))
+                .offset(
+                    x: PixelContextMenuView.purpleShadowOffset.width,
+                    y: PixelContextMenuView.purpleShadowOffset.height
+                )
+
+            PixelPanelShape()
+                .fill(PixelPalette.background)
+                .overlay {
+                    PixelPanelShape()
+                        .stroke(PixelPalette.border, lineWidth: 2)
+                }
+                .overlay {
+                    PixelPanelShape(inset: 4)
+                        .stroke(PixelPalette.innerBorder, lineWidth: 1)
+                }
+        }
     }
 }
 
@@ -752,6 +792,7 @@ private enum PixelMenuIcon {
     case retry
     case size
     case style
+    case history
     case smooth
     case pixel
     case fullscreen
@@ -782,6 +823,11 @@ private enum PixelMenuIcon {
             [
                 ".######.....", ".#....#.....", ".#.##.#.###.", ".#.##.#.#.#.",
                 ".#....#.###.", ".######.....", "........###.", "........#.#."
+            ]
+        case .history:
+            [
+                "............", "..........##", ".......####.", ".....###....",
+                "...###......", ".###........", "##..........", "............"
             ]
         case .smooth:
             [

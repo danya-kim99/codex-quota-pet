@@ -15,6 +15,9 @@ final class AppState {
     private(set) var isPetVisible = true
     private(set) var petSize: PetSize
     private(set) var tooltipStyle: TooltipStyle
+    private(set) var showsQuotaDynamics: Bool
+    private(set) var quotaHistory: QuotaHistoryPresentation
+    private(set) var quotaHistoryIssue: QuotaHistoryIssue?
     private(set) var hidesInFullScreenApps: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
@@ -27,10 +30,13 @@ final class AppState {
     private let launchAtLoginStatusProvider: () -> SMAppService.Status
     private let updateLaunchAtLogin: (Bool) throws -> Void
     private let now: () -> Date
+    private let historyStore: QuotaHistoryStore
     private var hasStarted = false
     private var quotaUpdatedAt: Date?
     private var reconnectAttempt = 0
     private var reconnectTask: Task<Void, Never>?
+    private var requiresHistoryGap = true
+    private var historyRevision = -1
 
     init(
         defaults: UserDefaults = .standard,
@@ -46,7 +52,8 @@ final class AppState {
                 try SMAppService.mainApp.unregister()
             }
         },
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        historyStore: QuotaHistoryStore = QuotaHistoryStore()
     ) {
         self.defaults = defaults
         self.appServer = appServer
@@ -54,6 +61,8 @@ final class AppState {
         self.launchAtLoginStatusProvider = launchAtLoginStatusProvider
         self.updateLaunchAtLogin = updateLaunchAtLogin
         self.now = now
+        self.historyStore = historyStore
+        quotaHistory = .empty(now: now())
         launchAtLoginStatus = launchAtLoginStatusProvider()
         petSize = PetSize(
             rawValue: defaults.string(forKey: AppConstants.petSizeKey) ?? ""
@@ -61,6 +70,8 @@ final class AppState {
         tooltipStyle = TooltipStyle(
             rawValue: defaults.string(forKey: AppConstants.tooltipStyleKey) ?? ""
         ) ?? .smooth
+        showsQuotaDynamics = defaults.object(forKey: AppConstants.showQuotaDynamicsKey)
+            as? Bool ?? true
         hidesInFullScreenApps = defaults.bool(forKey: AppConstants.hideInFullScreenAppsKey)
     }
 
@@ -74,6 +85,11 @@ final class AppState {
         }
 
         hasStarted = true
+        let loadedAt = now()
+        Task { [weak self, historyStore] in
+            let update = await historyStore.load(at: loadedAt)
+            self?.applyHistoryUpdate(update)
+        }
         connect(isRetry: false)
     }
 
@@ -81,6 +97,7 @@ final class AppState {
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempt = 0
+        requiresHistoryGap = true
 
         if hasStarted {
             connect(isRetry: false)
@@ -95,6 +112,7 @@ final class AppState {
         reconnectTask = nil
         appServer.stop()
         connectionState = .disconnected
+        requiresHistoryGap = true
     }
 
     func refreshQuotaIfStale(
@@ -137,13 +155,24 @@ final class AppState {
     }
 
     private func didReceive(_ snapshot: QuotaSnapshot) {
+        let observedAt = now()
+        let forceHistoryGap = requiresHistoryGap
+        requiresHistoryGap = false
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempt = 0
         quota = snapshot
-        quotaUpdatedAt = now()
+        quotaUpdatedAt = observedAt
         errorMessage = nil
         connectionState = .connected
+        Task { [weak self, historyStore] in
+            let update = await historyStore.record(
+                snapshot: snapshot,
+                at: observedAt,
+                forceGap: forceHistoryGap
+            )
+            self?.applyHistoryUpdate(update)
+        }
     }
 
     private func didFail(_ message: String) {
@@ -153,6 +182,7 @@ final class AppState {
 
         errorMessage = message
         connectionState = .reconnecting
+        requiresHistoryGap = true
 
         let delay = retryDelays.isEmpty
             ? 0
@@ -196,6 +226,25 @@ final class AppState {
         defaults.set(style.rawValue, forKey: AppConstants.tooltipStyleKey)
     }
 
+    func setShowsQuotaDynamics(_ isEnabled: Bool) {
+        guard isEnabled != showsQuotaDynamics else { return }
+        showsQuotaDynamics = isEnabled
+        defaults.set(isEnabled, forKey: AppConstants.showQuotaDynamicsKey)
+    }
+
+    func noteWakeForQuotaHistory() {
+        requiresHistoryGap = true
+    }
+
+    func clearQuotaHistory() {
+        let clearedAt = now()
+        Task { [weak self, historyStore] in
+            let update = await historyStore.clear(at: clearedAt)
+            self?.applyHistoryUpdate(update)
+            self?.requiresHistoryGap = true
+        }
+    }
+
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         hidesInFullScreenApps = isEnabled
         defaults.set(isEnabled, forKey: AppConstants.hideInFullScreenAppsKey)
@@ -219,6 +268,13 @@ final class AppState {
 
     func openLoginItemsSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+
+    private func applyHistoryUpdate(_ update: QuotaHistoryStoreUpdate) {
+        guard update.revision >= historyRevision else { return }
+        historyRevision = update.revision
+        quotaHistory = update.presentation
+        quotaHistoryIssue = update.issue
     }
 }
 

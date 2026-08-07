@@ -9,6 +9,32 @@ struct QuotaTooltipContent {
     let now: Date
     let locale: Locale
     let calendar: Calendar
+    let history: QuotaHistoryPresentation
+    let showsQuotaDynamics: Bool
+
+    init(
+        remainingPercent: Int?,
+        speedMode: SpeedMode,
+        connectionState: ConnectionState,
+        resetDate: Date?,
+        windowDurationMinutes: Int64?,
+        now: Date,
+        locale: Locale,
+        calendar: Calendar,
+        history: QuotaHistoryPresentation = .empty(),
+        showsQuotaDynamics: Bool = false
+    ) {
+        self.remainingPercent = remainingPercent
+        self.speedMode = speedMode
+        self.connectionState = connectionState
+        self.resetDate = resetDate
+        self.windowDurationMinutes = windowDurationMinutes
+        self.now = now
+        self.locale = locale
+        self.calendar = calendar
+        self.history = history
+        self.showsQuotaDynamics = showsQuotaDynamics
+    }
 
     var progressFraction: CGFloat {
         CGFloat(min(100, max(0, remainingPercent ?? 0))) / 100
@@ -30,20 +56,23 @@ struct QuotaTooltipContent {
         )
     }
 
-    var daysUntilResetText: String {
+    var resetCountdownText: String {
         guard let resetDate else {
             return NSLocalizedString("reset.unavailable", comment: "Missing reset time")
         }
-        let remainingDays = max(0, Int(resetDate.timeIntervalSince(now) / 86_400))
-        let dayCount = QuotaTooltipView.localizedDayCount(
-            remainingDays,
+        let duration = QuotaTooltipView.localizedResetDuration(
+            until: resetDate,
+            now: now,
             locale: locale,
             calendar: calendar
         )
         return String(
-            format: NSLocalizedString("reset.days.remaining", comment: "Days until reset"),
+            format: NSLocalizedString(
+                "reset.countdown.remaining",
+                comment: "Time until reset"
+            ),
             locale: locale,
-            dayCount
+            duration
         )
     }
 
@@ -64,7 +93,7 @@ struct QuotaTooltipContent {
     }
 
     var resetAccessibilityLabel: String {
-        [daysUntilResetText, compactResetText].compactMap { $0 }.joined(separator: ", ")
+        [resetCountdownText, compactResetText].compactMap { $0 }.joined(separator: ", ")
     }
 
     var isStale: Bool {
@@ -76,7 +105,10 @@ struct QuotaTooltipContent {
             remainingPercent: remainingPercent,
             speedMode: speedMode,
             connectionState: connectionState,
-            resetDate: resetDate
+            resetDate: resetDate,
+            history: history,
+            showsQuotaDynamics: showsQuotaDynamics,
+            locale: locale
         )
     }
 }
@@ -107,8 +139,11 @@ struct QuotaTooltipView: View {
 
     static let cardWidth: CGFloat = 320
     static let panelSize = CGSize(width: cardWidth + 40, height: 178)
+    static let historyPanelSize = CGSize(width: cardWidth + 40, height: 252)
     static let smallCardSize = CGSize(width: 248, height: 112)
     static let smallPanelSize = CGSize(width: 272, height: 132)
+    static let historySmallCardSize = CGSize(width: 248, height: 138)
+    static let historySmallPanelSize = CGSize(width: 272, height: 158)
     private static let smallRingSize: CGFloat = 70
     private static let smallRingLineWidth: CGFloat = 8
     private static var smallRingRadius: CGFloat {
@@ -143,7 +178,9 @@ struct QuotaTooltipView: View {
             windowDurationMinutes: appState.quota?.primary?.windowDurationMins,
             now: Date(),
             locale: locale,
-            calendar: calendar
+            calendar: calendar,
+            history: appState.quotaHistory,
+            showsQuotaDynamics: appState.showsQuotaDynamics
         )
     }
 
@@ -176,7 +213,8 @@ struct QuotaTooltipView: View {
         let accessibilityScale = min(1.5, max(1, textScale))
         let baseSize = Self.panelSize(
             for: appState.petSize,
-            style: appState.tooltipStyle
+            style: appState.tooltipStyle,
+            showsHistory: appState.showsQuotaDynamics
         )
 
         Group {
@@ -202,7 +240,11 @@ struct QuotaTooltipView: View {
         if appState.petSize == .small {
             smallTooltipContent
         } else {
-            let scaledPanelSize = Self.panelSize(for: appState.petSize, style: .smooth)
+            let scaledPanelSize = Self.panelSize(
+                for: appState.petSize,
+                style: .smooth,
+                showsHistory: appState.showsQuotaDynamics
+            )
 
             tooltipContent
                 .scaleEffect(appState.petSize.scale)
@@ -214,7 +256,7 @@ struct QuotaTooltipView: View {
         HStack(spacing: 12) {
             smallCircularProgress
 
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: appState.showsQuotaDynamics ? 5 : 7) {
                 Text(NSLocalizedString("quota.available", comment: "Quota card title"))
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .lineLimit(1)
@@ -223,11 +265,26 @@ struct QuotaTooltipView: View {
                     .overlay(.white.opacity(0.14))
 
                 smallResetRows
+
+                if appState.showsQuotaDynamics {
+                    Divider()
+                        .overlay(.white.opacity(0.14))
+                    QuotaHistoryCompactText(
+                        presentation: content.history,
+                        style: .smooth,
+                        color: quotaColor
+                    )
+                }
             }
         }
         .foregroundStyle(.white)
         .padding(14)
-        .frame(width: Self.smallCardSize.width, height: Self.smallCardSize.height)
+        .frame(
+            width: Self.smallCardSize.width,
+            height: appState.showsQuotaDynamics
+                ? Self.historySmallCardSize.height
+                : Self.smallCardSize.height
+        )
         .background(cardColor, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             RoundedRectangle(cornerRadius: 18)
@@ -241,7 +298,9 @@ struct QuotaTooltipView: View {
         .padding(.vertical, 10)
         .frame(
             width: Self.smallPanelSize.width,
-            height: Self.smallPanelSize.height,
+            height: appState.showsQuotaDynamics
+                ? Self.historySmallPanelSize.height
+                : Self.smallPanelSize.height,
             alignment: panelAlignment
         )
     }
@@ -311,7 +370,7 @@ struct QuotaTooltipView: View {
                 Image(systemName: "timer")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                Text(daysUntilResetText)
+                Text(resetCountdownText)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
             }
 
@@ -355,6 +414,19 @@ struct QuotaTooltipView: View {
                 .padding(.bottom, 14)
 
             resetRow
+
+            if appState.showsQuotaDynamics {
+                Divider()
+                    .overlay(.white.opacity(0.14))
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+
+                QuotaHistorySection(
+                    presentation: content.history,
+                    style: .smooth,
+                    quotaColor: quotaColor
+                )
+            }
         }
         .foregroundStyle(.white)
         .padding(16)
@@ -372,34 +444,49 @@ struct QuotaTooltipView: View {
         .padding(.vertical, 12)
         .frame(
             width: Self.panelSize.width,
-            height: Self.panelSize.height,
+            height: appState.showsQuotaDynamics
+                ? Self.historyPanelSize.height
+                : Self.panelSize.height,
             alignment: panelAlignment
         )
     }
 
-    static func panelSize(for petSize: PetSize, style: TooltipStyle = .smooth) -> CGSize {
+    static func panelSize(
+        for petSize: PetSize,
+        style: TooltipStyle = .smooth,
+        showsHistory: Bool = false
+    ) -> CGSize {
         if style == .pixel {
-            return PixelQuotaTooltipView.panelSize(for: petSize)
+            return PixelQuotaTooltipView.panelSize(for: petSize, showsHistory: showsHistory)
         }
-        return petSize == .small ? smallPanelSize : panelSize(forScale: petSize.scale)
+        if petSize == .small {
+            return showsHistory ? historySmallPanelSize : smallPanelSize
+        }
+        return panelSize(forScale: petSize.scale, showsHistory: showsHistory)
     }
 
     static func panelSize(
         forScale scale: CGFloat,
-        style: TooltipStyle = .smooth
+        style: TooltipStyle = .smooth,
+        showsHistory: Bool = false
     ) -> CGSize {
         if style == .pixel {
             if scale <= PetSize.small.scale {
-                return PixelQuotaTooltipView.smallPanelSize
+                return PixelQuotaTooltipView.panelSize(
+                    for: .small,
+                    showsHistory: showsHistory
+                )
             }
-            return scale < 0.9
-                ? PixelQuotaTooltipView.mediumPanelSize
-                : PixelQuotaTooltipView.largePanelSize
+            return PixelQuotaTooltipView.panelSize(
+                for: scale < 0.9 ? .medium : .large,
+                showsHistory: showsHistory
+            )
         }
         if scale <= PetSize.small.scale {
-            return smallPanelSize
+            return showsHistory ? historySmallPanelSize : smallPanelSize
         }
-        return CGSize(width: panelSize.width * scale, height: panelSize.height * scale)
+        let base = showsHistory ? historyPanelSize : panelSize
+        return CGSize(width: base.width * scale, height: base.height * scale)
     }
 
     @ViewBuilder
@@ -528,7 +615,7 @@ struct QuotaTooltipView: View {
                     .frame(width: 64, height: 14)
             }
 
-            Text(daysUntilResetText)
+            Text(resetCountdownText)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -563,8 +650,8 @@ struct QuotaTooltipView: View {
         .accessibilityHidden(true)
     }
 
-    private var daysUntilResetText: String {
-        content.daysUntilResetText
+    private var resetCountdownText: String {
+        content.resetCountdownText
     }
 
     private func compactResetText(_ date: Date) -> String {
@@ -612,6 +699,57 @@ struct QuotaTooltipView: View {
         return formatter.string(from: DateComponents(day: dayCount)) ?? "\(dayCount)"
     }
 
+    static func localizedResetDuration(
+        until resetDate: Date,
+        now: Date,
+        locale: Locale,
+        calendar: Calendar
+    ) -> String {
+        let remainingSeconds = max(0, Int(resetDate.timeIntervalSince(now)))
+        let formatter = DateComponentsFormatter()
+        var localizedCalendar = calendar
+        localizedCalendar.locale = locale
+        formatter.calendar = localizedCalendar
+        formatter.maximumUnitCount = 2
+
+        let components: DateComponents
+        if remainingSeconds >= 86_400 {
+            formatter.allowedUnits = [.day]
+            formatter.unitsStyle = .full
+            formatter.maximumUnitCount = 1
+            components = DateComponents(day: remainingSeconds / 86_400)
+        } else if remainingSeconds >= 3_600 {
+            formatter.allowedUnits = [.hour]
+            formatter.unitsStyle = .abbreviated
+            formatter.maximumUnitCount = 1
+            components = DateComponents(hour: remainingSeconds / 3_600)
+        } else {
+            formatter.allowedUnits = [.minute, .second]
+            formatter.unitsStyle = .abbreviated
+            formatter.zeroFormattingBehavior = [.pad]
+            components = DateComponents(
+                minute: remainingSeconds / 60,
+                second: remainingSeconds % 60
+            )
+        }
+
+        return formatter.string(from: components) ?? "0"
+    }
+
+    static func resetCountdownUpdateDelay(
+        resetDate: Date?,
+        now: Date
+    ) -> TimeInterval {
+        guard let resetDate else { return 60 }
+        let remaining = resetDate.timeIntervalSince(now)
+        guard remaining > 0 else { return 60 }
+        guard remaining >= 3_600 else { return 1 }
+
+        let unit: TimeInterval = remaining >= 86_400 ? 86_400 : 3_600
+        let nextBoundary = remaining.truncatingRemainder(dividingBy: unit) + 0.05
+        return min(60, max(0.05, nextBoundary))
+    }
+
     static func quotaLevel(for remainingPercent: Int?) -> QuotaLevel {
         guard let remainingPercent else { return .normal }
         if remainingPercent < 10 { return .critical }
@@ -647,7 +785,10 @@ struct QuotaTooltipView: View {
         remainingPercent: Int?,
         speedMode: SpeedMode,
         connectionState: ConnectionState,
-        resetDate: Date?
+        resetDate: Date?,
+        history: QuotaHistoryPresentation = .empty(),
+        showsQuotaDynamics: Bool = false,
+        locale: Locale = .autoupdatingCurrent
     ) -> String {
         var details: [String] = []
         if let remainingPercent {
@@ -675,6 +816,9 @@ struct QuotaTooltipView: View {
         details.append(connectionState.title)
         if let resetDate {
             details.append(resetDate.formatted(date: .abbreviated, time: .shortened))
+        }
+        if showsQuotaDynamics {
+            details.append(history.accessibilitySummary(locale: locale))
         }
         return details.joined(separator: ", ")
     }

@@ -189,6 +189,60 @@ final class RateLimitDecodingTests: XCTestCase {
         )
     }
 
+    func testPixelTooltipHardShadowsStayWithinEveryPanel() {
+        let cardAndPanelSizes = [
+            (PixelQuotaTooltipView.largeCardSize, PixelQuotaTooltipView.largePanelSize),
+            (PixelQuotaTooltipView.mediumCardSize, PixelQuotaTooltipView.mediumPanelSize),
+            (PixelQuotaTooltipView.smallCardSize, PixelQuotaTooltipView.smallPanelSize)
+        ]
+        let requiredHorizontalInset = max(
+            PixelQuotaTooltipView.purpleShadowOffset.width,
+            PixelQuotaTooltipView.blackShadowOffset.width
+        )
+        let requiredVerticalInset = max(
+            -PixelQuotaTooltipView.purpleShadowOffset.height,
+            -PixelQuotaTooltipView.blackShadowOffset.height
+        )
+
+        for (cardSize, panelSize) in cardAndPanelSizes {
+            XCTAssertGreaterThanOrEqual(
+                (panelSize.width - cardSize.width) / 2,
+                requiredHorizontalInset
+            )
+            XCTAssertGreaterThanOrEqual(
+                (panelSize.height - cardSize.height) / 2,
+                requiredVerticalInset
+            )
+        }
+    }
+
+    func testPixelContextMenuHardShadowsStayWithinPanel() {
+        let contentWidth = PixelContextMenuView.mainWidth
+            + PixelContextMenuView.menuGap
+            + PixelContextMenuView.submenuWidth
+        let requiredTrailingInset = max(
+            PixelContextMenuView.purpleShadowOffset.width,
+            PixelContextMenuView.blackShadowOffset.width
+        )
+        let requiredTopInset = max(
+            -PixelContextMenuView.purpleShadowOffset.height,
+            -PixelContextMenuView.blackShadowOffset.height
+        )
+
+        XCTAssertGreaterThanOrEqual(
+            PixelContextMenuView.panelSize.width - contentWidth,
+            requiredTrailingInset
+        )
+        XCTAssertGreaterThanOrEqual(
+            PixelContextMenuView.shadowTrailingInset,
+            requiredTrailingInset
+        )
+        XCTAssertGreaterThanOrEqual(
+            PixelContextMenuView.shadowTopInset,
+            requiredTopInset
+        )
+    }
+
     func testPetSizeOptionsUseApprovedDimensions() {
         XCTAssertEqual(PetSize.allCases, [.small, .medium, .large])
         XCTAssertEqual(PetSize.small.label, "S")
@@ -357,7 +411,7 @@ final class RateLimitDecodingTests: XCTestCase {
             "Доступно"
         )
         XCTAssertEqual(
-            russian.localizedString(forKey: "reset.days.remaining", value: nil, table: nil),
+            russian.localizedString(forKey: "reset.countdown.remaining", value: nil, table: nil),
             "%@ до сброса"
         )
         XCTAssertEqual(
@@ -482,6 +536,55 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testTooltipResetCountdownUsesDaysHoursMinutesAndSeconds() throws {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+
+        func duration(_ seconds: TimeInterval, locale: String) -> String {
+            QuotaTooltipView.localizedResetDuration(
+                until: now.addingTimeInterval(seconds),
+                now: now,
+                locale: Locale(identifier: locale),
+                calendar: calendar
+            )
+        }
+
+        XCTAssertEqual(duration(86_400, locale: "en_US"), "1 day")
+        XCTAssertEqual(duration(86_399, locale: "en_US"), "23h")
+        XCTAssertEqual(duration(3_600, locale: "en_US"), "1h")
+        XCTAssertEqual(duration(3_599, locale: "en_US"), "59m 59s")
+        XCTAssertEqual(duration(0, locale: "en_US"), "0m 0s")
+        XCTAssertEqual(duration(-1, locale: "en_US"), "0m 0s")
+
+        XCTAssertEqual(duration(86_400, locale: "ru_RU"), "1 день")
+        XCTAssertEqual(duration(86_399, locale: "ru_RU"), "23 ч")
+        XCTAssertEqual(duration(3_600, locale: "ru_RU"), "1 ч")
+        XCTAssertEqual(duration(3_599, locale: "ru_RU"), "59 мин 59 с")
+        XCTAssertEqual(duration(0, locale: "ru_RU"), "0 мин 0 с")
+
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: now.addingTimeInterval(3_599),
+                now: now
+            ),
+            1
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: now.addingTimeInterval(3_600),
+                now: now
+            ),
+            0.05,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(resetDate: nil, now: now),
+            60
+        )
+    }
+
+    @MainActor
     func testTooltipQuotaLevelsUseRequestedBoundaries() {
         XCTAssertEqual(QuotaTooltipView.quotaLevel(for: 100), .normal)
         XCTAssertEqual(QuotaTooltipView.quotaLevel(for: 30), .normal)
@@ -513,7 +616,7 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertTrue(content.isStale)
         XCTAssertNil(content.dayIndicator)
         XCTAssertNotNil(content.compactResetText)
-        XCTAssertFalse(content.daysUntilResetText.isEmpty)
+        XCTAssertFalse(content.resetCountdownText.isEmpty)
 
         let missing = QuotaTooltipContent(
             remainingPercent: nil,
@@ -979,7 +1082,10 @@ final class RateLimitDecodingTests: XCTestCase {
         controller.setTooltipVisible(true)
 
         let petFrame = try XCTUnwrap(controller.petFrame)
-        XCTAssertEqual(controller.tooltipFrame?.size, QuotaTooltipView.panelSize(for: .large))
+        XCTAssertEqual(
+            controller.tooltipFrame?.size,
+            QuotaTooltipView.panelSize(for: .large, showsHistory: true)
+        )
 
         appState.setTooltipStyle(.pixel)
         controller.updateTooltipStyle()
@@ -987,7 +1093,11 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertTrue(controller.isTooltipVisible)
         XCTAssertEqual(
             controller.tooltipFrame?.size,
-            QuotaTooltipView.panelSize(for: .large, style: .pixel)
+            QuotaTooltipView.panelSize(
+                for: .large,
+                style: .pixel,
+                showsHistory: true
+            )
         )
         XCTAssertEqual(controller.petFrame, petFrame)
         XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
@@ -1079,6 +1189,46 @@ final class RateLimitDecodingTests: XCTestCase {
         controller.show(appState: appState)
         XCTAssertTrue(controller.isVisible)
         controller.hide()
+    }
+
+    @MainActor
+    func testResetCountdownUpdatesOnlyWhileTooltipIsVisible() async throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            defaults: defaults,
+            appServer: appServer,
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        let controller = PetPanelController()
+        appState.start()
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 80,
+                resetsAt: Int64(Date().addingTimeInterval(30 * 60).timeIntervalSince1970)
+            )
+        )
+        await Self.waitUntil { appState.quota?.primary?.resetDate != nil }
+
+        controller.show(appState: appState)
+        let refreshCount = appServer.rateLimitRefreshCount
+        controller.setTooltipVisible(true)
+        XCTAssertTrue(controller.isResetCountdownUpdateActive)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, refreshCount)
+
+        controller.setTooltipVisible(false)
+        XCTAssertFalse(controller.isResetCountdownUpdateActive)
+
+        controller.setTooltipVisible(true)
+        let petFrame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(at: CGPoint(x: petFrame.midX, y: petFrame.midY))
+        XCTAssertFalse(controller.isResetCountdownUpdateActive)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, refreshCount)
+
+        controller.hide()
+        appState.stop()
     }
 
     @MainActor
@@ -1264,7 +1414,11 @@ final class RateLimitDecodingTests: XCTestCase {
     @MainActor
     func testFailureSchedulesReconnectAndRetryNowReconnectsImmediately() async {
         let appServer = FakeAppServer()
-        let appState = AppState(appServer: appServer, retryDelays: [60])
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
 
         appState.start()
         XCTAssertEqual(appServer.startCount, 1)
@@ -1291,7 +1445,11 @@ final class RateLimitDecodingTests: XCTestCase {
     @MainActor
     func testAutomaticReconnectUsesSingleActiveAttempt() async {
         let appServer = FakeAppServer()
-        let appState = AppState(appServer: appServer, retryDelays: [0])
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [0],
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
 
         appState.start()
         appServer.fail(with: "Connection lost")
@@ -1311,7 +1469,11 @@ final class RateLimitDecodingTests: XCTestCase {
     func testQuotaRefreshesOnlyAfterSnapshotBecomesStale() async {
         let appServer = FakeAppServer()
         var now = Date(timeIntervalSince1970: 1_000)
-        let appState = AppState(appServer: appServer, now: { now })
+        let appState = AppState(
+            appServer: appServer,
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
 
         appState.start()
         appState.refreshQuotaIfStale(maxAge: 0)
@@ -1344,7 +1506,10 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(CodexAppServer.rateLimitRefreshInterval, 60)
     }
 
-    private static func snapshot(remainingPercent: Int) -> QuotaSnapshot {
+    private static func snapshot(
+        remainingPercent: Int,
+        resetsAt: Int64? = nil
+    ) -> QuotaSnapshot {
         QuotaSnapshot(
             limitId: "codex",
             limitName: nil,
@@ -1352,7 +1517,7 @@ final class RateLimitDecodingTests: XCTestCase {
             primary: QuotaWindow(
                 usedPercent: 100 - remainingPercent,
                 windowDurationMins: nil,
-                resetsAt: nil
+                resetsAt: resetsAt
             ),
             secondary: nil
         )

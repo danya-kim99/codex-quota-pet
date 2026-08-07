@@ -255,6 +255,210 @@ Acceptance criteria for this update:
   screenshot QA confirms the Smooth regression contract and approved Pixel
   system without continuous idle rendering.
 
+## Approved adaptive reset countdown
+
+The reset-countdown refinement was approved for implementation on
+8 August 2026. It changes only the localized relative countdown already shown
+inside both approved tooltip styles.
+
+- At 24 hours or more, the tooltip keeps the existing whole-day countdown.
+  From one hour up to but excluding 24 hours, it shows whole hours instead of
+  `0 days`. Below one hour, it shows whole minutes and seconds. Exact boundaries
+  belong to the larger unit: 24:00 is one day and 1:00 is one hour.
+- The countdown truncates to completed whole units, never rounds upward, and
+  never becomes negative. At or after the last known reset timestamp it shows
+  zero minutes and zero seconds until App Server supplies a new window.
+- English and Russian use the system-localized abbreviated hour, minute, and
+  second units so compact S geometry remains readable. Representative copy is
+  `23h until reset` / `23 ч до сброса` and
+  `42m 17s until reset` / `42 мин 17 с до сброса`. The separate absolute reset
+  date and time remain unchanged.
+- Smooth and Pixel, Standard and Turbo, and S/M/L consume the same shared
+  semantic formatter. Tooltip panel and card dimensions, reset-window segments,
+  quota/history content, colors, typography, pointer geometry, and stale/missing
+  presentation otherwise remain unchanged.
+- While the tooltip is visible, the countdown updates at the next displayed-unit
+  boundary and once per second below one hour. Countdown work stops whenever the
+  tooltip is hidden, including drag, context-menu, pet hiding, and fullscreen
+  suppression. There is no background timer, extra App Server read, continuous
+  Canvas rendering, or persistence change.
+- Reduce Motion does not alter the value because the countdown is text rather
+  than decorative motion. The reset row exposes the same current countdown and
+  absolute timestamp through VoiceOver. Missing reset data retains the existing
+  localized unavailable state; reconnecting/stale data counts down from the last
+  accepted reset timestamp.
+- Hover refresh, click, drag restoration, resize, style switching, pointer
+  placement, screen clamping, hide/fullscreen behavior, wake handling, menu-bar
+  content, quota-history collection, privacy, signing, packaging, and
+  distribution scope are unchanged.
+
+Acceptance criteria for this update:
+
+- deterministic formatter tests cover 24:00, 23:59, 1:00, 59:59, zero, expired,
+  missing reset data, English, and Russian;
+- Smooth and Pixel S/M/L show the same countdown semantics without truncating
+  the representative English and Russian strings or changing approved geometry;
+- visible-only update lifecycle tests prove that live countdown work starts on
+  hover, stops on every tooltip dismissal path, and adds no quota refresh;
+- focused and full macOS tests pass, `./script/build_and_run.sh --verify` builds
+  and launches the app, and representative Smooth/Pixel screenshot QA confirms
+  the sub-day and sub-hour states.
+
+## Approved local quota history
+
+The local quota-history design freeze was approved for implementation on
+7 August 2026. It extends the approved Smooth/Pixel tooltip system without
+claiming access to exact tokens or complete account activity.
+
+- History contains only locally observed integer percentage snapshots and the
+  minimum reset-window and limit identity metadata required to decide whether
+  adjacent observations are comparable. It never stores tokens, cost, request
+  details, prompts, tasks, models, credentials, or Codex private files.
+- Primary and optional secondary windows are persisted independently. The first
+  UI slice presents only primary history; secondary history has no placeholder
+  until its own Smooth/Pixel/S composition is approved.
+- Collection is local-on. A persisted `Show Quota Dynamics` /
+  `Показывать динамику квоты` preference is enabled by default and controls
+  presentation only. Turning it off removes history from the tooltip and its
+  VoiceOver summary while collection, retention, and the clear-history path
+  continue unchanged.
+- A changed percentage, window availability, reset metadata, or identity is a
+  meaningful snapshot. Identical accepted data records at most one hourly
+  heartbeat. History never initiates another App Server read.
+- Retention is a rolling 30 days with a hard cap of 2,000 snapshots. Expired
+  points are pruned first, then the oldest overflow; the first remaining point
+  becomes a baseline.
+- A percentage drop is comparable only within one uninterrupted connection,
+  with compatible limit identity, the same non-null reset timestamp, compatible
+  duration metadata, no missing window, no clock reversal, and no gap longer
+  than 90 minutes.
+- A credible reset requires continuous identity and connection, the old reset
+  time to pass between observations, a new future reset time, and compatible
+  duration metadata. It is a reset boundary regardless of whether the integer
+  percentage rises, stays equal, or falls.
+- An increase without a credible reset is a correction boundary. Startup,
+  reconnect, every macOS wake, identity change, window disappearance or
+  reappearance, backward clock movement, and a gap over 90 minutes also begin a
+  new baseline. Both boundary observations are retained, but no line or change
+  is inferred across them.
+- Changes in `limitId`, `planType`, or a non-empty `limitName` break identity.
+  Missing identity fields alone do not claim an account change; incomplete
+  identity continues only through an uninterrupted connection with matching
+  window metadata. The protocol cannot identify an account switch when all
+  visible identity fields remain the same.
+- Observation time is the local `Date` at snapshot acceptance because App
+  Server provides no observation timestamp. Append order is authoritative.
+  Future-dated points after a backward clock adjustment remain subject to the
+  hard cap and are not age-pruned until local time catches up.
+
+Persistence and privacy:
+
+- One versioned Foundation `Codable` JSON file lives in the app-specific
+  Application Support directory, uses atomic replacement and current-user file
+  permissions, and is excluded from backup. There is no database, third-party
+  package, iCloud/ubiquity, network sync, backend, analytics, or custom crypto.
+- Missing and empty stores start normally. Corrupt, partial, old unsupported,
+  or unknown future versions are never salvaged or overwritten in place. The
+  file is moved to a timestamped quarantine beside the active file and history
+  restarts empty.
+- If quarantine fails, the original file remains untouched and writes are
+  disabled for that session. If a normal write fails, the last valid file is
+  preserved, in-memory session history continues, and atomic persistence is
+  retried only on the next meaningful snapshot or heartbeat.
+- The regular menu shows a short localized nonmodal status when history was
+  restarted or is not being saved. Quota display, reconnect, pet animation,
+  consumption reactions, and reset events remain independent of persistence.
+- `Clear Local History…` / `Очистить локальную историю…` appears only in the
+  regular menu and uses a native confirmation with Cancel as the default. A
+  successful clear removes active history and quarantines, leaves the current
+  quota unchanged, and makes the next normally accepted snapshot a baseline.
+  A failed clear never reports success.
+
+Presentation:
+
+- The default range is the latest 24 hours. X is time-proportional across that
+  fixed range and Y is fixed at 0...100% so small movements are not exaggerated.
+- L and M show a static chart plus the latest uninterrupted comparable segment.
+  Smooth uses an antialiased line; Pixel uses a stepped line. Both use identical
+  data semantics and the current quota color. A reset is a line break with an
+  outlined diamond; other lost-continuity boundaries are breaks with a neutral
+  dashed mark. Flat observations remain horizontal.
+- User copy shows endpoints instead of percentage-point notation: for example,
+  `85% → 77%` with `over 6 hours observed`, and in compact form
+  `85% → 77% · 6 h`. Russian uses `за 6 часов наблюдений` and `6 ч`.
+  No `p.p.` / `п.п.` abbreviation is shown. An unchanged segment says that the
+  current percentage is unchanged; one comparable point says history is being
+  collected; a missing current primary says the current value is unavailable.
+- With dynamics visible, normal-size panel geometry is Smooth L 360 x 252 pt,
+  Smooth M 288 x 201.6 pt, Smooth S 272 x 158 pt, Pixel L 420 x 290 pt,
+  Pixel M 336 x 232 pt, and Pixel S 304 x 174 pt. L/M show the chart; S keeps
+  its circular composition and adds one text-only endpoint/duration line.
+- With dynamics hidden, each style and size returns exactly to its previously
+  approved panel and card composition with no empty history space. Changing the
+  preference while a tooltip is open updates and resizes immediately, preserves
+  the current side when it fits, chooses the next fitting side otherwise, and
+  clamps to the owning display without moving the pet.
+- Standard and Turbo have the same history. Turbo does not add bolts, chevrons,
+  pulses, or distinct meaning to the chart. The chart has no `TimelineView`,
+  timer, continuous Canvas refresh, or reveal animation. Reduce Motion retains
+  the same static information.
+- Reconnecting/stale presentation retains the last history. Pixel applies its
+  existing 62% informational-content dimming; Smooth remains visually
+  unchanged. A missing current primary keeps past segments visible but labels
+  the current value unavailable.
+- Existing hover refresh, pet click and absorption, dragging, resize, style
+  switching, context-menu suppression, hide/show, fullscreen suppression,
+  click-through behavior, four-side placement, multiple-display ownership, and
+  screen clamping remain unchanged. Collection continues while the pet is
+  hidden or fullscreen-suppressed.
+- The regular menu and Pixel context menu both expose the persisted dynamics
+  toggle. The Pixel context menu keeps its existing keyboard and VoiceOver
+  behavior and may grow only by the one fixed row required for this option.
+
+Accessibility, localization, and performance:
+
+- Chart geometry and decorations are accessibility-hidden after an equivalent
+  localized text summary is supplied. With dynamics enabled, pet and menu-bar
+  VoiceOver summaries add the start and end percentages, observed duration,
+  and whether a reset or continuity break is present. The tooltip remains
+  noninteractive and adds no keyboard stop.
+- English and Russian use Foundation-localized dates and durations, natural
+  casing, and complete phrases for collecting, unchanged, current unavailable,
+  restarted, not saved, clear confirmation, and the visibility toggle.
+- Views read an already-derived presentation and never read files. Persistence,
+  decoding, pruning, and encoding do not run on the main actor. Rendering is
+  capped at 240 derived points, retains endpoints and boundary meaning, and is
+  recomputed only when history changes.
+- A maximum-size fixture measures decode, prune, and presentation derivation;
+  the development target is a median at or below 100 ms over ten runs and at or
+  below 10 ms for subsequent presentation derivation. Actual measured results,
+  not assumptions, are reported after implementation.
+
+Acceptance criteria for this update:
+
+- empty/fresh, relaunch, deduplication, heartbeat, 30-day pruning, hard cap,
+  and primary/secondary absence are covered by focused tests;
+- same-window drop, reset rollover, correction, account/plan change, startup,
+  reconnect, wake, long gap, duplicate, missing metadata, and clock changes
+  produce the frozen boundaries without inventing usage;
+- atomic failure, corrupt JSON, unsupported version, quarantine failure,
+  unwritable storage, in-memory continuation, retry, and confirmed clear are
+  safe and do not affect live quota behavior;
+- Smooth and Pixel L/M/S render the approved endpoint copy, graph/compact
+  composition, Standard/Turbo, Reduce Motion, stale, missing, English, Russian,
+  accessibility, and visible/hidden geometry states;
+- all tooltip placements, display edges, accessibility text sizes, hover,
+  click, drag, resize, style changes, hide/fullscreen, reconnect, and context
+  menu behavior remain correct with no extra App Server traffic;
+- fixture-driven classifier, store, presentation, preference, geometry, and
+  localization tests pass, followed by focused macOS tests,
+  `./script/build_and_run.sh --verify`, and visual QA of changed states.
+
+Explicit non-goals are exact tokens, complete account activity, prediction,
+export, cloud sync, analytics, a backend, notifications, a dashboard/settings
+window, a database, third-party charts/storage, new sprites, signing changes,
+or distribution changes.
+
 ## Approved absorption interaction
 
 The approved design freeze is recorded in

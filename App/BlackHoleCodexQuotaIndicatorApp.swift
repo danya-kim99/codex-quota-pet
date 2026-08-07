@@ -12,6 +12,8 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 togglePetVisibility: appDelegate.togglePetVisibility,
                 setPetSize: appDelegate.setPetSize,
                 setTooltipStyle: appDelegate.setTooltipStyle,
+                setShowsQuotaDynamics: appDelegate.setShowsQuotaDynamics,
+                clearQuotaHistory: appDelegate.clearQuotaHistory,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps
             )
         } label: {
@@ -37,7 +39,9 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
             remainingPercent: appDelegate.appState.quota?.primary?.remainingPercent,
             speedMode: appDelegate.appState.speedMode,
             connectionState: appDelegate.appState.connectionState,
-            resetDate: appDelegate.appState.quota?.primary?.resetDate
+            resetDate: appDelegate.appState.quota?.primary?.resetDate,
+            history: appDelegate.appState.quotaHistory,
+            showsQuotaDynamics: appDelegate.appState.showsQuotaDynamics
         )
     }
 }
@@ -57,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
+                self?.appState.noteWakeForQuotaHistory()
                 self?.appState.refreshQuotaIfStale(maxAge: 0)
             }
         }
@@ -90,5 +95,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard style != appState.tooltipStyle else { return }
         appState.setTooltipStyle(style)
         petPanel.updateTooltipStyle()
+    }
+
+    func setShowsQuotaDynamics(_ isEnabled: Bool) {
+        guard isEnabled != appState.showsQuotaDynamics else { return }
+        appState.setShowsQuotaDynamics(isEnabled)
+        petPanel.updateTooltipLayout()
+    }
+
+    func clearQuotaHistory() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = NSLocalizedString(
+            "history.clear.confirmation.title",
+            comment: "Clear local quota history confirmation title"
+        )
+        alert.informativeText = NSLocalizedString(
+            "history.clear.confirmation.message",
+            comment: "Clear local quota history confirmation message"
+        )
+        alert.addButton(withTitle: NSLocalizedString("common.cancel", comment: "Cancel"))
+        let clearButton = alert.addButton(
+            withTitle: NSLocalizedString("history.clear.action", comment: "Clear history")
+        )
+        clearButton.hasDestructiveAction = true
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        appState.clearQuotaHistory()
     }
 }
