@@ -84,3 +84,11 @@ xcodebuild -project 'Black Hole Codex Quota Indicator.xcodeproj' \
   CODE_SIGNING_ALLOWED=NO \
   test
 ```
+
+## GitHub release transport
+
+- Prefer the GitHub integration or `gh` CLI for repository and release actions.
+- If `gh auth status` is invalid, use `gh auth login -h github.com` before
+  falling back to browser automation.
+- Use the GitHub web UI only when the integration and authenticated CLI do not
+  expose the required operation.
