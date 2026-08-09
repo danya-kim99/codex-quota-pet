@@ -757,6 +757,13 @@ Three additional user-approved characters were added on 5 August 2026 from the
 approved cream-sweater, cargo-skirt, and botanical-shirt concepts. They use the
 existing character category weight and do not change interaction behavior.
 
+On 9 August 2026, the user approved the more cartoonish replacement concept
+[`absorbable-people-06-07-v2.png`](concepts/absorbable-people-06-07-v2.png) for
+the cargo-skirt and botanical-shirt characters. It supersedes their V1 concept
+and aligns them with the approved white-shirt, purple-shirt, and green-hoodie
+character style. The catalog remains 31 models with seven characters, and the
+existing character category weight and interaction behavior are unchanged.
+
 The V2 astronaut animation is the approved representative visual prototype.
 The slower V3 timing is approved through the three-object launch with varied
 trajectories. The user explicitly authorized implementation after the design

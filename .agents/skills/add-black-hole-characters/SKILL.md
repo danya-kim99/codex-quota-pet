@@ -14,9 +14,15 @@ gate only.
    `docs/ABSORPTION_DESIGN_FREEZE.md`, and current Git status.
 2. Read and use the `imagegen` skill. Use each photo as an identity/clothing
    reference and the latest approved character sheet as a style reference.
-3. Preserve recognizable hair, expression, glasses, and clothing. Use one
-   full-body floating pose per person, hard pixel edges, the dark navy backdrop,
-   and no logos or readable brand text.
+3. Treat `character-white-shirt`, `character-purple-shirt`, and
+   `character-green-hoodie` as the canonical style anchors. Preserve
+   recognizable hair, expression, glasses, and clothing, but match their
+   friendly chibi proportions: large rounded head, compact body and limbs,
+   large expressive eyes, simplified facial anatomy, and clothing details
+   reduced to chunky readable pixel clusters. Reject small heads, elongated
+   realistic anatomy, dense micro-patterns, smooth edges, and portrait-like
+   rendering. Use one full-body floating pose per person, hard pixel edges, the
+   dark navy backdrop, and no logos or readable brand text.
 4. Save a versioned concept under `docs/concepts/` and show it to the user.
 5. Stop before production assets, manifest changes, version bumps, or release
    work. Request explicit visual approval.
