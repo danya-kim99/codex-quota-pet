@@ -7,6 +7,14 @@ enum QuotaHistoryBoundary: String, Codable, Equatable, Sendable {
     case gap
 }
 
+enum QuotaSnapshotTransition: Equatable, Sendable {
+    case duplicate
+    case consumption(delta: Int)
+    case reset
+    case correction
+    case discontinuity
+}
+
 enum QuotaHistoryIssue: Equatable, Sendable {
     case restarted
     case notSaved
@@ -87,20 +95,20 @@ struct QuotaHistorySample: Codable, Equatable, Sendable {
 enum QuotaHistoryClassifier {
     static let maximumComparableGap: TimeInterval = 90 * 60
 
-    static func boundary(
+    static func transition(
         previousSample: QuotaHistorySample,
         currentSample: QuotaHistorySample,
         previousWindow: QuotaHistoryWindow?,
         currentWindow: QuotaHistoryWindow?,
         forceGap: Bool
-    ) -> QuotaHistoryBoundary {
-        guard let previousWindow, let currentWindow else { return .gap }
+    ) -> QuotaSnapshotTransition {
+        guard let previousWindow, let currentWindow else { return .discontinuity }
         let elapsed = currentSample.observedAt.timeIntervalSince(previousSample.observedAt)
         guard !forceGap,
               elapsed > 0,
               elapsed <= maximumComparableGap,
               !previousSample.identity.conflicts(with: currentSample.identity) else {
-            return .gap
+            return .discontinuity
         }
 
         if let previousReset = previousWindow.resetsAt,
@@ -123,11 +131,37 @@ enum QuotaHistoryClassifier {
         guard let previousReset = previousWindow.resetsAt,
               previousReset == currentWindow.resetsAt,
               previousWindow.windowDurationMinutes
-                == currentWindow.windowDurationMinutes,
-              currentWindow.remainingPercent <= previousWindow.remainingPercent else {
+                == currentWindow.windowDurationMinutes else {
+            return .discontinuity
+        }
+
+        let delta = previousWindow.remainingPercent - currentWindow.remainingPercent
+        if delta > 0 { return .consumption(delta: delta) }
+        if delta == 0 { return .duplicate }
+        return .correction
+    }
+
+    static func boundary(
+        previousSample: QuotaHistorySample,
+        currentSample: QuotaHistorySample,
+        previousWindow: QuotaHistoryWindow?,
+        currentWindow: QuotaHistoryWindow?,
+        forceGap: Bool
+    ) -> QuotaHistoryBoundary {
+        switch transition(
+            previousSample: previousSample,
+            currentSample: currentSample,
+            previousWindow: previousWindow,
+            currentWindow: currentWindow,
+            forceGap: forceGap
+        ) {
+        case .duplicate, .consumption:
+            return .continuous
+        case .reset:
+            return .reset
+        case .correction, .discontinuity:
             return .gap
         }
-        return .continuous
     }
 }
 

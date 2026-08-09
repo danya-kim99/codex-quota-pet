@@ -60,12 +60,34 @@ changes, without requiring Accessibility or Screen Recording access.
 `AppState` also owns the persisted S/M/L pet-size preference. The renderer reads
 the selected scene dimensions directly, while `PetPanelController` resizes the
 native panel around its current center and clamps it to the visible screen.
+Absorption path fitting keeps the nominal 48/64/80 pt model envelope, while
+SwiftUI renders each 80 px absorbable asset in a 1.25× transparent field so
+extra canvas padding does not change the visible model scale or trajectory.
 The pet panel never changes size or position on hover. `PetPanelController`
 shows a separate noninteractive child `NSPanel` for the localized quota card;
 the child follows the pet when it is dragged and ignores mouse events. `L` uses
 the existing tooltip, `M` scales it to 80%, and `S` uses a dedicated compact
 circular-quota layout in a 272 × 132 pt panel. The card uses bundled English and
 Russian strings plus system date formatting.
+`QuotaTooltipContent` is the shared semantic input for the focused Smooth and
+Pixel SwiftUI presentations. Progress geometry represents quota only; each
+presentation renders its own separate mode badge. `PetPanelController` owns
+only the tooltip panel's explicit presented/hidden signal and reuses the
+existing `NSHostingView` root across countdown, style, layout, and placement
+refreshes. `QuotaTooltipView` owns the finite visible-only Turbo-badge highlight
+task and cancels it from that signal; AppKit does not inspect quota or own
+animation phases. The task uses no timer, `TimelineView`, persistence, or
+network request and settles with no idle redraw after its bounded cycle.
+`QuotaHistoryClassifier` classifies accepted primary-window transitions once
+for history and the transient consumption effect. A credible reset remains a
+classifier result and history boundary, never a consumption event. `AppState`
+owns consumption continuity and cadence. `BlackHoleView` renders only accepted
+finite consumption events, handles manual-absorption priority, and returns to
+the existing idle schedule after completion. AppKit may suppress presentation
+while the pet is hidden, dragged, resized, or covered by its context menu, but
+never interprets quota values. Consumption events are session-local,
+accessibility-hidden, and add no persistence, process, polling, dependency, or
+network traffic.
 `PetPanelController` also owns a separate transient key-capable `NSPanel` for
 the custom pixel context menu. Local pointer monitoring distinguishes secondary
 clicks from absorption and dragging, while a short-lived global monitor closes
@@ -73,3 +95,9 @@ the menu after clicks in other applications. SwiftUI reads live settings from
 `AppState`; menu actions call the same state methods as the menu bar and do not
 refresh quota. Hit testing, screen-quadrant placement, and the reversible
 spaghettification state are pure helpers covered by tests.
+
+`AppState` owns the independent persisted position-lock and pointer-click-through
+preferences. `PetPanelController` applies their single effective `NSPanel`
+policy, keeps the menu-bar toggle as the recovery path, and uses named native
+frame restoration only for locked placement; display changes reuse the existing
+positive-intersection screen selection and visible-frame clamping.

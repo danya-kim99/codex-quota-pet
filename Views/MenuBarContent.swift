@@ -5,6 +5,8 @@ struct MenuBarContent: View {
     let appState: AppState
     let togglePetVisibility: () -> Void
     let setPetSize: (PetSize) -> Void
+    let setPetPositionLocked: (Bool) -> Void
+    let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
     let clearQuotaHistory: () -> Void
@@ -82,6 +84,26 @@ struct MenuBarContent: View {
                     Text(size.label).tag(size)
                 }
             }
+
+            Toggle(
+                localized("menu.lock_position"),
+                isOn: Binding(
+                    get: { appState.isPetPositionLocked },
+                    set: setPetPositionLocked
+                )
+            )
+            .help(localized("menu.lock_position.help"))
+            .accessibilityHint(localized("menu.lock_position.help"))
+
+            Toggle(
+                localized("menu.pass_pointer_input_through"),
+                isOn: Binding(
+                    get: { appState.passesPointerInputThrough },
+                    set: setPassesPointerInputThrough
+                )
+            )
+            .help(localized("menu.pass_pointer_input_through.help"))
+            .accessibilityHint(localized("menu.pass_pointer_input_through.help"))
 
             Picker(
                 localized("menu.tooltip_style"),

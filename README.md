@@ -7,8 +7,8 @@ The app reads the main Codex rate-limit bucket from the locally installed Codex
 App Server. It renders the live value as a transparent, always-on-top black hole
 whose accretion disk grows and accumulates gold, orange, and purple color layers.
 Hovering the pet shows a localized quota card with the exact percentage, reset
-time, a dynamic day countdown, and a progress bar whose appearance reflects
-Standard or Turbo mode; detailed status remains available from the menu bar.
+time, a dynamic day countdown, a mode-neutral quota indicator, and a separate
+Standard or Turbo badge; detailed status remains available from the menu bar.
 The app also reads the effective Codex
 service tier: Fast/Turbo rotates 1.5 times faster and adds a pulse, while Reduce
 Motion freezes both effects. The menu can hide or restore the pet and optionally
@@ -17,13 +17,21 @@ stops, the pet reconnects automatically and the menu offers an immediate retry.
 The menu also controls whether the main app launches when the user logs in.
 It also offers persistent S (240 × 132 pt), M (320 × 176 pt), and
 L (400 × 220 pt) pet sizes; the quota tooltip adapts to the pet size, while
-absorbed objects remain 48 × 48 pt at every size.
+absorbed objects scale proportionally at 48 × 48 pt for S, 64 × 64 pt for M,
+and 80 × 80 pt for L.
+The pet position can be locked and restored between launches. An independent
+click-through mode passes pointer input to applications underneath and always
+remains reversible from the menu bar.
 The tooltip style can be switched between the original Smooth presentation and
 a code-native Pixel presentation from either the menu bar or the pet's context
 menu. The choice is saved between launches.
 VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
+
+Confident same-window quota drops produce a short local visual reaction without
+adding quota reads. The reaction is decorative, bounded, and replaced by static
+stepped states when Reduce Motion is enabled.
 
 The renderer uses a compact pixel-art style. Its three color layers rotate and
 animate independently around a fixed black core.
@@ -86,9 +94,9 @@ immediately without moving the pet or refreshing quota data.
 1. **Available quota** — the live percentage from the primary Codex rate-limit
    bucket. The value and bar use gold at 30% and above, orange from 10–29%, and
    purple below 10%.
-2. **Mode-aware progress** — Standard uses a plain fill or arc; Turbo adds a
-   lightning badge and static directional details. The mode comes from the
-   active Codex service tier rather than from the percentage.
+2. **Separate mode badge** — Standard and Turbo use identical quota progress.
+   Turbo is identified by a highlighted lightning badge outside the bar or arc;
+   its highlight pulses twice when an eligible tooltip appears.
 3. **Reset window** — segmented marks show the remaining days within the real
    quota window, followed by a localized countdown and reset date/time.
 
@@ -97,9 +105,10 @@ immediately without moving the pet or refreshing quota data.
 Secondary-click the visible black hole or accretion disk with a mouse, trackpad,
 or Control-click to open a custom pixel-art menu. It provides the current
 frequently used controls without repeating quota details: conditional retry,
-S/M/L size selection, Smooth/Pixel tooltip style, fullscreen hiding, launch at
-login, hiding the pet, and quitting the app. Setting toggles update their
-checkmarks without closing the menu; choosing a tooltip style closes it.
+S/M/L size selection, position lock, pointer click-through, Smooth/Pixel tooltip
+style, quota dynamics, fullscreen hiding, launch at login, hiding the pet, and
+quitting the app. Setting toggles update their checkmarks without closing the
+menu; choosing a tooltip style closes it.
 
 The menu uses the black hole's gold, orange, and purple palette with a reversible
 spaghettification animation. It stays on screen near the pointer, supports

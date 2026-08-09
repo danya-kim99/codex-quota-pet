@@ -42,6 +42,102 @@ user explicitly expands scope.
   aesthetic approval, provide a build for their review instead of spending an
   extended cycle judging subjective visual fidelity.
 
+## Evidence-first visual debugging
+
+- Treat a user-supplied source/output comparison as confirmed evidence of a
+  defect. A green test, deterministic regeneration, safe margin, or reviewer
+  opinion does not override a visible mismatch; it means the current check may
+  assert the wrong invariant.
+- Before changing scale, viewport, padding, outlines, animation, or generating
+  replacement art, compare the marked region through the complete pipeline:
+  approved source, intermediate crop/mask, generated asset, and runtime render.
+  Fix the first stage where pixels diverge.
+- Never infer that source pixels are missing until the approved source has been
+  inspected at original resolution. Do not use image generation to repair a
+  pipeline loss.
+- If the user reports the same mismatch after one attempted correction, stop
+  the current hypothesis. Reproduce the exact comparison, invalidate prior
+  visual passes that conflict with it, and diagnose again from the source.
+- Check every sibling asset that uses the same pipeline, then leave one focused
+  regression check at the failing stage. Provide a source/current/fixed visual
+  for user approval when the result is subjective.
+
+## Automatic agent routing
+
+The primary agent must select and delegate to the project agents under
+`.codex/agents/` when a request enters one of the phases below. The user does
+not need to name the agents. Announce the delegation briefly, give each agent a
+bounded task and output contract, wait for every required result, and return one
+synthesis rather than raw agent transcripts. Run at most three subagents at the
+same time.
+
+Automatic routing changes who performs the work, not what is authorized. Never
+advance from discovery or design to production implementation without the
+explicit approvals required above, and never advance from release readiness to
+signing or publication without a separate explicit request.
+
+### Discovery
+
+When the user asks what to build next, requests feature ideas, or presents an
+unshaped product opportunity, spawn `product_scout`, `product_manager`, and
+`experience_designer` in parallel. Keep them read-only. Require evidence-backed
+options, product fit, risks, effort, and a smallest validation step. The primary
+agent reconciles overlap and presents no more than five candidates. Do not edit
+product documents or code in this phase.
+
+### Product design and design freeze
+
+When the user selects or refines a feature and no complete approved design
+freeze exists, spawn `product_manager`, `experience_designer`, and
+`macos_architect` in parallel. Require one shared state matrix, unresolved
+decisions, native feasibility constraints, non-goals, and testable acceptance
+criteria. The primary agent resolves contradictions and presents the
+consolidated design freeze for user approval.
+
+After explicit approval, the primary agent records the approved behavior in
+`docs/PRODUCT_SPEC.md`. Approval of an individual concept, prototype, or
+subsection does not satisfy this gate.
+
+### Implementation
+
+When the user authorizes implementation and the approved design freeze is
+already recorded, use `macos_architect` first if the implementation boundary is
+missing or stale, then delegate production changes to `swift_implementer`.
+These steps are sequential. `swift_implementer` is the only subagent allowed to
+edit source code or tests; do not run competing writer agents in parallel.
+
+If the required approval or recorded specification is absent, stop at the
+missing gate and return to the design phase instead of asking the implementer to
+guess.
+
+### Verification and correction
+
+After implementation, spawn `reviewer` and `qa_accessibility` in parallel.
+Require both to map findings to the approved acceptance criteria and distinguish
+confirmed failures from unverified risks. They must not edit source code.
+
+The primary agent deduplicates their findings. Send confirmed in-scope fixes to
+`swift_implementer`, then rerun only the affected verification. Do not hide
+remaining failures or repeat correction loops indefinitely; report unresolved
+work when another product decision or user action is required.
+
+### Release readiness
+
+Only when the user explicitly requests release-readiness work, delegate the
+audit to `release_auditor`. It may build and inspect artifacts but must not
+change protected settings, sign, notarize, publish, upload, commit, push, or
+delete builds. The primary agent reports passed, failed, blocked, and unverified
+items separately.
+
+### Small-task exception
+
+Do not create an agent swarm for a typo, a purely mechanical documentation
+correction, or another obviously local low-risk change with no product,
+architecture, runtime, or release decision. For every non-trivial product or
+code change, follow the phase routing above. If a named custom agent is
+unavailable, continue with the same role constraints in the primary thread and
+state the fallback.
+
 ## Architecture
 
 - Keep SwiftUI and `AppState` as the source of truth.

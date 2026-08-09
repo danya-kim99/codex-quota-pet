@@ -27,6 +27,12 @@
 "menu.hide_pet" = "Hide Pet";
 "menu.show_pet" = "Show Pet";
 "menu.size" = "Size";
+"menu.lock_position" = "Lock Position";
+"menu.lock_position.help" = "Prevents the pet from being moved.";
+"menu.pass_pointer_input_through" = "Pass Pointer Input Through";
+"menu.pass_pointer_input_through.help" = "Passes pointer input to apps underneath. Disable from the menu bar.";
+"accessibility.toggle.on" = "On";
+"accessibility.toggle.off" = "Off";
 "menu.tooltip_style" = "Tooltip Style";
 "menu.show_quota_dynamics" = "Show Quota Dynamics";
 "menu.clear_quota_history" = "Clear Local History…";

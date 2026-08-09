@@ -44,10 +44,6 @@ struct QuotaTooltipContent {
         QuotaTooltipView.quotaLevel(for: remainingPercent)
     }
 
-    var progressPresentation: QuotaTooltipView.ProgressPresentation {
-        QuotaTooltipView.progressPresentation(for: speedMode)
-    }
-
     var dayIndicator: QuotaTooltipView.DayIndicator? {
         QuotaTooltipView.dayIndicator(
             resetDate: resetDate,
@@ -127,11 +123,6 @@ struct QuotaTooltipView: View {
         case critical
     }
 
-    enum ProgressPresentation: Equatable {
-        case standard
-        case turbo
-    }
-
     struct DayIndicator: Equatable {
         let activeSegments: Int
         let totalSegments: Int
@@ -146,27 +137,33 @@ struct QuotaTooltipView: View {
     static let historySmallPanelSize = CGSize(width: 272, height: 158)
     private static let smallRingSize: CGFloat = 70
     private static let smallRingLineWidth: CGFloat = 8
-    private static var smallRingRadius: CGFloat {
-        (smallRingSize - smallRingLineWidth) / 2
-    }
     // Gold sprite states render at roughly 214–216 pt inside BlackHoleView.
     static let petAnchorHalfSize = CGSize(width: 108, height: 64)
 
     let appState: AppState
     let placement: Placement
+    let isTooltipPresented: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
     @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+    @State private var badgeHighlightIntensity: CGFloat = 0
+    @State private var badgeHighlightTask: Task<Void, Never>?
 
     private let gold = Color(red: 1, green: 0.76, blue: 0.31)
     private let orange = Color(red: 1, green: 0.34, blue: 0.16)
     private let purple = Color(red: 0.68, green: 0.27, blue: 0.94)
     private let cardColor = Color(red: 0.065, green: 0.07, blue: 0.08)
 
-    init(appState: AppState, placement: Placement = .below) {
+    init(
+        appState: AppState,
+        placement: Placement = .below,
+        isTooltipPresented: Bool = false
+    ) {
         self.appState = appState
         self.placement = placement
+        self.isTooltipPresented = isTooltipPresented
     }
 
     private var content: QuotaTooltipContent {
@@ -222,7 +219,8 @@ struct QuotaTooltipView: View {
                 PixelQuotaTooltipView(
                     content: content,
                     placement: placement,
-                    petSize: appState.petSize
+                    petSize: appState.petSize,
+                    badgeHighlightIntensity: badgeHighlightIntensity
                 )
             } else {
                 smoothTooltip
@@ -233,6 +231,28 @@ struct QuotaTooltipView: View {
             width: baseSize.width * accessibilityScale,
             height: baseSize.height * accessibilityScale
         )
+        .onChange(of: isTooltipPresented, initial: true) { wasPresented, isPresented in
+            if !isPresented {
+                cancelBadgeHighlight()
+            } else if !wasPresented {
+                startBadgeHighlightIfEligible()
+            }
+        }
+        .onChange(of: speedMode) { previousMode, mode in
+            if mode == .turbo, previousMode == .standard {
+                startBadgeHighlightIfEligible()
+            } else if mode == .standard {
+                cancelBadgeHighlight()
+            }
+        }
+        .onChange(of: isBadgeHighlightEligible) { _, isEligible in
+            if !isEligible {
+                cancelBadgeHighlight()
+            }
+        }
+        .onDisappear {
+            cancelBadgeHighlight()
+        }
     }
 
     @ViewBuilder
@@ -257,9 +277,13 @@ struct QuotaTooltipView: View {
             smallCircularProgress
 
             VStack(alignment: .leading, spacing: appState.showsQuotaDynamics ? 5 : 7) {
-                Text(NSLocalizedString("quota.available", comment: "Quota card title"))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(NSLocalizedString("quota.available", comment: "Quota card title"))
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .lineLimit(1)
+
+                    smoothModeBadge(compact: true)
+                }
 
                 Divider()
                     .overlay(.white.opacity(0.14))
@@ -325,34 +349,6 @@ struct QuotaTooltipView: View {
                     .rotationEffect(.degrees(-90))
             }
 
-            if speedMode == .turbo {
-                ForEach(1..<10, id: \.self) { index in
-                    let fraction = CGFloat(index) / 10
-                    if fraction <= progressFraction {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 5, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.45))
-                            .offset(y: -Self.smallRingRadius)
-                            .rotationEffect(.degrees(Double(fraction) * 360))
-                            .accessibilityHidden(true)
-                    }
-                }
-
-                Circle()
-                    .fill(cardColor)
-                    .overlay {
-                        Circle().stroke(quotaColor, lineWidth: 1.5)
-                    }
-                    .frame(width: 24, height: 24)
-                    .overlay {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(quotaColor)
-                    }
-                    .offset(y: -Self.smallRingRadius)
-                    .accessibilityHidden(true)
-            }
-
             Text(remainingPercent.map { "\($0)%" } ?? "—")
                 .font(.system(size: 19, weight: .semibold, design: .rounded))
                 .monospacedDigit()
@@ -398,7 +394,9 @@ struct QuotaTooltipView: View {
                 Text(NSLocalizedString("quota.available", comment: "Quota card title"))
                     .font(.system(size: 16, weight: .medium, design: .rounded))
 
-                Spacer(minLength: 16)
+                smoothModeBadge(compact: false)
+
+                Spacer(minLength: 8)
 
                 Text(remainingPercent.map { "\($0)%" } ?? "—")
                     .font(.system(size: 26, weight: .semibold, design: .rounded))
@@ -538,12 +536,7 @@ struct QuotaTooltipView: View {
 
     private var progressBar: some View {
         GeometryReader { geometry in
-            switch content.progressPresentation {
-            case .standard:
-                standardProgressBar(in: geometry.size)
-            case .turbo:
-                turboProgressBar(in: geometry.size)
-            }
+            standardProgressBar(in: geometry.size)
         }
         .frame(height: 28)
         .accessibilityRepresentation {
@@ -562,48 +555,6 @@ struct QuotaTooltipView: View {
         }
         .frame(height: 10)
         .frame(maxHeight: .infinity)
-    }
-
-    private func turboProgressBar(in size: CGSize) -> some View {
-        let iconSize: CGFloat = 28
-        let trackInset = iconSize / 2
-        let trackWidth = max(0, size.width - trackInset)
-        let fillWidth = trackWidth * progressFraction
-
-        return ZStack(alignment: .leading) {
-            Capsule()
-                .fill(.white.opacity(0.13))
-                .frame(width: trackWidth, height: 12)
-                .offset(x: trackInset)
-
-            if fillWidth > 0 {
-                ZStack {
-                    Capsule().fill(quotaColor)
-                    TurboChevronPattern()
-                        .clipShape(Capsule())
-                }
-                .frame(width: fillWidth, height: 12)
-                .offset(x: trackInset)
-
-                Capsule()
-                    .fill(.white.opacity(0.9))
-                    .frame(width: 3, height: 18)
-                    .shadow(color: quotaColor.opacity(0.9), radius: 6)
-                    .offset(x: max(trackInset, trackInset + fillWidth - 3))
-            }
-
-            Circle()
-                .fill(cardColor)
-                .overlay {
-                    Circle().stroke(quotaColor, lineWidth: 1.5)
-                }
-                .frame(width: iconSize, height: iconSize)
-                .overlay {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(quotaColor)
-                }
-        }
     }
 
     private var progressFraction: CGFloat {
@@ -664,8 +615,18 @@ struct QuotaTooltipView: View {
         content.resetAccessibilityLabel
     }
 
-    static func progressPresentation(for speedMode: SpeedMode) -> ProgressPresentation {
-        speedMode == .turbo ? .turbo : .standard
+    nonisolated static func isTurboBadgeHighlightEligible(
+        isTooltipPresented: Bool,
+        speedMode: SpeedMode,
+        connectionState: ConnectionState,
+        remainingPercent: Int?,
+        reduceMotion: Bool
+    ) -> Bool {
+        isTooltipPresented
+            && speedMode == .turbo
+            && connectionState == .connected
+            && (remainingPercent ?? 0) > 0
+            && !reduceMotion
     }
 
     static func dayIndicator(
@@ -828,27 +789,94 @@ struct QuotaTooltipView: View {
         return details.joined(separator: ", ")
     }
 
-}
-
-private struct TurboChevronPattern: View {
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            var x: CGFloat = 2
-            while x < size.width {
-                path.move(to: CGPoint(x: x, y: 1))
-                path.addLine(to: CGPoint(x: x + 5, y: size.height / 2))
-                path.addLine(to: CGPoint(x: x, y: size.height - 1))
-                x += 10
-            }
-            context.stroke(
-                path,
-                with: .color(.white.opacity(0.2)),
-                lineWidth: 1.5
-            )
-        }
-        .allowsHitTesting(false)
+    private var isBadgeHighlightEligible: Bool {
+        Self.isTurboBadgeHighlightEligible(
+            isTooltipPresented: isTooltipPresented,
+            speedMode: speedMode,
+            connectionState: content.connectionState,
+            remainingPercent: remainingPercent,
+            reduceMotion: reduceMotion
+        )
     }
+
+    private func startBadgeHighlightIfEligible() {
+        cancelBadgeHighlight()
+        guard isBadgeHighlightEligible else { return }
+
+        badgeHighlightTask = Task { @MainActor in
+            for target: CGFloat in [1, 0, 1, 0] {
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    badgeHighlightIntensity = target
+                }
+                do {
+                    try await Task.sleep(nanoseconds: 600_000_000)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func cancelBadgeHighlight() {
+        badgeHighlightTask?.cancel()
+        badgeHighlightTask = nil
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            badgeHighlightIntensity = 0
+        }
+    }
+
+    private func smoothModeBadge(compact: Bool) -> some View {
+        ZStack {
+            smoothModeBadgeContent(for: .standard)
+                .hidden()
+                .accessibilityHidden(true)
+            smoothModeBadgeContent(for: .turbo)
+                .hidden()
+                .accessibilityHidden(true)
+            smoothModeBadgeContent(for: speedMode)
+        }
+        .font(
+            .system(
+                size: compact ? 9 : 10,
+                weight: .semibold,
+                design: .rounded
+            )
+        )
+        .foregroundStyle(speedMode == .turbo ? gold : .white.opacity(0.72))
+        .padding(.horizontal, compact ? 6 : 7)
+        .frame(height: compact ? 18 : 20)
+        .background(.white.opacity(speedMode == .turbo ? 0.09 : 0.06), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(
+                    speedMode == .turbo ? gold.opacity(0.72) : .white.opacity(0.18),
+                    lineWidth: 1
+                )
+        }
+        .shadow(
+            color: speedMode == .turbo
+                ? gold.opacity(0.5 * Double(badgeHighlightIntensity))
+                : .clear,
+            radius: 4 + 4 * badgeHighlightIntensity
+        )
+        .accessibilityHidden(true)
+    }
+
+    private func smoothModeBadgeContent(for mode: SpeedMode) -> some View {
+        HStack(spacing: 4) {
+            if mode == .turbo {
+                Image(systemName: "bolt.fill")
+                    .accessibilityHidden(true)
+            }
+            Text(mode.title)
+                .lineLimit(1)
+        }
+        .fixedSize()
+    }
+
 }
 
 private struct TooltipPointer: Shape {

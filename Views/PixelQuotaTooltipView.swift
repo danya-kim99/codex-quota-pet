@@ -17,14 +17,11 @@ struct PixelQuotaTooltipView: View {
     nonisolated static let blackShadowOffset = CGSize(width: 9, height: -9)
     nonisolated static let smallRingSize: CGFloat = 80
     nonisolated static let smallRingLineWidth: CGFloat = 9
-    nonisolated static let smallRingChevronSize = CGSize(width: 6, height: 7)
-    nonisolated static var smallRingRadius: CGFloat {
-        (smallRingSize - smallRingLineWidth) / 2
-    }
 
     let content: QuotaTooltipContent
     let placement: QuotaTooltipView.Placement
     let petSize: PetSize
+    let badgeHighlightIntensity: CGFloat
 
     private let gold = Color(red: 1, green: 0.76, blue: 0.31)
     private let orange = Color(red: 1, green: 0.34, blue: 0.16)
@@ -225,15 +222,14 @@ struct PixelQuotaTooltipView: View {
     }
 
     private var modeBadge: some View {
-        HStack(spacing: 4) {
-            if content.speedMode == .turbo {
-                PixelBolt()
-                    .fill(PixelPalette.orange)
-                    .frame(width: 7, height: 12)
-                    .accessibilityHidden(true)
-            }
-            Text(content.speedMode.title.uppercased())
-                .lineLimit(1)
+        ZStack {
+            modeBadgeContent(for: .standard)
+                .hidden()
+                .accessibilityHidden(true)
+            modeBadgeContent(for: .turbo)
+                .hidden()
+                .accessibilityHidden(true)
+            modeBadgeContent(for: content.speedMode)
         }
         .font(pixelFont(size: 10, weight: .bold))
         .foregroundStyle(content.speedMode == .turbo ? PixelPalette.orange : PixelPalette.mutedGold)
@@ -247,6 +243,36 @@ struct PixelQuotaTooltipView: View {
                     lineWidth: 2
                 )
         }
+        .overlay {
+            if content.speedMode == .turbo {
+                Rectangle()
+                    .stroke(
+                        PixelPalette.orange.opacity(Double(badgeHighlightIntensity)),
+                        lineWidth: 2
+                    )
+                    .shadow(
+                        color: PixelPalette.orange.opacity(
+                            0.55 * Double(badgeHighlightIntensity)
+                        ),
+                        radius: 5
+                    )
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func modeBadgeContent(for mode: SpeedMode) -> some View {
+        HStack(spacing: 4) {
+            if mode == .turbo {
+                PixelBolt()
+                    .fill(PixelPalette.orange)
+                    .frame(width: 7, height: 12)
+                    .accessibilityHidden(true)
+            }
+            Text(mode.title.uppercased())
+                .lineLimit(1)
+        }
+        .fixedSize()
     }
 
     private var pixelProgressBar: some View {
@@ -261,22 +287,6 @@ struct PixelQuotaTooltipView: View {
                     Rectangle()
                         .fill(quotaColor)
                         .frame(width: min(geometry.size.width, fillWidth))
-
-                    if content.progressPresentation == .turbo {
-                        PixelChevronPattern()
-                            .frame(width: min(geometry.size.width, fillWidth))
-                            .clipped()
-
-                        Rectangle()
-                            .fill(PixelPalette.highlightText)
-                            .frame(width: 3, height: 14)
-                            .offset(
-                                x: min(
-                                    max(0, fillWidth - 3),
-                                    geometry.size.width - 3
-                                )
-                            )
-                    }
                 }
 
                 if content.remainingPercent == nil {
@@ -308,27 +318,6 @@ struct PixelQuotaTooltipView: View {
                         )
                     )
                     .rotationEffect(.degrees(-90))
-            }
-
-            if content.speedMode == .turbo {
-                ForEach(0..<8, id: \.self) { index in
-                    let markerFraction = 0.06 + CGFloat(index) * 0.12
-                    if markerFraction <= content.progressFraction {
-                        PixelRingChevron()
-                            .frame(
-                                width: Self.smallRingChevronSize.width,
-                                height: Self.smallRingChevronSize.height
-                            )
-                            .offset(y: -Self.smallRingRadius)
-                            .rotationEffect(.degrees(360 * markerFraction))
-                    }
-                }
-
-                PixelBolt()
-                    .fill(PixelPalette.orange)
-                    .frame(width: 9, height: 15)
-                    .offset(y: -Self.smallRingRadius)
-                    .accessibilityHidden(true)
             }
 
             Text(percentText)
@@ -562,42 +551,6 @@ private struct PixelCornerAccent: View {
             Rectangle().frame(width: 4, height: 4)
         }
         .frame(width: 18, height: 12, alignment: .topLeading)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct PixelChevronPattern: View {
-    var body: some View {
-        Canvas { context, size in
-            var x: CGFloat = 3
-            while x < size.width {
-                var path = Path()
-                path.move(to: CGPoint(x: x, y: 3))
-                path.addLine(to: CGPoint(x: x + 5, y: size.height / 2))
-                path.addLine(to: CGPoint(x: x, y: size.height - 3))
-                context.stroke(path, with: .color(.white.opacity(0.35)), lineWidth: 2)
-                x += 12
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct PixelRingChevron: View {
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            path.move(to: CGPoint(x: 1, y: 1))
-            path.addLine(to: CGPoint(x: size.width - 1, y: size.height / 2))
-            path.addLine(to: CGPoint(x: 1, y: size.height - 1))
-            context.stroke(
-                path,
-                with: .color(PixelPalette.highlightText.opacity(0.55)),
-                lineWidth: 2
-            )
-        }
-        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }

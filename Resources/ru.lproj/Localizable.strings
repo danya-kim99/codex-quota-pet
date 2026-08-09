@@ -27,6 +27,12 @@
 "menu.hide_pet" = "Скрыть питомца";
 "menu.show_pet" = "Показать питомца";
 "menu.size" = "Размер";
+"menu.lock_position" = "Закрепить положение";
+"menu.lock_position.help" = "Запрещает перемещать питомца.";
+"menu.pass_pointer_input_through" = "Пропускать ввод указателя";
+"menu.pass_pointer_input_through.help" = "Передаёт ввод указателя приложениям под питомцем. Отключается через строку меню.";
+"accessibility.toggle.on" = "Включено";
+"accessibility.toggle.off" = "Выключено";
 "menu.tooltip_style" = "Стиль подсказки";
 "menu.show_quota_dynamics" = "Показывать динамику квоты";
 "menu.clear_quota_history" = "Очистить локальную историю…";

@@ -148,6 +148,8 @@ struct PixelContextMenuActions {
     let dismiss: () -> Void
     let retry: () -> Void
     let setPetSize: (PetSize) -> Void
+    let setPetPositionLocked: (Bool) -> Void
+    let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
@@ -173,7 +175,7 @@ struct PixelContextMenuView: View {
     )
     nonisolated static let panelSize = CGSize(
         width: mainWidth + menuGap + submenuWidth + shadowTrailingInset,
-        height: 381
+        height: 443
     )
 
     let appState: AppState
@@ -304,6 +306,24 @@ struct PixelContextMenuView: View {
             )
 
             row(
+                .positionLock,
+                title: localized("menu.lock_position"),
+                icon: .lock,
+                isChecked: appState.isPetPositionLocked,
+                accessibilityValue: toggleValue(appState.isPetPositionLocked),
+                accessibilityHelp: localized("menu.lock_position.help")
+            )
+
+            row(
+                .pointerClickThrough,
+                title: localized("menu.pass_pointer_input_through"),
+                icon: .pointerThrough,
+                isChecked: appState.passesPointerInputThrough,
+                accessibilityValue: toggleValue(appState.passesPointerInputThrough),
+                accessibilityHelp: localized("menu.pass_pointer_input_through.help")
+            )
+
+            row(
                 .tooltipStyle,
                 title: localized("menu.tooltip_style"),
                 icon: .style,
@@ -429,7 +449,9 @@ struct PixelContextMenuView: View {
         icon: PixelMenuIcon,
         isChecked: Bool = false,
         showsDisclosure: Bool = false,
-        isDestructive: Bool = false
+        isDestructive: Bool = false,
+        accessibilityValue: String? = nil,
+        accessibilityHelp: String? = nil
     ) -> some View {
         PixelMenuRow(
             title: title,
@@ -440,7 +462,9 @@ struct PixelContextMenuView: View {
             isChecked: isChecked,
             showsDisclosure: showsDisclosure,
             isEnabled: true,
-            isDestructive: isDestructive
+            isDestructive: isDestructive,
+            accessibilityValue: accessibilityValue,
+            accessibilityHelp: accessibilityHelp
         ) {
             activate(item)
         } onHover: { isHovering in
@@ -472,7 +496,15 @@ struct PixelContextMenuView: View {
         if appState.connectionState != .connected {
             items.append(.retry)
         }
-        items += [.size, .tooltipStyle, .quotaDynamics, .hideFullScreen, .launchAtLogin]
+        items += [
+            .size,
+            .positionLock,
+            .pointerClickThrough,
+            .tooltipStyle,
+            .quotaDynamics,
+            .hideFullScreen,
+            .launchAtLogin
+        ]
         if appState.launchAtLoginStatus == .requiresApproval {
             items.append(.openLoginItems)
         }
@@ -547,6 +579,10 @@ struct PixelContextMenuView: View {
             actions.retry()
         case .size:
             enterSizeSubmenu()
+        case .positionLock:
+            actions.setPetPositionLocked(!appState.isPetPositionLocked)
+        case .pointerClickThrough:
+            actions.setPassesPointerInputThrough(!appState.passesPointerInputThrough)
         case .tooltipStyle:
             enterTooltipStyleSubmenu()
         case .quotaDynamics:
@@ -605,14 +641,20 @@ struct PixelContextMenuView: View {
         NSLocalizedString(key, comment: "Black-hole context menu item")
     }
 
+    private func toggleValue(_ isOn: Bool) -> String {
+        localized(isOn ? "accessibility.toggle.on" : "accessibility.toggle.off")
+    }
+
     private var submenuTopPadding: CGFloat {
         let firstRowOffset: CGFloat = appState.connectionState == .connected ? 7 : 38
-        return firstRowOffset + (showsTooltipStyleSubmenu ? 31 : 0)
+        return firstRowOffset + (showsTooltipStyleSubmenu ? 93 : 0)
     }
 
     private enum ItemID: Equatable {
         case retry
         case size
+        case positionLock
+        case pointerClickThrough
         case tooltipStyle
         case quotaDynamics
         case hideFullScreen
@@ -631,6 +673,8 @@ private struct PixelMenuRow: View {
     let showsDisclosure: Bool
     let isEnabled: Bool
     let isDestructive: Bool
+    var accessibilityValue: String? = nil
+    var accessibilityHelp: String? = nil
     let action: () -> Void
     let onHover: (Bool) -> Void
 
@@ -687,6 +731,8 @@ private struct PixelMenuRow: View {
         .disabled(!isEnabled)
         .onHover(perform: onHover)
         .accessibilityLabel(title)
+        .accessibilityValue(accessibilityValue ?? "")
+        .accessibilityHint(accessibilityHelp ?? "")
         .accessibilityAddTraits(isChecked ? .isSelected : [])
     }
 
@@ -796,6 +842,7 @@ private enum PixelMenuIcon {
     case smooth
     case pixel
     case fullscreen
+    case pointerThrough
     case login
     case lock
     case sliders
@@ -843,6 +890,11 @@ private enum PixelMenuIcon {
             [
                 ".##########.", ".#........#.", ".#........#.", ".#....#####.",
                 ".#....#...#.", ".######...#.", "......#####.", "............"
+            ]
+        case .pointerThrough:
+            [
+                ".##.........", ".####.......", ".######.....", ".########...",
+                ".#####......", ".##.##......", "....##..##..", "........##.."
             ]
         case .login:
             [

@@ -79,7 +79,7 @@ struct AbsorbableObjectCatalog {
     }
 
     private static func validate(_ manifest: AbsorbableObjectManifest) throws {
-        guard manifest.canvas.width == 64, manifest.canvas.height == 64 else {
+        guard manifest.canvas.width == 80, manifest.canvas.height == 80 else {
             throw AbsorbableObjectCatalogError.invalidCanvas
         }
 
@@ -183,9 +183,9 @@ struct AbsorptionPlan: Identifiable, Equatable {
 }
 
 struct AbsorptionVisualState: Equatable {
-    static let objectSize: CGFloat = 48
     static let renderingInset: CGFloat = 2
 
+    let objectSize: CGFloat
     let progress: CGFloat
     let position: CGPoint
     let rotation: AngleValue
@@ -195,8 +195,13 @@ struct AbsorptionVisualState: Equatable {
     let opacity: CGFloat
     let breakupProgress: CGFloat
 
+    var renderFieldSize: CGFloat {
+        objectSize * 1.25
+    }
+
     var renderedFrame: CGRect {
         let halfExtents = Self.transformedHalfExtents(
+            objectSize: objectSize,
             rotation: rotation.radians,
             longitudinalScale: longitudinalScale,
             transverseScale: transverseScale,
@@ -219,15 +224,21 @@ struct AbsorptionVisualState: Equatable {
         at date: Date,
         sceneSize: CGSize
     ) -> AbsorptionVisualState {
+        let objectSize = objectSize(for: sceneSize)
         let progress = CGFloat(
             min(1, max(0, date.timeIntervalSince(plan.startDate) / plan.duration))
         )
         if plan.usesReducedMotion {
-            return reducedMotionState(plan: plan, progress: progress, sceneSize: sceneSize)
+            return reducedMotionState(
+                plan: plan,
+                progress: progress,
+                sceneSize: sceneSize,
+                objectSize: objectSize
+            )
         }
 
         let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
-        let start = spawnPoint(plan: plan, sceneSize: sceneSize)
+        let start = spawnPoint(plan: plan, sceneSize: sceneSize, objectSize: objectSize)
         let sceneScale = min(
             sceneSize.width / PetSize.large.sceneSize.width,
             sceneSize.height / PetSize.large.sceneSize.height
@@ -272,6 +283,7 @@ struct AbsorptionVisualState: Equatable {
         let transverseScale = 1 - 0.5 * deformation
         let sizeScale = 1 - 0.88 * shrink
         let halfExtents = transformedHalfExtents(
+            objectSize: objectSize,
             rotation: rotation,
             longitudinalScale: longitudinalScale,
             transverseScale: transverseScale,
@@ -284,6 +296,7 @@ struct AbsorptionVisualState: Equatable {
         )
 
         return AbsorptionVisualState(
+            objectSize: objectSize,
             progress: progress,
             position: position,
             rotation: AngleValue(radians: rotation),
@@ -298,7 +311,8 @@ struct AbsorptionVisualState: Equatable {
     private static func reducedMotionState(
         plan: AbsorptionPlan,
         progress: CGFloat,
-        sceneSize: CGSize
+        sceneSize: CGSize,
+        objectSize: CGFloat
     ) -> AbsorptionVisualState {
         let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
         let angle = unit(seed: plan.seed, index: 8) * .pi * 2
@@ -306,6 +320,7 @@ struct AbsorptionVisualState: Equatable {
             CGPoint(x: center.x + cos(angle) * 34, y: center.y + sin(angle) * 24)
         )
         return AbsorptionVisualState(
+            objectSize: objectSize,
             progress: progress,
             position: position,
             rotation: AngleValue(radians: 0),
@@ -317,7 +332,15 @@ struct AbsorptionVisualState: Equatable {
         )
     }
 
-    private static func spawnPoint(plan: AbsorptionPlan, sceneSize: CGSize) -> CGPoint {
+    private static func objectSize(for sceneSize: CGSize) -> CGFloat {
+        48 * sceneSize.width / PetSize.small.sceneSize.width
+    }
+
+    private static func spawnPoint(
+        plan: AbsorptionPlan,
+        sceneSize: CGSize,
+        objectSize: CGFloat
+    ) -> CGPoint {
         let minimumCenterInset = ceil(objectSize / sqrt(2)) + renderingInset
         let edgeOffset = minimumCenterInset + unit(seed: plan.seed, index: 0) * 8
         let horizontalRange = sceneSize.width * 0.42
@@ -409,6 +432,7 @@ struct AbsorptionVisualState: Equatable {
     }
 
     private static func transformedHalfExtents(
+        objectSize: CGFloat,
         rotation: CGFloat,
         longitudinalScale: CGFloat,
         transverseScale: CGFloat,

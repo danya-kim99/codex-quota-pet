@@ -16,6 +16,11 @@ struct BlackHoleView: View {
     @State private var lastObjectID: String?
     @State private var reactionStart: Date?
     @State private var isTooltipSuppressed = false
+    @State private var quotaReactionQueue = QuotaReactionQueue()
+    @State private var quotaReactionStartedAt: Date?
+    @State private var quotaReactionUsesReducedMotion = false
+    @State private var quotaReactionCompletionTask: Task<Void, Never>?
+    @State private var isQuotaReactionPreview = false
 
     private static let objectCatalog = try? AbsorbableObjectCatalog()
 
@@ -44,6 +49,24 @@ struct BlackHoleView: View {
         PetVisualState(remainingPercent: remainingPercent)
     }
 
+    private var effectiveReduceMotion: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["BLACK_HOLE_REDUCE_MOTION_PREVIEW"] == "1" {
+            return true
+        }
+        #endif
+        return reduceMotion
+    }
+
+    private var effectiveSpeedMode: SpeedMode {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["BLACK_HOLE_SPEED_PREVIEW"] == "turbo" {
+            return .turbo
+        }
+        #endif
+        return appState.speedMode
+    }
+
     private var sceneSize: CGSize {
         appState.petSize.sceneSize
     }
@@ -68,8 +91,25 @@ struct BlackHoleView: View {
         .onChange(of: appState.absorptionResetID) { _, _ in
             resetAbsorptionScene()
         }
+        .onChange(of: appState.quotaConsumptionEvent?.id) { _, _ in
+            receiveQuotaConsumptionEvent()
+        }
+        .onChange(of: appState.quotaReactionResetID) { _, _ in
+            if !isQuotaReactionPreview {
+                resetQuotaReactionPlayback()
+            }
+        }
+        .onChange(of: effectiveReduceMotion) { _, _ in
+            if !isQuotaReactionPreview {
+                resetQuotaReactionPlayback()
+            }
+        }
+        .onAppear {
+            startQuotaReactionPreviewIfNeeded()
+        }
         .onDisappear {
             resetAbsorptionScene()
+            resetQuotaReactionPlayback()
             setTooltipVisible(false)
         }
     }
@@ -78,23 +118,11 @@ struct BlackHoleView: View {
         TimelineView(
             .animation(
                 minimumInterval: timelineInterval,
-                paused: reduceMotion && activePlans.isEmpty
+                paused: shouldPauseTimeline
             )
         ) { timeline in
             ZStack {
-                if let sprite = SpriteFrames.image(
-                    named: visualState.spriteName(
-                        elapsedTime: animationTime(at: timeline.date),
-                        speedMode: appState.speedMode
-                    )
-                ) {
-                    Image(nsImage: sprite)
-                        .resizable()
-                        .interpolation(.none)
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(pulseScale(at: timeline.date))
-                        .brightness(pulseBrightness(at: timeline.date))
-                }
+                quotaSprite(at: timeline.date)
 
                 ForEach(activePlans) { plan in
                     if let sprite = AbsorbableSprites.sprite(named: plan.object.asset) {
@@ -107,6 +135,7 @@ struct BlackHoleView: View {
                     }
                 }
 
+                quotaReactionOverlay(at: timeline.date)
                 reactionOverlay(at: timeline.date)
             }
         }
@@ -134,20 +163,35 @@ struct BlackHoleView: View {
     }
 
     private var shouldTurboPulse: Bool {
-        !reduceMotion && visualState.shouldPulse(in: appState.speedMode)
+        !effectiveReduceMotion
+            && visualState.shouldPulse(in: effectiveSpeedMode)
+    }
+
+    private var shouldPauseTimeline: Bool {
+        let hasNoOtherAnimation = activePlans.isEmpty
+            && reactionStart == nil
+            && quotaReactionQueue.active == nil
+        return effectiveReduceMotion && hasNoOtherAnimation
     }
 
     private var timelineInterval: TimeInterval {
-        if !activePlans.isEmpty || reactionStart != nil {
-            return 1.0 / 30.0
+        let activeReaction = quotaReactionQueue.active.map {
+            QuotaReactionVisualState(
+                kind: $0.kind,
+                elapsed: 0,
+                usesReducedMotion: quotaReactionUsesReducedMotion
+            )
         }
-        return shouldTurboPulse
-            ? 1.0 / 30.0
-            : visualState.frameInterval(for: appState.speedMode)
+        return QuotaReactionVisualState.timelineInterval(
+            hasManualAnimation: !activePlans.isEmpty || reactionStart != nil,
+            activeReaction: activeReaction,
+            turboPulse: shouldTurboPulse,
+            idleInterval: visualState.frameInterval(for: effectiveSpeedMode)
+        )
     }
 
     private func animationTime(at date: Date) -> TimeInterval {
-        guard !reduceMotion else { return 0 }
+        guard !effectiveReduceMotion else { return 0 }
         return max(0, date.timeIntervalSince(animationStart))
     }
 
@@ -173,7 +217,7 @@ struct BlackHoleView: View {
     }
 
     private func reactionIntensity(at date: Date) -> CGFloat {
-        guard !reduceMotion, let reactionStart else { return 0 }
+        guard !effectiveReduceMotion, let reactionStart else { return 0 }
         let progress = min(1, max(0, date.timeIntervalSince(reactionStart) / 0.15))
         return CGFloat(sin(progress * .pi))
     }
@@ -190,6 +234,166 @@ struct BlackHoleView: View {
         }
     }
 
+    @ViewBuilder
+    private func quotaSprite(at date: Date) -> some View {
+        if let sprite = SpriteFrames.image(
+            named: visualState.spriteName(
+                elapsedTime: animationTime(at: date),
+                speedMode: effectiveSpeedMode
+            )
+        ) {
+            Image(nsImage: sprite)
+                .resizable()
+                .interpolation(.none)
+                .aspectRatio(contentMode: .fit)
+                .scaleEffect(pulseScale(at: date))
+                .brightness(pulseBrightness(at: date))
+        }
+    }
+
+    @ViewBuilder
+    private func quotaReactionOverlay(at date: Date) -> some View {
+        if let event = quotaReactionQueue.active,
+           quotaReactionStartedAt != nil {
+            QuotaReactionCanvas(
+                state: QuotaReactionVisualState(
+                    kind: event.kind,
+                    elapsed: quotaReactionElapsed(at: date),
+                    usesReducedMotion: quotaReactionUsesReducedMotion
+                )
+            )
+            .frame(width: sceneSize.width, height: sceneSize.height)
+            .clipped()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private func receiveQuotaConsumptionEvent() {
+        guard !isQuotaReactionPreview,
+              appState.quotaReactionPresentationAllowed,
+              let event = appState.quotaConsumptionEvent else {
+            return
+        }
+        if let eventToStart = quotaReactionQueue.receive(
+            event,
+            deferPlayback: hasManualReaction
+        ) {
+            startQuotaReaction(eventToStart)
+        }
+    }
+
+    private var hasManualReaction: Bool {
+        !activePlans.isEmpty || reactionStart != nil
+    }
+
+    private func startQuotaReaction(
+        _ event: QuotaConsumptionEvent,
+        holdForPreview: Bool = false
+    ) {
+        quotaReactionCompletionTask?.cancel()
+        quotaReactionStartedAt = Date()
+        quotaReactionUsesReducedMotion = effectiveReduceMotion
+        guard !holdForPreview else { return }
+
+        let duration = quotaReactionUsesReducedMotion
+            ? event.kind.reducedMotionDuration
+            : event.kind.normalDuration
+        quotaReactionCompletionTask = Task { @MainActor in
+            try? await Task.sleep(
+                nanoseconds: UInt64(duration * 1_000_000_000)
+            )
+            guard !Task.isCancelled,
+                  quotaReactionQueue.active?.id == event.id else {
+                return
+            }
+
+            let next = quotaReactionQueue.completeActive(
+                id: event.id,
+                startPending: !hasManualReaction
+                    && appState.quotaReactionPresentationAllowed
+            )
+            quotaReactionStartedAt = nil
+            quotaReactionCompletionTask = nil
+            if let next {
+                startQuotaReaction(next)
+            }
+        }
+    }
+
+    private func cancelActiveQuotaReaction() {
+        quotaReactionCompletionTask?.cancel()
+        quotaReactionCompletionTask = nil
+        quotaReactionQueue.cancelActive()
+        quotaReactionStartedAt = nil
+    }
+
+    private func resumePendingQuotaReactionIfPossible() {
+        guard !hasManualReaction,
+              appState.quotaReactionPresentationAllowed,
+              let next = quotaReactionQueue.resumePending() else {
+            return
+        }
+        startQuotaReaction(next)
+    }
+
+    private func resetQuotaReactionPlayback() {
+        quotaReactionCompletionTask?.cancel()
+        quotaReactionCompletionTask = nil
+        quotaReactionQueue.reset()
+        quotaReactionStartedAt = nil
+        isQuotaReactionPreview = false
+    }
+
+    private func quotaReactionElapsed(at date: Date) -> TimeInterval {
+        guard let event = quotaReactionQueue.active,
+              let quotaReactionStartedAt else {
+            return 0
+        }
+        #if DEBUG
+        if isQuotaReactionPreview,
+           let rawProgress = ProcessInfo.processInfo.environment[
+                "BLACK_HOLE_QUOTA_REACTION_PREVIEW_PROGRESS"
+           ],
+           let progress = Double(rawProgress) {
+            let duration = quotaReactionUsesReducedMotion
+                ? event.kind.reducedMotionDuration
+                : event.kind.normalDuration
+            return min(1, max(0, progress)) * duration
+        }
+        #endif
+        return max(0, date.timeIntervalSince(quotaReactionStartedAt))
+    }
+
+    private func startQuotaReactionPreviewIfNeeded() {
+        #if DEBUG
+        guard quotaReactionQueue.active == nil,
+              let rawKind = ProcessInfo.processInfo.environment[
+                "BLACK_HOLE_QUOTA_REACTION_PREVIEW"
+              ] else {
+            return
+        }
+        let kind: QuotaConsumptionReactionKind? = switch rawKind {
+        case "small": .small
+        case "medium": .medium
+        case "large": .large
+        case "last-light": .lastLight
+        default: nil
+        }
+        guard let kind else { return }
+        isQuotaReactionPreview = true
+        let event = QuotaConsumptionEvent(id: -1, kind: kind)
+        if let eventToStart = quotaReactionQueue.receive(event, deferPlayback: false) {
+            startQuotaReaction(
+                eventToStart,
+                holdForPreview: ProcessInfo.processInfo.environment[
+                    "BLACK_HOLE_QUOTA_REACTION_PREVIEW_PROGRESS"
+                ] != nil
+            )
+        }
+        #endif
+    }
+
     private func startAbsorption() {
         guard activePlans.count < 3,
               let object = Self.objectCatalog?.select(
@@ -203,14 +407,15 @@ struct BlackHoleView: View {
         let plan = AbsorptionPlan(
             object: object,
             startDate: Date(),
-            duration: reduceMotion ? 0.225 : Double.random(in: 0.9...1.05),
+            duration: effectiveReduceMotion ? 0.225 : Double.random(in: 0.9...1.05),
             side: AbsorptionPlan.spawnSide(
                 excluding: activePlans.map(\.side),
                 roll: Double.random(in: 0..<1)
             ),
             seed: UInt64.random(in: UInt64.min...UInt64.max),
-            usesReducedMotion: reduceMotion
+            usesReducedMotion: effectiveReduceMotion
         )
+        cancelActiveQuotaReaction()
         activePlans.append(plan)
         lastObjectID = object.id
         isTooltipSuppressed = true
@@ -221,13 +426,17 @@ struct BlackHoleView: View {
             try? await Task.sleep(nanoseconds: nanoseconds)
             guard activePlans.contains(where: { $0.id == plan.id }) else { return }
             activePlans.removeAll { $0.id == plan.id }
-            guard !plan.usesReducedMotion else { return }
+            guard !plan.usesReducedMotion else {
+                resumePendingQuotaReactionIfPossible()
+                return
+            }
 
             let startedAt = Date()
             reactionStart = startedAt
             try? await Task.sleep(nanoseconds: 180_000_000)
             if reactionStart == startedAt {
                 reactionStart = nil
+                resumePendingQuotaReactionIfPossible()
             }
         }
     }
@@ -236,6 +445,541 @@ struct BlackHoleView: View {
         activePlans.removeAll()
         reactionStart = nil
         isTooltipSuppressed = false
+    }
+}
+
+enum QuotaReactionVisualPhase: Equatable {
+    case packets
+    case lensingRing
+    case photonRing
+    case drain
+    case afterglow
+    case reducedStep(Int)
+    case complete
+}
+
+struct QuotaReactionVisualState: Equatable {
+    static let largeRingStart: TimeInterval = 0.64
+
+    let kind: QuotaConsumptionReactionKind
+    let elapsed: TimeInterval
+    let usesReducedMotion: Bool
+
+    var duration: TimeInterval {
+        usesReducedMotion ? kind.reducedMotionDuration : kind.normalDuration
+    }
+
+    var progress: CGFloat {
+        CGFloat(min(1, max(0, elapsed / duration)))
+    }
+
+    var phase: QuotaReactionVisualPhase {
+        guard elapsed < duration else { return .complete }
+        if usesReducedMotion {
+            return .reducedStep(min(3, Int(progress * 4)))
+        }
+        switch kind {
+        case .small, .medium:
+            return .packets
+        case .large:
+            return elapsed < Self.largeRingStart ? .packets : .lensingRing
+        case .lastLight:
+            if elapsed < 0.48 { return .packets }
+            if elapsed < 0.78 { return .photonRing }
+            if elapsed < 0.96 { return .drain }
+            return .afterglow
+        }
+    }
+
+    var timelineInterval: TimeInterval {
+        usesReducedMotion ? duration / 4 : 1.0 / 30.0
+    }
+
+    static func timelineInterval(
+        hasManualAnimation: Bool,
+        activeReaction: QuotaReactionVisualState?,
+        turboPulse: Bool,
+        idleInterval: TimeInterval
+    ) -> TimeInterval {
+        if hasManualAnimation { return 1.0 / 30.0 }
+        if let activeReaction { return activeReaction.timelineInterval }
+        return turboPulse ? 1.0 / 30.0 : idleInterval
+    }
+
+    func packetProgress(index: Int) -> CGFloat {
+        guard !usesReducedMotion else { return 0 }
+        let (travelDuration, stagger): (TimeInterval, TimeInterval) = switch kind {
+        case .small: (0.46, 0)
+        case .medium: (0.58, 0.045)
+        case .large: (0.50, 0.035)
+        case .lastLight: (0.42, 0.035)
+        }
+        let localElapsed = elapsed - Double(index) * stagger
+        return CGFloat(min(1, max(0, localElapsed / travelDuration)))
+    }
+}
+
+struct QuotaReactionRoute: Equatable {
+    static let packetRoutes = [
+        QuotaReactionRoute(
+            start: CGPoint(x: 0.08, y: 0.24),
+            firstControl: CGPoint(x: 0.31, y: 0.07),
+            secondControl: CGPoint(x: 0.66, y: 0.22)
+        ),
+        QuotaReactionRoute(
+            start: CGPoint(x: 0.91, y: 0.18),
+            firstControl: CGPoint(x: 0.69, y: 0.05),
+            secondControl: CGPoint(x: 0.54, y: 0.34)
+        ),
+        QuotaReactionRoute(
+            start: CGPoint(x: 0.07, y: 0.78),
+            firstControl: CGPoint(x: 0.27, y: 0.96),
+            secondControl: CGPoint(x: 0.62, y: 0.76)
+        ),
+        QuotaReactionRoute(
+            start: CGPoint(x: 0.93, y: 0.76),
+            firstControl: CGPoint(x: 0.72, y: 0.96),
+            secondControl: CGPoint(x: 0.48, y: 0.69)
+        ),
+        QuotaReactionRoute(
+            start: CGPoint(x: 0.50, y: 0.06),
+            firstControl: CGPoint(x: 0.24, y: 0.13),
+            secondControl: CGPoint(x: 0.34, y: 0.44)
+        )
+    ]
+
+    let start: CGPoint
+    let firstControl: CGPoint
+    let secondControl: CGPoint
+
+    func point(progress: CGFloat, in size: CGSize, end: CGPoint) -> CGPoint {
+        let t = min(1, max(0, progress))
+        let inverse = 1 - t
+        let p0 = scaled(start, to: size)
+        let p1 = scaled(firstControl, to: size)
+        let p2 = scaled(secondControl, to: size)
+        return CGPoint(
+            x: inverse * inverse * inverse * p0.x
+                + 3 * inverse * inverse * t * p1.x
+                + 3 * inverse * t * t * p2.x
+                + t * t * t * end.x,
+            y: inverse * inverse * inverse * p0.y
+                + 3 * inverse * inverse * t * p1.y
+                + 3 * inverse * t * t * p2.y
+                + t * t * t * end.y
+        )
+    }
+
+    private func scaled(_ point: CGPoint, to size: CGSize) -> CGPoint {
+        CGPoint(x: point.x * size.width, y: point.y * size.height)
+    }
+}
+
+private struct QuotaReactionCanvas: View {
+    let state: QuotaReactionVisualState
+
+    var body: some View {
+        Canvas(opaque: false, rendersAsynchronously: false) { context, size in
+            if state.usesReducedMotion {
+                drawReducedMotion(context: &context, size: size)
+            } else {
+                drawMovingReaction(context: &context, size: size)
+            }
+        }
+    }
+
+    private func drawMovingReaction(
+        context: inout GraphicsContext,
+        size: CGSize
+    ) {
+        for index in 0..<state.kind.packetCount {
+            let progress = state.packetProgress(index: index)
+            guard progress > 0, progress < 1 else { continue }
+            drawPacket(
+                context: &context,
+                size: size,
+                index: index,
+                progress: progress
+            )
+        }
+
+        switch state.kind {
+        case .large:
+            drawLargeRing(context: &context, size: size)
+        case .lastLight:
+            drawLastLight(context: &context, size: size)
+        case .small, .medium:
+            break
+        }
+    }
+
+    private func drawPacket(
+        context: inout GraphicsContext,
+        size: CGSize,
+        index: Int,
+        progress: CGFloat
+    ) {
+        let eased = progress * progress * (3 - 2 * progress)
+        let end = packetEnd(index: index, size: size)
+        let route = QuotaReactionRoute.packetRoutes[index]
+        let head = route.point(progress: eased, in: size, end: end)
+        let tailStart = route.point(
+            progress: max(0, eased - 0.12),
+            in: size,
+            end: end
+        )
+        let scale = sceneScale(size)
+        let fadeIn = min(1, progress / 0.08)
+        let fadeOut = min(1, (1 - progress) / 0.18)
+        let opacity = fadeIn * fadeOut
+        let color = state.kind == .lastLight
+            ? Color(red: 1, green: 0.73, blue: 0.22)
+            : Color(red: 0.42, green: 0.91, blue: 1)
+
+        var tail = Path()
+        tail.move(to: snapped(tailStart))
+        for step in 1...5 {
+            let sample = max(0, eased - 0.12 + 0.12 * CGFloat(step) / 5)
+            tail.addLine(to: snapped(route.point(progress: sample, in: size, end: end)))
+        }
+        context.stroke(
+            tail,
+            with: .color(color.opacity(0.18 * opacity)),
+            style: StrokeStyle(
+                lineWidth: max(3, 7 * scale),
+                lineCap: .square,
+                lineJoin: .round
+            )
+        )
+        context.stroke(
+            tail,
+            with: .color(color.opacity(0.82 * opacity)),
+            style: StrokeStyle(
+                lineWidth: max(1.5, 2.4 * scale),
+                lineCap: .square,
+                lineJoin: .round
+            )
+        )
+
+        let outerSize = CGSize(width: max(6, 9 * scale), height: max(3, 4 * scale))
+        context.fill(
+            Path(rectCentered(at: snapped(head), size: outerSize)),
+            with: .color(color.opacity(0.72 * opacity))
+        )
+        let core = max(2, 3 * scale)
+        context.fill(
+            Path(rectCentered(at: snapped(head), size: CGSize(width: core, height: core))),
+            with: .color(.white.opacity(0.95 * opacity))
+        )
+    }
+
+    private func drawLargeRing(
+        context: inout GraphicsContext,
+        size: CGSize
+    ) {
+        guard state.elapsed >= QuotaReactionVisualState.largeRingStart else { return }
+        let phase = clamped(
+            (state.elapsed - QuotaReactionVisualState.largeRingStart)
+                / (state.duration - QuotaReactionVisualState.largeRingStart)
+        )
+        let formed = smoothstep(min(1, phase / 0.28))
+        let collapse = smoothstep(max(0, (phase - 0.38) / 0.62))
+        let scale = sceneScale(size)
+        let radii = CGSize(
+            width: 62 * scale * (1 - 0.48 * collapse),
+            height: 34 * scale * (1 - 0.48 * collapse)
+        )
+        drawSegmentedRing(
+            context: &context,
+            size: size,
+            radii: radii,
+            segmentCount: 16,
+            visibleFraction: 1,
+            color: Color(red: 0.55, green: 0.92, blue: 1),
+            opacity: formed * (1 - collapse),
+            lineWidth: max(1.5, 2.4 * scale)
+        )
+    }
+
+    private func drawLastLight(
+        context: inout GraphicsContext,
+        size: CGSize
+    ) {
+        guard state.elapsed >= 0.36 else { return }
+        let scale = sceneScale(size)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radii = CGSize(width: 63 * scale, height: 35 * scale)
+        let formed = smoothstep(clamped((state.elapsed - 0.36) / 0.14))
+        let color: Color
+        if state.elapsed < 0.60 {
+            color = Color(red: 1, green: 0.77, blue: 0.20)
+        } else if state.elapsed < 0.72 {
+            color = Color(red: 1, green: 0.39, blue: 0.08)
+        } else {
+            color = Color(red: 0.64, green: 0.35, blue: 1)
+        }
+
+        if state.elapsed < 0.78 {
+            context.stroke(
+                Path(
+                    ellipseIn: CGRect(
+                        x: center.x - radii.width,
+                        y: center.y - radii.height,
+                        width: radii.width * 2,
+                        height: radii.height * 2
+                    )
+                ),
+                with: .color(color.opacity(0.92 * formed)),
+                style: StrokeStyle(lineWidth: max(2, 3 * scale), lineCap: .square)
+            )
+        } else if state.elapsed < 0.96 {
+            let drain = clamped((state.elapsed - 0.78) / 0.18)
+            drawSegmentedRing(
+                context: &context,
+                size: size,
+                radii: radii,
+                segmentCount: 18,
+                visibleFraction: 1 - drain,
+                color: color,
+                opacity: 1 - 0.6 * drain,
+                lineWidth: max(1.5, 2.6 * scale)
+            )
+            drawDrainThreads(
+                context: &context,
+                center: center,
+                radii: radii,
+                progress: drain,
+                color: color,
+                lineWidth: max(1.5, 2.2 * scale)
+            )
+        }
+
+        if state.elapsed >= 0.90 {
+            let afterglow = 1 - clamped((state.elapsed - 0.90) / 0.25)
+            context.stroke(
+                Path(
+                    ellipseIn: CGRect(
+                        x: center.x - radii.width,
+                        y: center.y - radii.height,
+                        width: radii.width * 2,
+                        height: radii.height * 2
+                    )
+                ),
+                with: .color(Color(red: 0.58, green: 0.28, blue: 1).opacity(0.36 * afterglow)),
+                style: StrokeStyle(lineWidth: max(2, 5 * scale))
+            )
+        }
+    }
+
+    private func drawReducedMotion(
+        context: inout GraphicsContext,
+        size: CGSize
+    ) {
+        guard case let .reducedStep(step) = state.phase, step < 3 else { return }
+        let opacity: CGFloat = [1, 0.72, 0.42][step]
+        let scale = sceneScale(size)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radii = CGSize(width: 60 * scale, height: 33 * scale)
+
+        if state.kind == .lastLight {
+            let colors = [
+                Color(red: 1, green: 0.77, blue: 0.20),
+                Color(red: 1, green: 0.39, blue: 0.08),
+                Color(red: 0.64, green: 0.35, blue: 1)
+            ]
+            context.stroke(
+                Path(
+                    ellipseIn: CGRect(
+                        x: center.x - radii.width,
+                        y: center.y - radii.height,
+                        width: radii.width * 2,
+                        height: radii.height * 2
+                    )
+                ),
+                with: .color(colors[step]),
+                style: StrokeStyle(lineWidth: max(2, 3 * scale), lineCap: .square)
+            )
+            return
+        }
+
+        for index in 0..<state.kind.packetCount {
+            let angle = fixedGlintAngle(index: index)
+            let point = CGPoint(
+                x: center.x + cos(angle) * radii.width,
+                y: center.y + sin(angle) * radii.height
+            )
+            drawFixedGlint(
+                context: &context,
+                at: snapped(point),
+                scale: scale,
+                opacity: opacity
+            )
+        }
+
+        if state.kind == .large {
+            drawSegmentedRing(
+                context: &context,
+                size: size,
+                radii: radii,
+                segmentCount: 16,
+                visibleFraction: 1,
+                color: Color(red: 0.55, green: 0.92, blue: 1),
+                opacity: opacity * 0.72,
+                lineWidth: max(1.5, 2.2 * scale)
+            )
+        }
+    }
+
+    private func drawFixedGlint(
+        context: inout GraphicsContext,
+        at point: CGPoint,
+        scale: CGFloat,
+        opacity: CGFloat
+    ) {
+        let color = Color(red: 0.52, green: 0.93, blue: 1)
+        context.fill(
+            Path(
+                rectCentered(
+                    at: point,
+                    size: CGSize(width: max(7, 10 * scale), height: max(2, 3 * scale))
+                )
+            ),
+            with: .color(color.opacity(0.72 * opacity))
+        )
+        context.fill(
+            Path(
+                rectCentered(
+                    at: point,
+                    size: CGSize(width: max(2, 3 * scale), height: max(7, 10 * scale))
+                )
+            ),
+            with: .color(.white.opacity(0.9 * opacity))
+        )
+    }
+
+    private func drawSegmentedRing(
+        context: inout GraphicsContext,
+        size: CGSize,
+        radii: CGSize,
+        segmentCount: Int,
+        visibleFraction: CGFloat,
+        color: Color,
+        opacity: CGFloat,
+        lineWidth: CGFloat
+    ) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let visibleSegments = Int(ceil(CGFloat(segmentCount) * max(0, visibleFraction)))
+        for index in 0..<visibleSegments {
+            let start = CGFloat(index) * 2 * .pi / CGFloat(segmentCount) + 0.035
+            let end = CGFloat(index + 1) * 2 * .pi / CGFloat(segmentCount) - 0.035
+            context.stroke(
+                ringSegment(
+                    center: center,
+                    radii: radii,
+                    startAngle: start,
+                    endAngle: end
+                ),
+                with: .color(color.opacity(opacity)),
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .square)
+            )
+        }
+    }
+
+    private func drawDrainThreads(
+        context: inout GraphicsContext,
+        center: CGPoint,
+        radii: CGSize,
+        progress: CGFloat,
+        color: Color,
+        lineWidth: CGFloat
+    ) {
+        for angle: CGFloat in [-2.55, 0.52] {
+            let start = CGPoint(
+                x: center.x + cos(angle) * radii.width,
+                y: center.y + sin(angle) * radii.height
+            )
+            let end = CGPoint(
+                x: start.x + (center.x - start.x) * progress,
+                y: start.y + (center.y - start.y) * progress
+            )
+            let bend = CGPoint(
+                x: (start.x + end.x) / 2 - sin(angle) * 12,
+                y: (start.y + end.y) / 2 + cos(angle) * 12
+            )
+            var path = Path()
+            path.move(to: start)
+            path.addQuadCurve(to: end, control: bend)
+            context.stroke(
+                path,
+                with: .color(color.opacity(0.85 * (1 - 0.45 * progress))),
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .square)
+            )
+        }
+    }
+
+    private func packetEnd(index: Int, size: CGSize) -> CGPoint {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        guard state.kind == .lastLight else { return center }
+        let scale = sceneScale(size)
+        let angles: [CGFloat] = [-2.70, -1.48, -0.22, 0.92, 2.20]
+        return CGPoint(
+            x: center.x + cos(angles[index]) * 63 * scale,
+            y: center.y + sin(angles[index]) * 35 * scale
+        )
+    }
+
+    private func fixedGlintAngle(index: Int) -> CGFloat {
+        let angles: [CGFloat] = [-2.70, -1.48, -0.22, 0.92, 2.20]
+        if state.kind == .small { return angles[0] }
+        if state.kind == .medium { return angles[[0, 2, 4][index]] }
+        return angles[index]
+    }
+
+    private func ringSegment(
+        center: CGPoint,
+        radii: CGSize,
+        startAngle: CGFloat,
+        endAngle: CGFloat
+    ) -> Path {
+        var path = Path()
+        for step in 0...5 {
+            let angle = startAngle + (endAngle - startAngle) * CGFloat(step) / 5
+            let point = CGPoint(
+                x: center.x + cos(angle) * radii.width,
+                y: center.y + sin(angle) * radii.height
+            )
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        return path
+    }
+
+    private func sceneScale(_ size: CGSize) -> CGFloat {
+        min(
+            size.width / PetSize.large.sceneSize.width,
+            size.height / PetSize.large.sceneSize.height
+        )
+    }
+
+    private func rectCentered(at point: CGPoint, size: CGSize) -> CGRect {
+        CGRect(
+            x: point.x - size.width / 2,
+            y: point.y - size.height / 2,
+            width: size.width,
+            height: size.height
+        )
+    }
+
+    private func snapped(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x.rounded(), y: point.y.rounded())
+    }
+
+    private func clamped(_ value: TimeInterval) -> CGFloat {
+        CGFloat(min(1, max(0, value)))
+    }
+
+    private func smoothstep(_ value: CGFloat) -> CGFloat {
+        let value = min(1, max(0, value))
+        return value * value * (3 - 2 * value)
     }
 }
 
@@ -261,8 +1005,8 @@ private struct AbsorptionObjectView: View {
                 .resizable()
                 .interpolation(.none)
                 .frame(
-                    width: AbsorptionVisualState.objectSize,
-                    height: AbsorptionVisualState.objectSize
+                    width: state.renderFieldSize,
+                    height: state.renderFieldSize
                 )
                 .mask(PixelTileMask(removedTiles: removedTiles))
                 .scaleEffect(
@@ -317,8 +1061,8 @@ private struct AbsorptionObjectView: View {
                 .resizable()
                 .interpolation(.none)
                 .frame(
-                    width: AbsorptionVisualState.objectSize,
-                    height: AbsorptionVisualState.objectSize
+                    width: state.renderFieldSize,
+                    height: state.renderFieldSize
                 )
                 .mask(SinglePixelTileMask(tile: tile))
                 .scaleEffect(
@@ -337,7 +1081,7 @@ private struct AbsorptionObjectView: View {
 }
 
 private struct PixelTile: Hashable {
-    static let gridSize = 8
+    static let gridSize = 10
 
     let column: Int
     let row: Int

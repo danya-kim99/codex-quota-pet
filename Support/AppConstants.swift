@@ -4,4 +4,7 @@ enum AppConstants {
     static let petSizeKey = "petSize"
     static let tooltipStyleKey = "tooltipStyle"
     static let showQuotaDynamicsKey = "showQuotaDynamics"
+    static let petPositionLockedKey = "petPositionLocked"
+    static let passesPointerInputThroughKey = "passesPointerInputThrough"
+    static let petPanelFrameName = "CodexQuotaPetLockedFrame"
 }

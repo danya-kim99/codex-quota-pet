@@ -174,21 +174,6 @@ final class RateLimitDecodingTests: XCTestCase {
         }
     }
 
-    func testPixelTurboRingChevronsStayWithinArc() {
-        let outerRadius = PixelQuotaTooltipView.smallRingSize / 2
-        let innerRadius = outerRadius - PixelQuotaTooltipView.smallRingLineWidth
-        let chevronHalfHeight = PixelQuotaTooltipView.smallRingChevronSize.height / 2
-
-        XCTAssertGreaterThanOrEqual(
-            PixelQuotaTooltipView.smallRingRadius - chevronHalfHeight,
-            innerRadius
-        )
-        XCTAssertLessThanOrEqual(
-            PixelQuotaTooltipView.smallRingRadius + chevronHalfHeight,
-            outerRadius
-        )
-    }
-
     func testPixelTooltipHardShadowsStayWithinEveryPanel() {
         let cardAndPanelSizes = [
             (PixelQuotaTooltipView.largeCardSize, PixelQuotaTooltipView.largePanelSize),
@@ -251,7 +236,6 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(PetSize.small.sceneSize, CGSize(width: 240, height: 132))
         XCTAssertEqual(PetSize.medium.sceneSize, CGSize(width: 320, height: 176))
         XCTAssertEqual(PetSize.large.sceneSize, CGSize(width: 400, height: 220))
-        XCTAssertEqual(AbsorptionVisualState.objectSize, 48)
     }
 
     @MainActor
@@ -442,6 +426,22 @@ final class RateLimitDecodingTests: XCTestCase {
             ),
             "Открыть контекстное меню"
         )
+        XCTAssertEqual(
+            english.localizedString(forKey: "mode.standard", value: nil, table: nil),
+            "Standard"
+        )
+        XCTAssertEqual(
+            english.localizedString(forKey: "mode.turbo", value: nil, table: nil),
+            "Turbo"
+        )
+        XCTAssertEqual(
+            russian.localizedString(forKey: "mode.standard", value: nil, table: nil),
+            "Стандарт"
+        )
+        XCTAssertEqual(
+            russian.localizedString(forKey: "mode.turbo", value: nil, table: nil),
+            "Турбо"
+        )
 
         let menuTranslations = [
             "menu.quota.short": ("Quota", "Квота"),
@@ -470,16 +470,56 @@ final class RateLimitDecodingTests: XCTestCase {
         }
     }
 
+    func testTurboBadgeHighlightEligibilityMatrix() {
+        XCTAssertTrue(
+            QuotaTooltipView.isTurboBadgeHighlightEligible(
+                isTooltipPresented: true,
+                speedMode: .turbo,
+                connectionState: .connected,
+                remainingPercent: 1,
+                reduceMotion: false
+            )
+        )
+
+        let ineligibleCases: [(Bool, SpeedMode, ConnectionState, Int?, Bool)] = [
+            (true, .standard, .connected, 1, false),
+            (false, .turbo, .connected, 1, false),
+            (true, .turbo, .connected, 1, true),
+            (true, .turbo, .connected, 0, false),
+            (true, .turbo, .connected, nil, false),
+            (true, .turbo, .connecting, 1, false),
+            (true, .turbo, .reconnecting, 1, false),
+            (true, .turbo, .disconnected, 1, false)
+        ]
+        for (isPresented, mode, connection, remainingPercent, reduceMotion) in ineligibleCases {
+            XCTAssertFalse(
+                QuotaTooltipView.isTurboBadgeHighlightEligible(
+                    isTooltipPresented: isPresented,
+                    speedMode: mode,
+                    connectionState: connection,
+                    remainingPercent: remainingPercent,
+                    reduceMotion: reduceMotion
+                )
+            )
+        }
+    }
+
     @MainActor
-    func testTooltipProgressPresentationUsesRealSpeedMode() {
-        XCTAssertEqual(
-            QuotaTooltipView.progressPresentation(for: .standard),
-            .standard
-        )
-        XCTAssertEqual(
-            QuotaTooltipView.progressPresentation(for: .turbo),
-            .turbo
-        )
+    func testTooltipAccessibilitySummaryContainsModeAndConnectionOnce() {
+        for mode in [SpeedMode.standard, .turbo] {
+            let summary = QuotaTooltipView.accessibilitySummary(
+                remainingPercent: 42,
+                speedMode: mode,
+                connectionState: .connected,
+                resetDate: nil
+            )
+
+            XCTAssertEqual(summary.components(separatedBy: mode.title).count - 1, 1)
+            XCTAssertEqual(
+                summary.components(separatedBy: ConnectionState.connected.title).count - 1,
+                1
+            )
+        }
     }
 
     @MainActor
@@ -612,7 +652,6 @@ final class RateLimitDecodingTests: XCTestCase {
         )
 
         XCTAssertEqual(content.progressFraction, 1)
-        XCTAssertEqual(content.progressPresentation, .turbo)
         XCTAssertTrue(content.isStale)
         XCTAssertNil(content.dayIndicator)
         XCTAssertNotNil(content.compactResetText)
@@ -751,7 +790,7 @@ final class RateLimitDecodingTests: XCTestCase {
         let appBundle = Bundle(for: AppDelegate.self)
         let catalog = try AbsorbableObjectCatalog(bundle: appBundle)
 
-        XCTAssertEqual(catalog.manifest.canvas, .init(width: 64, height: 64))
+        XCTAssertEqual(catalog.manifest.canvas, .init(width: 80, height: 80))
         XCTAssertEqual(catalog.manifest.objects.count, 31)
         XCTAssertEqual(
             Dictionary(uniqueKeysWithValues: catalog.manifest.categories.map { ($0.id, $0.weight) }),
@@ -774,10 +813,10 @@ final class RateLimitDecodingTests: XCTestCase {
             let image = try XCTUnwrap(NSImage(contentsOf: url))
             let data = try XCTUnwrap(image.tiffRepresentation)
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
-            XCTAssertEqual(bitmap.pixelsWide, 64, object.id)
-            XCTAssertEqual(bitmap.pixelsHigh, 64, object.id)
+            XCTAssertEqual(bitmap.pixelsWide, 80, object.id)
+            XCTAssertEqual(bitmap.pixelsHigh, 80, object.id)
             XCTAssertEqual(bitmap.colorAt(x: 0, y: 0)?.alphaComponent, 0, object.id)
-            XCTAssertEqual(bitmap.colorAt(x: 63, y: 63)?.alphaComponent, 0, object.id)
+            XCTAssertEqual(bitmap.colorAt(x: 79, y: 79)?.alphaComponent, 0, object.id)
         }
     }
 
@@ -864,7 +903,7 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertLessThan(reduced.opacity, 1)
     }
 
-    func testAbsorptionRenderingStaysInsideEveryPetSize() {
+    func testAbsorptionUsesProportionalSizesAndStaysInsideEveryPetSize() {
         let object = AbsorbableObjectManifest.Object(
             id: "test",
             category: "animals",
@@ -873,34 +912,52 @@ final class RateLimitDecodingTests: XCTestCase {
         let startDate = Date(timeIntervalSince1970: 1_000)
         let seeds: [UInt64] = [0, 1, 29, 42, 155, 607, 965, 988, .max]
 
-        for petSize in PetSize.allCases {
+        let expectedSizes: [(PetSize, object: CGFloat, renderField: CGFloat)] = [
+            (.small, 48, 60),
+            (.medium, 64, 80),
+            (.large, 80, 100)
+        ]
+
+        for (petSize, expectedObjectSize, expectedRenderFieldSize) in expectedSizes {
             let sceneSize = petSize.sceneSize
             let safeFrame = CGRect(origin: .zero, size: sceneSize).insetBy(
                 dx: AbsorptionVisualState.renderingInset,
                 dy: AbsorptionVisualState.renderingInset
             )
-            for side in AbsorptionSpawnSide.allCases {
-                for seed in seeds {
-                    let plan = AbsorptionPlan(
-                        object: object,
-                        startDate: startDate,
-                        duration: 1,
-                        side: side,
-                        seed: seed,
-                        usesReducedMotion: false
-                    )
-                    for sample in 0...40 {
-                        let state = AbsorptionVisualState.make(
-                            plan: plan,
-                            at: startDate.addingTimeInterval(Double(sample) / 40),
-                            sceneSize: sceneSize
+            for usesReducedMotion in [false, true] {
+                for side in AbsorptionSpawnSide.allCases {
+                    for seed in seeds {
+                        let plan = AbsorptionPlan(
+                            object: object,
+                            startDate: startDate,
+                            duration: 1,
+                            side: side,
+                            seed: seed,
+                            usesReducedMotion: usesReducedMotion
                         )
-                        let frame = state.renderedFrame
-                        let context = "\(petSize) \(side) seed=\(seed) sample=\(sample)"
-                        XCTAssertGreaterThanOrEqual(frame.minX, safeFrame.minX, context)
-                        XCTAssertGreaterThanOrEqual(frame.minY, safeFrame.minY, context)
-                        XCTAssertLessThanOrEqual(frame.maxX, safeFrame.maxX, context)
-                        XCTAssertLessThanOrEqual(frame.maxY, safeFrame.maxY, context)
+                        for sample in 0...40 {
+                            let state = AbsorptionVisualState.make(
+                                plan: plan,
+                                at: startDate.addingTimeInterval(Double(sample) / 40),
+                                sceneSize: sceneSize
+                            )
+                            XCTAssertEqual(
+                                state.objectSize,
+                                expectedObjectSize,
+                                "\(petSize) reducedMotion=\(usesReducedMotion)"
+                            )
+                            XCTAssertEqual(
+                                state.renderFieldSize,
+                                expectedRenderFieldSize,
+                                "\(petSize) reducedMotion=\(usesReducedMotion)"
+                            )
+                            let frame = state.renderedFrame
+                            let context = "\(petSize) \(side) seed=\(seed) sample=\(sample) reducedMotion=\(usesReducedMotion)"
+                            XCTAssertGreaterThanOrEqual(frame.minX, safeFrame.minX, context)
+                            XCTAssertGreaterThanOrEqual(frame.minY, safeFrame.minY, context)
+                            XCTAssertLessThanOrEqual(frame.maxX, safeFrame.maxX, context)
+                            XCTAssertLessThanOrEqual(frame.maxY, safeFrame.maxY, context)
+                        }
                     }
                 }
             }
@@ -1079,7 +1136,10 @@ final class RateLimitDecodingTests: XCTestCase {
         let appState = AppState(defaults: defaults, appServer: appServer)
         let controller = PetPanelController()
         controller.show(appState: appState)
+        let hostingViewIdentity = try XCTUnwrap(controller.tooltipHostingViewIdentity)
+        XCTAssertFalse(controller.isTooltipPresentationActive)
         controller.setTooltipVisible(true)
+        XCTAssertTrue(controller.isTooltipPresentationActive)
 
         let petFrame = try XCTUnwrap(controller.petFrame)
         XCTAssertEqual(
@@ -1091,6 +1151,8 @@ final class RateLimitDecodingTests: XCTestCase {
         controller.updateTooltipStyle()
 
         XCTAssertTrue(controller.isTooltipVisible)
+        XCTAssertTrue(controller.isTooltipPresentationActive)
+        XCTAssertEqual(controller.tooltipHostingViewIdentity, hostingViewIdentity)
         XCTAssertEqual(
             controller.tooltipFrame?.size,
             QuotaTooltipView.panelSize(
@@ -1101,6 +1163,9 @@ final class RateLimitDecodingTests: XCTestCase {
         )
         XCTAssertEqual(controller.petFrame, petFrame)
         XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+        controller.setTooltipVisible(false)
+        XCTAssertFalse(controller.isTooltipPresentationActive)
+        XCTAssertEqual(controller.tooltipHostingViewIdentity, hostingViewIdentity)
         controller.hide()
     }
 
@@ -1143,7 +1208,7 @@ final class RateLimitDecodingTests: XCTestCase {
             asset: "test"
         )
         let startDate = Date(timeIntervalSince1970: 3_000)
-        let inset = AbsorptionVisualState.objectSize / 2
+        let inset: CGFloat = 24
 
         for (index, side) in AbsorptionSpawnSide.allCases.enumerated() {
             let plan = AbsorptionPlan(
@@ -1173,8 +1238,11 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
-    func testPanelHidesAndRestores() {
-        let appState = AppState()
+    func testPanelHidesAndRestores() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
         let controller = PetPanelController()
 
         controller.show(appState: appState)
@@ -1258,7 +1326,10 @@ final class RateLimitDecodingTests: XCTestCase {
 
     @MainActor
     func testContextMenuPanelSuppressesTooltipAndHidesWithPet() throws {
-        let appState = AppState()
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
         let controller = PetPanelController()
         controller.show(appState: appState)
         controller.setTooltipVisible(true)
@@ -1528,6 +1599,1175 @@ final class RateLimitDecodingTests: XCTestCase {
         for _ in 0..<100 where !condition() {
             await Task.yield()
         }
+    }
+}
+
+final class QuotaConsumptionReactionTests: XCTestCase {
+    func testSharedTransitionClassifierSeparatesConsumptionFromUnsafeChanges() {
+        let start = Date(timeIntervalSince1970: 10_000)
+        let reset = Int64(start.addingTimeInterval(3_600).timeIntervalSince1970)
+        let previous = Self.sample(
+            remainingPercent: 80,
+            observedAt: start,
+            resetsAt: reset
+        )
+
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 80,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: reset
+                )
+            ),
+            .duplicate
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 77,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: reset
+                )
+            ),
+            .consumption(delta: 3)
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 81,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: reset
+                )
+            ),
+            .correction
+        )
+
+        let resetPrevious = Self.sample(
+            remainingPercent: 20,
+            observedAt: start,
+            resetsAt: Int64(start.addingTimeInterval(30).timeIntervalSince1970)
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: resetPrevious,
+                to: Self.sample(
+                    remainingPercent: 100,
+                    observedAt: start.addingTimeInterval(60),
+                    resetsAt: Int64(start.addingTimeInterval(3_660).timeIntervalSince1970)
+                )
+            ),
+            .reset
+        )
+
+        let discontinuities = [
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: nil
+            ),
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: reset,
+                duration: 60
+            ),
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: reset,
+                limitId: "other"
+            ),
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: reset,
+                limitName: "Codex Team"
+            ),
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: reset,
+                planType: "team"
+            ),
+            Self.sample(
+                remainingPercent: nil,
+                observedAt: start.addingTimeInterval(1),
+                resetsAt: reset
+            ),
+            Self.sample(
+                remainingPercent: 80,
+                observedAt: start.addingTimeInterval(
+                    QuotaHistoryClassifier.maximumComparableGap + 1
+                ),
+                resetsAt: reset
+            ),
+            Self.sample(
+                remainingPercent: 79,
+                observedAt: start,
+                resetsAt: reset
+            )
+        ]
+        for current in discontinuities {
+            XCTAssertEqual(Self.transition(from: previous, to: current), .discontinuity)
+        }
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 79,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: reset
+                ),
+                forceGap: true
+            ),
+            .discontinuity
+        )
+
+        let nilDurationPrevious = Self.sample(
+            remainingPercent: 80,
+            observedAt: start,
+            resetsAt: reset,
+            duration: nil
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: nilDurationPrevious,
+                to: Self.sample(
+                    remainingPercent: 79,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: reset,
+                    duration: nil
+                )
+            ),
+            .consumption(delta: 1)
+        )
+    }
+
+    func testCadenceRepeatsSmallMediumAndLargeEveryTenPoints() {
+        var cadence = QuotaConsumptionCadence()
+        var kinds: [QuotaConsumptionReactionKind] = []
+        for _ in 1...20 {
+            kinds.append(cadence.advance(by: 1, reachesZero: false)!)
+        }
+
+        let decade: [QuotaConsumptionReactionKind] = [
+            .small, .small, .small, .small, .medium,
+            .small, .small, .small, .small, .large
+        ]
+        XCTAssertEqual(kinds, decade + decade)
+        XCTAssertEqual(cadence.position, 0)
+    }
+
+    func testMultiPointCadenceKeepsRemainderAndZeroOverridesMilestone() {
+        var cadence = QuotaConsumptionCadence()
+        for _ in 0..<4 {
+            XCTAssertEqual(cadence.advance(by: 1, reachesZero: false), .small)
+        }
+        XCTAssertEqual(cadence.advance(by: 6, reachesZero: false), .large)
+        XCTAssertEqual(cadence.position, 0)
+
+        XCTAssertEqual(cadence.advance(by: 3, reachesZero: false), .small)
+        XCTAssertEqual(cadence.advance(by: 2, reachesZero: false), .medium)
+        XCTAssertEqual(cadence.position, 5)
+        XCTAssertEqual(cadence.advance(by: 15, reachesZero: false), .large)
+        XCTAssertEqual(cadence.position, 0)
+
+        XCTAssertEqual(cadence.advance(by: 10, reachesZero: true), .lastLight)
+        XCTAssertEqual(cadence.position, 0)
+    }
+
+    func testQueueBoundsPendingWorkAndLastLightPreempts() {
+        var queue = QuotaReactionQueue()
+        let small = QuotaConsumptionEvent(id: 1, kind: .small)
+        let medium = QuotaConsumptionEvent(id: 2, kind: .medium)
+        let anotherSmall = QuotaConsumptionEvent(id: 3, kind: .small)
+        let large = QuotaConsumptionEvent(id: 4, kind: .large)
+        let lastLight = QuotaConsumptionEvent(id: 5, kind: .lastLight)
+
+        XCTAssertEqual(queue.receive(small, deferPlayback: false), small)
+        XCTAssertNil(queue.receive(medium, deferPlayback: false))
+        XCTAssertNil(queue.receive(anotherSmall, deferPlayback: false))
+        XCTAssertEqual(queue.pending, medium)
+        XCTAssertNil(queue.receive(large, deferPlayback: false))
+        XCTAssertEqual(queue.pending, large)
+
+        XCTAssertEqual(queue.receive(lastLight, deferPlayback: false), lastLight)
+        XCTAssertEqual(queue.active, lastLight)
+        XCTAssertNil(queue.pending)
+
+        XCTAssertNil(queue.receive(small, deferPlayback: false))
+        XCTAssertEqual(
+            queue.completeActive(id: lastLight.id, startPending: true),
+            small
+        )
+        XCTAssertEqual(queue.active, small)
+        XCTAssertNil(queue.pending)
+    }
+
+    func testQueueDefersForManualAbsorptionAndResetClearsBothSlots() {
+        var queue = QuotaReactionQueue()
+        let medium = QuotaConsumptionEvent(id: 1, kind: .medium)
+        let large = QuotaConsumptionEvent(id: 2, kind: .large)
+        let small = QuotaConsumptionEvent(id: 3, kind: .small)
+
+        XCTAssertNil(queue.receive(medium, deferPlayback: true))
+        XCTAssertNil(queue.receive(large, deferPlayback: true))
+        XCTAssertEqual(queue.pending, large)
+        XCTAssertEqual(queue.resumePending(), large)
+        XCTAssertNil(queue.receive(small, deferPlayback: false))
+
+        queue.cancelActive()
+        XCTAssertNil(queue.active)
+        XCTAssertEqual(queue.pending, small)
+        XCTAssertEqual(queue.resumePending(), small)
+        queue.reset()
+        XCTAssertNil(queue.active)
+        XCTAssertNil(queue.pending)
+    }
+
+    func testVisualTimingMotionPhasesAndIdleScheduleAreDeterministic() {
+        let normalDurations = QuotaConsumptionReactionKind.allCases.map(\.normalDuration)
+        let reducedDurations = QuotaConsumptionReactionKind.allCases.map(\.reducedMotionDuration)
+        XCTAssertEqual(normalDurations, [0.46, 0.67, 0.83, 1.15])
+        XCTAssertEqual(reducedDurations, [0.16, 0.20, 0.24, 0.28])
+
+        let justBeforeLargeRing = QuotaReactionVisualState(
+            kind: .large,
+            elapsed: QuotaReactionVisualState.largeRingStart - 0.001,
+            usesReducedMotion: false
+        )
+        XCTAssertEqual(justBeforeLargeRing.phase, .packets)
+        XCTAssertLessThan(justBeforeLargeRing.packetProgress(index: 4), 1)
+
+        let atLargeRing = QuotaReactionVisualState(
+            kind: .large,
+            elapsed: QuotaReactionVisualState.largeRingStart,
+            usesReducedMotion: false
+        )
+        XCTAssertEqual(atLargeRing.packetProgress(index: 4), 1, accuracy: 0.0001)
+        XCTAssertEqual(atLargeRing.phase, .lensingRing)
+        XCTAssertEqual(
+            QuotaReactionVisualState(
+                kind: .lastLight,
+                elapsed: 0.60,
+                usesReducedMotion: false
+            ).phase,
+            .photonRing
+        )
+        XCTAssertEqual(
+            QuotaReactionVisualState(
+                kind: .lastLight,
+                elapsed: 0.82,
+                usesReducedMotion: false
+            ).phase,
+            .drain
+        )
+        XCTAssertEqual(
+            QuotaReactionVisualState(
+                kind: .lastLight,
+                elapsed: 1.0,
+                usesReducedMotion: false
+            ).phase,
+            .afterglow
+        )
+
+        let reducedEarly = QuotaReactionVisualState(
+            kind: .medium,
+            elapsed: 0.02,
+            usesReducedMotion: true
+        )
+        let reducedLate = QuotaReactionVisualState(
+            kind: .medium,
+            elapsed: 0.14,
+            usesReducedMotion: true
+        )
+        XCTAssertEqual(reducedEarly.packetProgress(index: 0), 0)
+        XCTAssertEqual(reducedLate.packetProgress(index: 0), 0)
+        XCTAssertEqual(reducedEarly.timelineInterval, 0.05, accuracy: 0.0001)
+
+        let idleInterval = 0.14
+        XCTAssertEqual(
+            QuotaReactionVisualState.timelineInterval(
+                hasManualAnimation: false,
+                activeReaction: nil,
+                turboPulse: false,
+                idleInterval: idleInterval
+            ),
+            idleInterval,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            QuotaReactionVisualState.timelineInterval(
+                hasManualAnimation: false,
+                activeReaction: reducedEarly,
+                turboPulse: false,
+                idleInterval: idleInterval
+            ),
+            0.05,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            QuotaReactionVisualState.timelineInterval(
+                hasManualAnimation: false,
+                activeReaction: nil,
+                turboPulse: true,
+                idleInterval: idleInterval
+            ),
+            1.0 / 30.0,
+            accuracy: 0.0001
+        )
+    }
+
+    func testPacketRoutesAreDistinctAndStayInsideEverySceneSize() {
+        XCTAssertEqual(QuotaReactionRoute.packetRoutes.count, 5)
+        for size in PetSize.allCases.map(\.sceneSize) {
+            let end = CGPoint(x: size.width / 2, y: size.height / 2)
+            let midpoints = QuotaReactionRoute.packetRoutes.map {
+                $0.point(progress: 0.5, in: size, end: end)
+            }
+            for lhs in midpoints.indices {
+                for rhs in midpoints.indices where lhs < rhs {
+                    XCTAssertNotEqual(midpoints[lhs], midpoints[rhs])
+                }
+            }
+            for route in QuotaReactionRoute.packetRoutes {
+                for step in 0...20 {
+                    let point = route.point(
+                        progress: CGFloat(step) / 20,
+                        in: size,
+                        end: end
+                    )
+                    XCTAssertGreaterThanOrEqual(point.x, 0)
+                    XCTAssertLessThanOrEqual(point.x, size.width)
+                    XCTAssertGreaterThanOrEqual(point.y, 0)
+                    XCTAssertLessThanOrEqual(point.y, size.height)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func testAppStateEmitsMonotonicExactlyOnceEventsAcrossLifecycle() async {
+        let appServer = FakeAppServer()
+        var now = Date(timeIntervalSince1970: 10_000)
+        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        appState.start()
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
+        XCTAssertNil(appState.quotaConsumptionEvent)
+
+        for point in 1...10 {
+            now.addTimeInterval(1)
+            appServer.send(
+                snapshot: Self.snapshot(
+                    remainingPercent: 100 - point,
+                    resetsAt: reset
+                )
+            )
+            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
+            let expectedKind: QuotaConsumptionReactionKind = switch point {
+            case 5: .medium
+            case 10: .large
+            default: .small
+            }
+            XCTAssertEqual(appState.quotaConsumptionEvent?.kind, expectedKind)
+        }
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 90, resetsAt: reset))
+        await Self.drainMainActor()
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 10)
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 91, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 91 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 10)
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 90, resetsAt: reset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 11 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+
+        appState.retryNow()
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 89, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 89 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 11)
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 88, resetsAt: reset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 12 }
+
+        appState.noteWakeForQuotaHistory()
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 87, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 87 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 12)
+
+        appState.setQuotaReactionPresentationAllowed(false)
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 86, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 86 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 12)
+        appState.setQuotaReactionPresentationAllowed(true)
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 85, resetsAt: reset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 14 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 0, resetsAt: reset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 15 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .lastLight)
+        appState.stop()
+    }
+
+    @MainActor
+    func testClearingHistoryDoesNotResetReactionCadenceOrContinuity() async {
+        let appServer = FakeAppServer()
+        let historyStore = QuotaHistoryStore(fileURL: nil)
+        var now = Date(timeIntervalSince1970: 20_000)
+        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            now: { now },
+            historyStore: historyStore
+        )
+        appState.start()
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
+        for point in 1...4 {
+            now.addTimeInterval(1)
+            appServer.send(
+                snapshot: Self.snapshot(
+                    remainingPercent: 100 - point,
+                    resetsAt: reset
+                )
+            )
+            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
+        }
+        await Self.waitUntil { appState.quotaHistory.points.count >= 2 }
+        XCTAssertGreaterThanOrEqual(appState.quotaHistory.points.count, 2)
+
+        appState.clearQuotaHistory()
+        await Self.waitUntil { appState.quotaHistory.points.isEmpty }
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 95, resetsAt: reset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 5 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .medium)
+        appState.stop()
+    }
+
+    @MainActor
+    func testAppStateIdentityChangesResetReactionCadence() async {
+        let appServer = FakeAppServer()
+        var now = Date(timeIntervalSince1970: 30_000)
+        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        appState.start()
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
+        for point in 1...4 {
+            now.addTimeInterval(1)
+            appServer.send(
+                snapshot: Self.snapshot(
+                    remainingPercent: 100 - point,
+                    resetsAt: reset
+                )
+            )
+            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
+        }
+
+        now.addTimeInterval(1)
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 96,
+                resetsAt: reset,
+                planType: "team"
+            )
+        )
+        await Self.waitUntil { appState.quota?.planType == "team" }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 4)
+
+        now.addTimeInterval(1)
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 95,
+                resetsAt: reset,
+                planType: "team"
+            )
+        )
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 5 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+
+        now.addTimeInterval(1)
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 92,
+                resetsAt: reset,
+                planType: "team"
+            )
+        )
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 6 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+
+        now.addTimeInterval(1)
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 92,
+                resetsAt: reset,
+                limitId: "codex-team",
+                planType: "team"
+            )
+        )
+        await Self.waitUntil { appState.quota?.limitId == "codex-team" }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 6)
+
+        now.addTimeInterval(1)
+        appServer.send(
+            snapshot: Self.snapshot(
+                remainingPercent: 91,
+                resetsAt: reset,
+                limitId: "codex-team",
+                planType: "team"
+            )
+        )
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 7 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+        appState.stop()
+    }
+
+    @MainActor
+    func testPanelSuppressionAndResizeOnlyControlPresentation() throws {
+        let suiteName = "BlackHoleQuotaReactionTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController()
+
+        controller.show(appState: appState)
+        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
+        let resetID = appState.quotaReactionResetID
+        appState.setPetSize(.medium)
+        controller.resize(to: .medium)
+        XCTAssertGreaterThan(appState.quotaReactionResetID, resetID)
+
+        let frame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
+        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
+        controller.hide()
+        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
+    }
+
+    func testResetClassifierRequiresExactCredibleBoundaryForAnyDelta() {
+        let start = Date(timeIntervalSince1970: 40_000)
+        let oldReset = Int64(start.addingTimeInterval(30).timeIntervalSince1970)
+        let newReset = oldReset + 18_000
+        let previous = Self.sample(
+            remainingPercent: 20,
+            observedAt: start,
+            resetsAt: oldReset
+        )
+
+        for remainingPercent in [100, 20, 7] {
+            XCTAssertEqual(
+                Self.transition(
+                    from: previous,
+                    to: Self.sample(
+                        remainingPercent: remainingPercent,
+                        observedAt: start.addingTimeInterval(30),
+                        resetsAt: newReset
+                    )
+                ),
+                .reset
+            )
+        }
+
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 100,
+                    observedAt: start.addingTimeInterval(29),
+                    resetsAt: newReset
+                )
+            ),
+            .discontinuity
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: Self.sample(
+                    remainingPercent: 20,
+                    observedAt: start,
+                    resetsAt: Int64(start.timeIntervalSince1970)
+                ),
+                to: Self.sample(
+                    remainingPercent: 100,
+                    observedAt: start.addingTimeInterval(1),
+                    resetsAt: newReset
+                )
+            ),
+            .discontinuity
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 100,
+                    observedAt: start.addingTimeInterval(30),
+                    resetsAt: newReset,
+                    duration: nil
+                )
+            ),
+            .discontinuity
+        )
+        XCTAssertEqual(
+            Self.transition(
+                from: previous,
+                to: Self.sample(
+                    remainingPercent: 100,
+                    observedAt: start.addingTimeInterval(30),
+                    resetsAt: nil
+                )
+            ),
+            .discontinuity
+        )
+    }
+
+    @MainActor
+    func testCredibleResetIsNotConsumptionAndResetsReactionCadence() async {
+        let appServer = FakeAppServer()
+        var now = Date(timeIntervalSince1970: 50_000)
+        let oldReset = Int64(now.addingTimeInterval(30).timeIntervalSince1970)
+        let newReset = oldReset + 18_000
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        appState.start()
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 24, resetsAt: oldReset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 24 }
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 20, resetsAt: oldReset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 1 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+
+        let reactionResetID = appState.quotaReactionResetID
+        now.addTimeInterval(29)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: newReset))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 1)
+        XCTAssertGreaterThan(appState.quotaReactionResetID, reactionResetID)
+
+        now.addTimeInterval(1)
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 99, resetsAt: newReset))
+        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 2 }
+        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
+        appState.stop()
+    }
+
+    private static func transition(
+        from previous: QuotaHistorySample,
+        to current: QuotaHistorySample,
+        forceGap: Bool = false
+    ) -> QuotaSnapshotTransition {
+        QuotaHistoryClassifier.transition(
+            previousSample: previous,
+            currentSample: current,
+            previousWindow: previous.primary,
+            currentWindow: current.primary,
+            forceGap: forceGap
+        )
+    }
+
+    private static func sample(
+        remainingPercent: Int?,
+        observedAt: Date,
+        resetsAt: Int64?,
+        duration: Int64? = 300,
+        limitId: String = "codex",
+        limitName: String? = "Codex",
+        planType: String? = "pro"
+    ) -> QuotaHistorySample {
+        QuotaHistorySample(
+            snapshot: snapshot(
+                remainingPercent: remainingPercent,
+                resetsAt: resetsAt,
+                duration: duration,
+                limitId: limitId,
+                limitName: limitName,
+                planType: planType
+            ),
+            observedAt: observedAt
+        )
+    }
+
+    private static func snapshot(
+        remainingPercent: Int?,
+        resetsAt: Int64?,
+        duration: Int64? = 300,
+        limitId: String = "codex",
+        limitName: String? = "Codex",
+        planType: String? = "pro"
+    ) -> QuotaSnapshot {
+        QuotaSnapshot(
+            limitId: limitId,
+            limitName: limitName,
+            planType: planType,
+            primary: remainingPercent.map {
+                QuotaWindow(
+                    usedPercent: 100 - $0,
+                    windowDurationMins: duration,
+                    resetsAt: resetsAt
+                )
+            },
+            secondary: nil
+        )
+    }
+
+    @MainActor
+    private static func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<200 where !condition() {
+            await Task.yield()
+        }
+    }
+
+    @MainActor
+    private static func drainMainActor() async {
+        for _ in 0..<10 {
+            await Task.yield()
+        }
+    }
+}
+
+final class PositionLockClickThroughTests: XCTestCase {
+    @MainActor
+    func testPreferencesAcceptOnlyStoredBooleansAndPersistIndependently() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var appState = AppState(defaults: defaults)
+        XCTAssertFalse(appState.isPetPositionLocked)
+        XCTAssertFalse(appState.passesPointerInputThrough)
+
+        appState.setPetPositionLocked(true)
+        appState.setPassesPointerInputThrough(true)
+        appState = AppState(defaults: defaults)
+        XCTAssertTrue(appState.isPetPositionLocked)
+        XCTAssertTrue(appState.passesPointerInputThrough)
+
+        let invalidValues: [Any] = [0, 1, 2, "true", ["true"], Data([1])]
+        for value in invalidValues {
+            defaults.set(value, forKey: AppConstants.petPositionLockedKey)
+            defaults.set(value, forKey: AppConstants.passesPointerInputThroughKey)
+            appState = AppState(defaults: defaults)
+            XCTAssertFalse(appState.isPetPositionLocked, "Accepted invalid \(value)")
+            XCTAssertFalse(appState.passesPointerInputThrough, "Accepted invalid \(value)")
+        }
+    }
+
+    @MainActor
+    func testEffectiveInputPolicyCoversEveryPreferenceCombinationAndContextMenu() {
+        XCTAssertEqual(
+            PetPanelController.inputPolicy(
+                isPositionLocked: false,
+                passesPointerInputThrough: false,
+                hasContextMenu: false
+            ),
+            PetPanelInputPolicy(allowsPointer: true, allowsDrag: true)
+        )
+        XCTAssertEqual(
+            PetPanelController.inputPolicy(
+                isPositionLocked: true,
+                passesPointerInputThrough: false,
+                hasContextMenu: false
+            ),
+            PetPanelInputPolicy(allowsPointer: true, allowsDrag: false)
+        )
+        XCTAssertEqual(
+            PetPanelController.inputPolicy(
+                isPositionLocked: false,
+                passesPointerInputThrough: true,
+                hasContextMenu: false
+            ),
+            PetPanelInputPolicy(allowsPointer: false, allowsDrag: false)
+        )
+        XCTAssertEqual(
+            PetPanelController.inputPolicy(
+                isPositionLocked: true,
+                passesPointerInputThrough: true,
+                hasContextMenu: false
+            ),
+            PetPanelInputPolicy(allowsPointer: false, allowsDrag: false)
+        )
+        XCTAssertEqual(
+            PetPanelController.inputPolicy(
+                isPositionLocked: false,
+                passesPointerInputThrough: false,
+                hasContextMenu: true
+            ),
+            PetPanelInputPolicy(allowsPointer: true, allowsDrag: false)
+        )
+        XCTAssertFalse(
+            PetPanelController.shouldClearHoverRearm(
+                passesPointerInputThrough: true,
+                cursorIsInsideHoverTarget: false
+            )
+        )
+        XCTAssertFalse(
+            PetPanelController.shouldClearHoverRearm(
+                passesPointerInputThrough: false,
+                cursorIsInsideHoverTarget: true
+            )
+        )
+        XCTAssertTrue(
+            PetPanelController.shouldClearHoverRearm(
+                passesPointerInputThrough: false,
+                cursorIsInsideHoverTarget: false
+            )
+        )
+        XCTAssertTrue(
+            PetPanelController.hoverRearmRequired(
+                currentlyRequired: true,
+                passesPointerInputThrough: true,
+                cursorIsInsideHoverTarget: false
+            )
+        )
+        XCTAssertTrue(
+            PetPanelController.hoverRearmRequired(
+                currentlyRequired: true,
+                passesPointerInputThrough: false,
+                cursorIsInsideHoverTarget: true
+            )
+        )
+        XCTAssertFalse(
+            PetPanelController.hoverRearmRequired(
+                currentlyRequired: true,
+                passesPointerInputThrough: false,
+                cursorIsInsideHoverTarget: false
+            )
+        )
+    }
+
+    @MainActor
+    func testControllerAppliesLockClickThroughAndContextMenuRecovery() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let frameName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            UserDefaults.standard.removeObject(forKey: "NSWindow Frame \(frameName)")
+        }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController(frameName: frameName)
+        controller.show(appState: appState)
+        XCTAssertTrue(controller.isPanelMovableByWindowBackground)
+        XCTAssertFalse(controller.isPanelIgnoringMouseEvents)
+
+        appState.setPetPositionLocked(true)
+        controller.positionLockDidChange()
+        XCTAssertFalse(controller.isPanelMovableByWindowBackground)
+
+        let frame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
+        XCTAssertTrue(controller.isContextMenuVisible)
+        controller.contextMenuActions(appState: appState).setPetPositionLocked(false)
+        XCTAssertTrue(controller.isContextMenuVisible)
+        XCTAssertFalse(controller.isPanelMovableByWindowBackground)
+
+        controller.contextMenuActions(appState: appState)
+            .setPassesPointerInputThrough(true)
+        XCTAssertFalse(controller.isContextMenuVisible)
+        XCTAssertTrue(controller.isPanelIgnoringMouseEvents)
+        XCTAssertFalse(controller.isPanelMovableByWindowBackground)
+        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
+
+        appState.setPassesPointerInputThrough(false)
+        controller.pointerClickThroughDidChange()
+        XCTAssertFalse(controller.isPanelIgnoringMouseEvents)
+        XCTAssertTrue(controller.isPanelMovableByWindowBackground)
+        controller.hide()
+    }
+
+    @MainActor
+    func testClickThroughClearsTransientInputSuppressionWithoutCancellingReactions() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let frameName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            UserDefaults.standard.removeObject(forKey: "NSWindow Frame \(frameName)")
+        }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController(frameName: frameName)
+        controller.show(appState: appState)
+        let absorptionResetID = appState.absorptionResetID
+
+        controller.setTooltipVisible(true)
+        XCTAssertTrue(controller.isTooltipVisible)
+        XCTAssertTrue(controller.isResetCountdownUpdateActive)
+        let tooltipReactionResetID = appState.quotaReactionResetID
+        appState.setPassesPointerInputThrough(true)
+        controller.pointerClickThroughDidChange()
+        XCTAssertFalse(controller.isTooltipVisible)
+        XCTAssertFalse(controller.isResetCountdownUpdateActive)
+        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
+        XCTAssertEqual(appState.quotaReactionResetID, tooltipReactionResetID)
+
+        appState.setPassesPointerInputThrough(false)
+        controller.pointerClickThroughDidChange()
+        controller.beginDragTracking()
+        XCTAssertTrue(controller.isDragTrackingActive)
+        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
+        let dragReactionResetID = appState.quotaReactionResetID
+        appState.setPassesPointerInputThrough(true)
+        controller.pointerClickThroughDidChange()
+        XCTAssertFalse(controller.isDragTrackingActive)
+        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
+        XCTAssertEqual(appState.quotaReactionResetID, dragReactionResetID)
+
+        appState.setPassesPointerInputThrough(false)
+        controller.pointerClickThroughDidChange()
+        let frame = try XCTUnwrap(controller.petFrame)
+        controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
+        XCTAssertTrue(controller.isContextMenuVisible)
+        let contextReactionResetID = appState.quotaReactionResetID
+        controller.contextMenuActions(appState: appState)
+            .setPassesPointerInputThrough(true)
+        XCTAssertFalse(controller.isContextMenuVisible)
+        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
+        XCTAssertEqual(appState.quotaReactionResetID, contextReactionResetID)
+        XCTAssertEqual(appState.absorptionResetID, absorptionResetID)
+        controller.hide()
+    }
+
+    @MainActor
+    func testLockedPanelRestoresNamedFrameAndUnlockedLaunchIgnoresIt() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let frameName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            UserDefaults.standard.removeObject(forKey: "NSWindow Frame \(frameName)")
+        }
+        let visibleFrame = try XCTUnwrap(NSScreen.main?.visibleFrame)
+        let savedFrame = CGRect(
+            x: visibleFrame.minX + 48,
+            y: visibleFrame.minY + 48,
+            width: PetSize.large.sceneSize.width,
+            height: PetSize.large.sceneSize.height
+        )
+        let seedPanel = NSPanel(
+            contentRect: savedFrame,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        seedPanel.saveFrame(usingName: frameName)
+
+        let appState = AppState(defaults: defaults)
+        appState.setPetPositionLocked(true)
+        let lockedController = PetPanelController(frameName: frameName)
+        lockedController.show(appState: appState)
+        XCTAssertEqual(lockedController.petFrame, savedFrame)
+        lockedController.hide()
+
+        appState.setPetPositionLocked(false)
+        let unlockedController = PetPanelController(frameName: frameName)
+        unlockedController.show(appState: appState)
+        XCTAssertNotEqual(unlockedController.petFrame, savedFrame)
+        unlockedController.hide()
+    }
+
+    @MainActor
+    func testHiddenLockedResizePersistsAndRelockOverwritesCurrentFrame() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let frameName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let frameDefaultsKey = "NSWindow Frame \(frameName)"
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            UserDefaults.standard.removeObject(forKey: frameDefaultsKey)
+        }
+        let appState = AppState(defaults: defaults)
+        appState.setPetPositionLocked(true)
+        let controller = PetPanelController(frameName: frameName)
+        controller.show(appState: appState)
+        let originalFrame = try XCTUnwrap(controller.petFrame)
+        let originalCenter = CGPoint(x: originalFrame.midX, y: originalFrame.midY)
+        controller.hide()
+
+        appState.setPetSize(.medium)
+        controller.resize(to: .medium)
+        let hiddenLockedFrame = try XCTUnwrap(controller.petFrame)
+        XCTAssertFalse(controller.isVisible)
+        XCTAssertEqual(hiddenLockedFrame.size, PetSize.medium.sceneSize)
+        XCTAssertEqual(
+            CGPoint(x: hiddenLockedFrame.midX, y: hiddenLockedFrame.midY),
+            originalCenter
+        )
+        let lockedRecord = try XCTUnwrap(
+            UserDefaults.standard.string(forKey: frameDefaultsKey)
+        )
+
+        let restoredController = PetPanelController(frameName: frameName)
+        restoredController.show(appState: appState)
+        XCTAssertEqual(restoredController.petFrame, hiddenLockedFrame)
+        restoredController.hide()
+
+        appState.setPetPositionLocked(false)
+        controller.positionLockDidChange()
+        appState.setPetSize(.small)
+        controller.resize(to: .small)
+        XCTAssertEqual(
+            UserDefaults.standard.string(forKey: frameDefaultsKey),
+            lockedRecord
+        )
+
+        appState.setPetPositionLocked(true)
+        controller.positionLockDidChange()
+        let relockedRecord = try XCTUnwrap(
+            UserDefaults.standard.string(forKey: frameDefaultsKey)
+        )
+        XCTAssertNotEqual(relockedRecord, lockedRecord)
+
+        let relockedController = PetPanelController(frameName: frameName)
+        relockedController.show(appState: appState)
+        XCTAssertEqual(relockedController.petFrame, controller.petFrame)
+        relockedController.hide()
+    }
+
+    @MainActor
+    func testFrameResolutionPreservesCenterChoosesPositiveIntersectionAndClamps() throws {
+        let main = PetDisplayGeometry(
+            frame: CGRect(x: 0, y: 0, width: 1_440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 24, width: 1_440, height: 876)
+        )
+        let left = PetDisplayGeometry(
+            frame: CGRect(x: -1_200, y: 0, width: 1_200, height: 1_920),
+            visibleFrame: CGRect(x: -1_200, y: 0, width: 1_200, height: 1_880)
+        )
+        let above = PetDisplayGeometry(
+            frame: CGRect(x: 0, y: 900, width: 1_080, height: 1_920),
+            visibleFrame: CGRect(x: 0, y: 900, width: 1_080, height: 1_880)
+        )
+        let displays = [main, left, above]
+
+        for size in PetSize.allCases.map(\.sceneSize) {
+            let candidate = CGRect(x: -900, y: 700, width: 400, height: 220)
+            let resolved = try XCTUnwrap(
+                PetPanelController.resolvedPetFrame(
+                    candidate: candidate,
+                    size: size,
+                    displays: displays,
+                    fallbackVisibleFrame: main.visibleFrame
+                )
+            )
+            XCTAssertEqual(resolved.size, size)
+            XCTAssertEqual(resolved.midX, candidate.midX)
+            XCTAssertTrue(left.visibleFrame.contains(resolved))
+        }
+
+        let removedDisplayFrame = try XCTUnwrap(
+            PetPanelController.resolvedPetFrame(
+                candidate: CGRect(x: 5_000, y: -3_000, width: 400, height: 220),
+                size: PetSize.large.sceneSize,
+                displays: displays,
+                fallbackVisibleFrame: main.visibleFrame
+            )
+        )
+        XCTAssertTrue(main.visibleFrame.contains(removedDisplayFrame))
+
+        XCTAssertNil(
+            PetPanelController.resolvedPetFrame(
+                candidate: CGRect(x: CGFloat.nan, y: 0, width: 400, height: 220),
+                size: PetSize.large.sceneSize,
+                displays: displays,
+                fallbackVisibleFrame: main.visibleFrame
+            )
+        )
+    }
+
+    func testPointerThresholdAndPixelMenuGeometryMatchFreeze() {
+        let size = PetSize.large.sceneSize
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        XCTAssertTrue(
+            ContextMenuInteraction.acceptsClick(
+                mouseDown: center,
+                mouseUp: CGPoint(x: center.x + 6, y: center.y),
+                sceneSize: size
+            )
+        )
+        XCTAssertFalse(
+            ContextMenuInteraction.acceptsClick(
+                mouseDown: center,
+                mouseUp: CGPoint(x: center.x + 6.01, y: center.y),
+                sceneSize: size
+            )
+        )
+        XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 394, height: 443))
+    }
+
+    func testEnglishAndRussianToggleLocalizationsAreBundled() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let english = try XCTUnwrap(
+            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        let russian = try XCTUnwrap(
+            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        let translations = [
+            "menu.lock_position": ("Lock Position", "Закрепить положение"),
+            "menu.pass_pointer_input_through": (
+                "Pass Pointer Input Through",
+                "Пропускать ввод указателя"
+            ),
+            "accessibility.toggle.on": ("On", "Включено"),
+            "accessibility.toggle.off": ("Off", "Выключено")
+        ]
+        for (key, value) in translations {
+            XCTAssertEqual(english.localizedString(forKey: key, value: nil, table: nil), value.0)
+            XCTAssertEqual(russian.localizedString(forKey: key, value: nil, table: nil), value.1)
+        }
+        XCTAssertNotEqual(
+            english.localizedString(
+                forKey: "menu.pass_pointer_input_through.help",
+                value: nil,
+                table: nil
+            ),
+            "menu.pass_pointer_input_through.help"
+        )
+        XCTAssertNotEqual(
+            russian.localizedString(
+                forKey: "menu.pass_pointer_input_through.help",
+                value: nil,
+                table: nil
+            ),
+            "menu.pass_pointer_input_through.help"
+        )
     }
 }
 

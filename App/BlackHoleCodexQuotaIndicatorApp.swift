@@ -11,6 +11,8 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 appState: appDelegate.appState,
                 togglePetVisibility: appDelegate.togglePetVisibility,
                 setPetSize: appDelegate.setPetSize,
+                setPetPositionLocked: appDelegate.setPetPositionLocked,
+                setPassesPointerInputThrough: appDelegate.setPassesPointerInputThrough,
                 setTooltipStyle: appDelegate.setTooltipStyle,
                 setShowsQuotaDynamics: appDelegate.setShowsQuotaDynamics,
                 clearQuotaHistory: appDelegate.clearQuotaHistory,
@@ -89,6 +91,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard size != appState.petSize else { return }
         appState.setPetSize(size)
         petPanel.resize(to: size)
+    }
+
+    func setPetPositionLocked(_ isLocked: Bool) {
+        guard isLocked != appState.isPetPositionLocked else { return }
+        appState.setPetPositionLocked(isLocked)
+        petPanel.positionLockDidChange()
+    }
+
+    func setPassesPointerInputThrough(_ passesThrough: Bool) {
+        guard passesThrough != appState.passesPointerInputThrough else { return }
+        appState.setPassesPointerInputThrough(passesThrough)
+        petPanel.pointerClickThroughDidChange()
     }
 
     func setTooltipStyle(_ style: TooltipStyle) {

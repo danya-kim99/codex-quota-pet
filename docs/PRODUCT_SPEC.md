@@ -18,10 +18,11 @@ requiring the user to keep the Codex window open.
   contains no unrelated opaque markers outside the intended artwork.
 - The renderer uses a limited pixel-art palette with stepped edges and glow.
 - Hover shows a compact localized card with the exact remaining quota, a
-  mode-specific progress bar, dynamic day segments, and reset time. Standard
-  uses a smooth bar; Turbo adds a bolt, chevrons, and edge glow. English and
-  Russian follow the macOS app language. The menu bar uses the same localized
-  quota, mode, status, and action labels. The card has no actions.
+  mode-neutral progress bar or arc, an explicit Standard/Turbo badge, dynamic
+  day segments, and reset time. The progress geometry encodes quota only; mode
+  never adds directional marks or endpoint markers to it. English and Russian
+  follow the macOS app language. The menu bar uses the same localized quota,
+  mode, status, and action labels. The card has no actions.
 - Standard mode rotates continuously.
 - Fast mode rotates 1.5 times faster and pulses without changing quota geometry.
 - At zero quota, the disk reaches its largest purple state, rotation nearly
@@ -52,6 +53,10 @@ requiring the user to keep the Codex window open.
 The size-selection design update was approved for implementation on
 3 August 2026.
 
+The proportional absorbable-object sizing revision was approved for
+implementation on 9 August 2026 and supersedes only the earlier fixed 48 × 48
+pt size across `S`, `M`, and `L`.
+
 - The current 400 × 220 pt pet is `L`. The additional sizes are `M` at
   320 × 176 pt and `S` at 240 × 132 pt.
 - A localized `Size` / `Размер` picker in the menu bar exposes `S`, `M`, and
@@ -60,10 +65,14 @@ The size-selection design update was approved for implementation on
 - All quota states continue to use the existing sprite assets, uniformly scaled
   into the selected scene. Core, photon-ring, disk, reaction, Standard/Turbo,
   zero-quota, and Reduce Motion relationships do not otherwise change.
-- Absorbable models keep their existing 48 × 48 pt rendered size and use the
-  same assets and animation timing. Spawn points and trajectories adapt to the
-  selected scene, and the complete transformed object remains inside the pet
-  panel throughout the approach instead of being clipped at its edges.
+- Absorbable models keep a nominal visible size proportional to the selected pet
+  scene: `S` is 48 × 48 pt, `M` is 64 × 64 pt, and `L` is 80 × 80 pt. Their
+  generated PNG canvas is 80 × 80 px and SwiftUI renders that transparent canvas
+  in `60 × 60`, `80 × 80`, and `100 × 100` pt fields respectively, preserving
+  the approved model scale while adding room around its silhouette. The same
+  field applies to the model and detached fragments before deformation, shrink,
+  and fade. The approved concept sources, nearest-neighbor rendering, animation
+  timing, spawn logic, and trajectories are unchanged.
 - Changing size immediately hides the tooltip, clears active absorption
   objects, resizes around the pet's current center, and clamps the resulting
   panel to the current screen's visible frame. Dragging and fullscreen hiding
@@ -79,8 +88,11 @@ Acceptance criteria for this update:
 
 - a fresh or migrated install uses `L`, and selecting each menu item produces
   the exact approved panel size and survives relaunch;
-- the black-hole scene scales uniformly for every quota state while absorbable
-  objects remain 48 × 48 pt;
+- the black-hole scene scales uniformly for every quota state, absorbable
+  objects use the exact approved base sizes `S` 48 × 48 pt, `M` 64 × 64 pt,
+  and `L` 80 × 80 pt inside transparent render fields of 60 × 60, 80 × 80, and
+  100 × 100 pt, and the complete transformed object remains inside each selected
+  scene in normal and Reduce Motion presentation;
 - resizing preserves the panel center when space permits, remains on-screen,
   clears active absorption, and gives each size its approved tooltip that
   remains on-screen without regressing hover, click, drag, Standard/Turbo,
@@ -101,9 +113,9 @@ uniformly scale to 60%.
   percentage, localized days until reset, and localized exact reset date and
   time. Its circular quota indicator replaces the horizontal progress bar and
   the redundant day-segment strip.
-- Standard shows a plain circular quota arc. Turbo adds static directional
-  chevrons on the filled arc and a filled bolt marker at the beginning of the
-  arc. The decorations do not animate and are hidden from accessibility.
+- Standard and Turbo use the same plain circular quota arc. A separate localized
+  mode badge identifies Standard or Turbo; no bolt, chevron, tick, glow, or
+  other mode decoration is placed on the arc.
 - The arc keeps the existing gold, orange, and purple quota thresholds. Missing
   quota renders an em dash and an empty track; missing reset data keeps the
   existing localized unavailable state.
@@ -119,8 +131,8 @@ Acceptance criteria for this update:
   dimensions;
 - the `S` card remains readable and on-screen in Standard and Turbo, for every
   quota color state, in English and Russian, and at each tooltip placement;
-- Turbo places a filled bolt at the start of the circular arc and shows static
-  chevrons only on the filled portion; Standard shows neither decoration;
+- Standard and Turbo have identical circular progress geometry, with no mode
+  decoration on the arc, and keep a readable localized mode badge beside it;
 - the compact progress and reset information retain their existing accessible
   labels, automated tests pass, and `./script/build_and_run.sh --verify` builds
   and launches the app.
@@ -133,10 +145,15 @@ monospaced typography, style-dependent L/M/S geometry, Standard/Turbo states,
 English/Russian copy, quota colors, stale and missing-data states, and comparison
 with the unchanged Smooth presentation, was approved the same day.
 
-- The app exposes exactly two tooltip styles. `Smooth` is the current tooltip;
-  its normal-text-size typography, colors, layout, dimensions, pointer, progress
-  semantics, S composition, shadows, and absence of continuous animation remain
-  visually unchanged. `Pixel` is a code-native SwiftUI presentation aligned
+The mode/progress-semantics amendment was approved for implementation on
+8 August 2026. It supersedes only the earlier Turbo chevron, progress-bolt,
+endpoint-marker, edge-glow, and fully static mode-badge requirements in this
+document.
+
+- The app exposes exactly two tooltip styles. `Smooth` keeps its current
+  normal-text-size typography, colors, dimensions, pointer, S composition, and
+  shadows, while adopting the shared explicit mode badge and mode-neutral
+  progress semantics below. `Pixel` is a code-native SwiftUI presentation aligned
   with the approved black-hole sprites and pixel context menu. The concept PNGs
   remain visual references and are not shipped as flattened tooltip assets.
 - `AppState` owns one persisted raw-value preference, `smooth` or `pixel`.
@@ -177,15 +194,43 @@ with the unchanged Smooth presentation, was approved the same day.
   window, countdown, and exact date. S shows the percentage in a circular
   indicator with mode, countdown, and exact date beside it and omits reset
   segments.
-- Standard uses a plain fill or arc and a mode badge without a bolt. Turbo adds
-  a static bolt, static chevrons only on the filled portion, and a static end
-  marker kept inside progress bounds. S places the bolt at the beginning of the
-  filled arc. No tooltip decoration loops or animates.
+- Within each style and size, Standard and Turbo use identical progress tracks,
+  fills, arcs, quota colors, line caps, and endpoints. Progress contains no
+  directional chevrons, start bolt, end tick, endpoint glow, or other mode cue.
+  Pixel keeps its existing rectangular/stepped treatment and Smooth keeps its
+  existing rounded treatment; the amendment does not make both styles visually
+  identical to each other.
+- Both styles show the localized mode in a dedicated badge outside the progress
+  geometry. Standard uses a static badge without a bolt. Turbo uses the same
+  badge footprint with one decorative bolt and a highlighted style-appropriate
+  border or glow. Smooth uses natural localized casing with a neutral Standard
+  treatment and fixed gold Turbo accent; Pixel keeps its existing uppercase,
+  muted-gold Standard, and orange Turbo treatment. The badge reserves the larger
+  of the localized Standard content and bolt-plus-Turbo content at the current
+  text scale, then centers the actual content without an invisible Standard bolt
+  or a clipping fixed width. L/M place it in the header; S places it in the text
+  column beside the circular indicator, never over the arc. Normal-text-size card
+  and panel dimensions remain unchanged.
+- When a connected tooltip with known quota above 0% becomes visible in Turbo,
+  only the badge highlight performs two slow glow pulses over 2.4 seconds and
+  then remains static. Highlight intensity follows
+  `0 -> 1 -> 0 -> 1 -> 0`, with four 0.6-second ease-in-out phases; the badge's
+  resting text and surface never blink or disappear. The animation never changes
+  scale, position, layout, text, progress fill, quota color, or percentage.
+  Switching an already visible tooltip from Standard to Turbo triggers the same
+  finite pulse once.
+- Reduce Motion, 0%, missing quota, and stale/reconnecting states keep the Turbo
+  badge highlighted but static. Hiding or suppressing the tooltip cancels any
+  remaining badge animation. No badge animation runs in a hidden panel or uses a
+  timer, `TimelineView`, continuous `Canvas`, or app/model persistence.
+- Percentage, reset-countdown, style, size, placement, stale-to-fresh,
+  missing-to-known, zero-to-positive, and Reduce-Motion-on-to-off updates never
+  retrigger the pulse. Becoming ineligible during a pulse cancels it immediately;
+  the next eligible hover starts a new cycle rather than resuming the old one.
 - Tooltip quota colors use the current thresholds: 30-100% gold, 10-29% orange,
-  and 0-9% purple. At 0%, the track or ring is empty, chevrons and the end marker
-  are absent, and a known Turbo badge and bolt remain. At 100%, fill stops at the
-  inner bound. Missing quota uses an em dash and an empty neutral indicator while
-  retaining a known Standard/Turbo mode.
+  and 0-9% purple. At 0%, the track or ring is empty and a known mode badge
+  remains. At 100%, fill stops at the inner bound. Missing quota uses an em dash
+  and an empty neutral indicator while retaining a known Standard/Turbo mode.
 - If `resetsAt` is unavailable, Pixel shows the localized unavailable message
   without segments or a calendar row. If `resetsAt` exists but window duration
   is unavailable or invalid, both presentations show countdown and exact date
@@ -198,8 +243,8 @@ with the unchanged Smooth presentation, was approved the same day.
   value as last known and announces the connection state.
 - The Pixel pointer is one code-native stepped shape rendered above, below, left,
   or right. L-to-M scales it to 80%; S uses a compact form of the same geometry.
-  Borders, shadow, pointer, icons, bolt, chevrons, segments, and progress end
-  markers are hidden from accessibility.
+  Borders, shadow, pointer, icons, the Turbo-badge bolt and glow, and segments are
+  hidden from accessibility.
 - Changing style while the tooltip is open updates it immediately without a
   fade or morph, preserves the current side and pointer attachment when it fits,
   resizes the native panel, and clamps it inside the current screen's visible
@@ -224,10 +269,10 @@ with the unchanged Smooth presentation, was approved the same day.
   suppression, size-change hiding, fullscreen suppression, pet hit testing,
   hide/show behavior, and reconnect logic are unchanged for both styles. Opening
   or switching a tooltip cannot add network traffic.
-- Pixel has no `TimelineView`, timer, continuous Canvas refresh, or rendering
-  task. It redraws only when observed data, mode, style, placement, or
-  accessibility environment changes. Reduce Motion therefore preserves the same
-  fully static content and presentation.
+- Outside the finite visible-only Turbo-badge pulse, Pixel and Smooth have no
+  `TimelineView`, animation timer, continuous Canvas refresh, or rendering task.
+  They redraw only when observed data, mode, style, placement, accessibility
+  environment, or the finite badge-animation phase changes.
 - Secondary quota and local history do not add placeholders in this slice. A
   future approved feature extends the shared semantic content and explicitly
   defines Smooth, Pixel, and S compositions in the same change. Style persistence
@@ -241,8 +286,16 @@ Acceptance criteria for this update:
   approved icons, checkmarks, dismissal, keyboard, and VoiceOver behavior;
 - switching an open tooltip is immediate, keeps it visible, preserves its side
   when possible, stays on the owning display, and adds no quota refresh;
-- Smooth Standard/Turbo and S/M/L retain their approved normal-size visuals,
-  layout, content, pointer placement, hover/drag suppression, and accessibility;
+- Smooth and Pixel Standard/Turbo and S/M/L use identical within-style progress
+  geometry without chevrons, progress bolts, endpoint ticks, or endpoint glow;
+- every Standard/Turbo state has a readable localized mode badge outside the
+  progress geometry without changing normal-text-size panel dimensions;
+- the Turbo badge performs exactly the approved finite pulse only while a
+  connected, known, positive-quota tooltip is visible; Reduce Motion, 0%,
+  missing, stale/reconnecting, and hidden states remain static with no idle work;
+- Smooth S/M/L retain their approved normal-size typography, colors, layout,
+  content, pointer placement, hover/drag suppression, and accessibility apart
+  from the frozen badge and progress-semantic amendment;
 - Pixel Standard/Turbo and S/M/L render correctly in English and Russian at
   0%, critical, warning, normal, 100%, missing quota, missing reset, missing
   duration, connected, and stale/reconnecting states;
@@ -371,7 +424,7 @@ Persistence and privacy:
   retried only on the next meaningful snapshot or heartbeat.
 - The regular menu shows a short localized nonmodal status when history was
   restarted or is not being saved. Quota display, reconnect, pet animation,
-  consumption reactions, and reset events remain independent of persistence.
+  consumption reactions remain independent of persistence.
 - `Clear Local History…` / `Очистить локальную историю…` appears only in the
   regular menu and uses a native confirmation with Cancel as the default. A
   successful clear removes active history and quarantines, leaves the current
@@ -480,6 +533,274 @@ Explicit non-goals are exact tokens, complete account activity, prediction,
 export, cloud sync, analytics, a backend, notifications, a dashboard/settings
 window, a database, third-party charts/storage, new sprites, signing changes,
 or distribution changes.
+
+## Approved real quota-consumption reaction
+
+The real quota-consumption reaction design freeze was approved for
+implementation on 8 August 2026. It reacts only to confidently classified
+primary-window consumption and does not add another quota read, App Server
+process, backend, renderer, dependency, or persisted reaction ledger.
+
+Trigger and identity semantics:
+
+- The feature consumes the same accepted snapshots and shared transition
+  classification as local history. A transition is comparable only within one
+  uninterrupted connection, with compatible limit identity, the same non-null
+  reset timestamp, compatible duration metadata, forward local time, and no
+  gap longer than 90 minutes.
+- Startup, reconnect, every macOS wake, credible reset, correction, account,
+  plan or limit change, missing primary window, incompatible metadata, backward
+  clock movement, and a gap over 90 minutes establish a new baseline and reset
+  the reaction cadence. A duplicate snapshot refreshes freshness only.
+- `AppState` owns a monotonic session-local event identity and the cadence.
+  `BlackHoleView` receives an already-classified reaction and never compares raw
+  quota percentages. Cadence and identities are not persisted across launches.
+- Every confidently observed consumed percentage point advances the cadence.
+  Ordinary points use Small, every fifth point uses Medium, and every tenth
+  point uses Large instead of Medium. The sequence repeats every ten points.
+- A multi-point transition advances by the complete observed delta but emits at
+  most one reaction: Large if it crosses a tenth-point boundary, otherwise
+  Medium if it crosses a fifth-point boundary, otherwise Small. The actual
+  remainder is retained and no catch-up animation is queued.
+- A confidently classified transition from a positive value to exactly zero
+  emits Last Light instead of Small, Medium, or Large. An initial, reconnected,
+  corrected, reset, or otherwise discontinuous zero snapshot never emits it.
+- One automatic reaction can be active and at most one can be pending. Rapid
+  pending events merge to the strongest level, `Large > Medium > Small`; the
+  active reaction is never restarted or extended. Last Light preempts another
+  automatic reaction and clears its pending event. There is no unbounded queue.
+
+Approved normal-motion presentation:
+
+- Small lasts 460 ms and sends one pixel-light packet along a curved orbit into
+  the event horizon.
+- Medium lasts 670 ms and sends three staggered packets along visibly distinct
+  trajectories into the event horizon.
+- Large lasts 830 ms and sends five packets along distinct trajectories before
+  a segmented lensing ring briefly forms and collapses inward.
+- Last Light lasts 1.15 seconds. Five packets gather into a complete photon
+  ring; the ring shifts from gold through orange to violet, breaks, drains into
+  the event horizon as two short light threads, and leaves a brief violet
+  afterglow. The authoritative zero-quota sprite appears immediately beneath
+  the effect.
+- The approved prototype freezes composition, phase ordering, relative
+  intensity, and timing rather than final pixel fidelity. The native SwiftUI
+  implementation may refine packet tails, depth, curves, and easing without
+  changing those semantics.
+
+Modes, sizes, motion, and performance:
+
+- Standard and Turbo use identical reaction counts, paths, timing, and
+  intensity. Existing Turbo rotation and bounded pulse continue, but the
+  reaction does not add a whole-pet scale or brightness pulse.
+- S, M, and L keep identical event semantics and timing. Trajectories adapt to
+  the current scene and stay inside panel bounds; packet thickness and tail
+  length retain a readable minimum at S. The effect never resizes the panel and
+  adds no size-specific sprite set.
+- Reduce Motion removes travel, rotation, acceleration, scaling, and pet pulse.
+  Small is one fixed stepped glint for 160 ms; Medium is three fixed glints for
+  200 ms; Large is five fixed glints plus a stationary segmented ring for
+  240 ms; Last Light is one stationary full ring stepping gold, orange, violet,
+  then off over 280 ms.
+- Normal motion may use 30 fps only while a reaction is active. Standard then
+  returns to its current sprite-frame schedule; Turbo returns to its existing
+  pulse schedule. Reduce Motion updates only at finite step boundaries.
+
+Interaction and lifecycle behavior:
+
+- Manual absorption always has priority. Starting it cancels an active
+  automatic reaction without replay. An automatic event received while one or
+  more manual absorptions are active occupies the single merged pending slot and
+  starts only after all manual absorption plans finish. Last Light also waits
+  for manual absorption.
+- An open tooltip remains open, immediately reflects the new quota, and is not
+  suppressed by an automatic reaction. The decorative effect renders behind it.
+- Starting a drag, opening the context menu, or resizing cancels active and
+  pending automatic reactions. Consumption accepted during those interactions
+  advances cadence but is not animated or replayed.
+- Manual hide and fullscreen suppression cancel active and pending reactions.
+  Comparable hidden consumption still advances cadence, but showing the pet
+  never replays a backlog.
+- Stale or disconnected state cancels active and pending reactions and resets
+  cadence. The first successful reconnect snapshot is a new baseline.
+- All reaction layers are accessibility-hidden, noninteractive, and do not
+  expand pet hit testing. Future position lock and click-through remain an
+  independent pointer policy: a visible click-through pet still renders real
+  reactions, while AppKit never interprets quota data.
+
+Localization and accessibility:
+
+- Small, Medium, Large, and Last Light are internal design names and add no
+  visible copy or localization strings. Existing localized pet, tooltip, and
+  menu-bar summaries remain the source of exact percentage and connection state.
+- The feature adds no keyboard stop, accessibility action, VoiceOver
+  announcement, sound, notification, history, or enable/disable preference.
+
+Acceptance criteria for this update:
+
+- deterministic tests cover first and duplicate snapshots, same-window single
+  and multi-point drops, repeated fifth/tenth cadence, zero override, missing
+  metadata, reset, correction, reconnect, wake, long gap, clock reversal, and
+  identity changes;
+- event tests cover monotonic exactly-once identity, one active/one merged
+  pending reaction, strongest-level merging, Last Light preemption, manual
+  absorption priority, suppression, and cadence continuation or reset;
+- visual-state tests cover the approved normal and Reduce Motion timings and
+  prove that rendering returns to the existing idle schedule;
+- Standard and Turbo, S/M/L, zero, tooltip, manual absorption, drag, resize,
+  context menu, hide/fullscreen, and disconnected states retain their approved
+  behavior without extra App Server traffic or changed input policy;
+- focused macOS tests pass, `./script/build_and_run.sh --verify` builds and
+  launches the app, and screenshot QA covers representative Small, Medium,
+  Large, Last Light, and Reduce Motion states.
+
+Explicit non-goals are secondary-window reactions, token or cost estimates,
+floating text, sound, notifications, achievements, analytics, persisted
+cadence, a reaction setting, new raster sprite sets, a new renderer, polling,
+processes, dependencies, position-lock/click-through implementation, signing,
+packaging, or distribution changes.
+
+## Approved position lock and pointer click-through
+
+The position-lock and pointer-click-through design freeze was approved for
+implementation on 8 August 2026. It changes only pet-window input and position
+policy; quota acquisition, rendering, reactions, and menu-bar availability stay
+independent.
+
+Preferences and precedence:
+
+- The app exposes two independent persisted Boolean preferences, both disabled
+  by default: `Lock Position` / `Закрепить положение` and
+  `Pass Pointer Input Through` / `Пропускать ввод указателя`.
+- Only an actual stored Boolean is accepted. A missing, string, collection,
+  data, unsupported numeric, or otherwise invalid value falls back to `false`.
+- Position lock disables movement while retaining hover, absorption, secondary
+  click, Control-click, keyboard context-menu navigation, and accessibility
+  actions. Click-through takes precedence over pointer interaction without
+  changing the stored lock value; disabling it restores the underlying locked
+  or unlocked policy.
+- The menu-bar menu is the guaranteed escape from click-through. Its status item
+  and native toggle remain accessible after launch, manual hide, fullscreen
+  suppression, reconnect, wake, resize, and display changes.
+
+Pointer behavior and transitions:
+
+- With neither mode enabled, a left sequence moving at most 6 pt remains an
+  absorption click, and a secondary or Control-click sequence within the same
+  threshold opens the context menu. Left movement over 6 pt drags the panel;
+  secondary or Control-click movement over 6 pt performs no action.
+- With position lock enabled, sequences within 6 pt keep their normal actions,
+  while movement over 6 pt performs no action and leaves the frame unchanged.
+- With click-through enabled, the underlying application receives mouse and
+  trackpad down, move, and up events regardless of the stored lock state. The
+  pet starts no hover, tooltip, absorption, drag, or context-menu interaction.
+- Any lock change cancels the controller's current left, secondary, and
+  Control-click bookkeeping without absorption or context action. Enabling lock
+  does not promise to abort a native background drag already in progress; after
+  release the stable final frame is captured and subsequent dragging is blocked.
+- Enabling click-through first cancels pointer tracking, stops the tooltip
+  countdown and hides the tooltip, closes the context menu and removes its
+  monitor, recalculates movability, and then makes the main panel ignore mouse
+  events. Disabling it restores mouse events first, reapplies the current lock
+  and menu policy, and suppresses tooltip reentry until a real pointer exit and
+  following enter. A synthetic exit while the panel ignores events cannot clear
+  that suppression.
+- Context-menu opening keeps panel movement disabled. Every dismissal path
+  recalculates the effective policy instead of unconditionally making the panel
+  movable. Already-running manual or quota-consumption reactions may finish;
+  click-through never changes their visible presentation.
+
+Position persistence and displays:
+
+- A locked position persists between launches through native AppKit frame
+  restoration. Unlocked movement does not update the saved locked frame, and an
+  unlocked launch ignores a stale saved frame. Relocking an existing panel
+  overwrites that stale record with the current frame.
+- The frame is saved when lock turns on, after a size change while locked, after
+  the pointer is released from a drag that was already active when locking, and
+  after a corrective display reconfiguration. It is not autosaved for every
+  unlocked move and never writes in a notification loop.
+- Restoration loads the named frame with forced native restoration, rejects
+  non-finite geometry, applies the current S/M/L scene around the restored
+  center, chooses a screen only when intersection is positive and otherwise
+  falls back to the main screen, then clamps to that screen's `visibleFrame`.
+- The same validation runs before every show and after display-parameter
+  changes. It supports negative coordinates, displays to the left or above the
+  main display, rotation, removal between or during launches, and Dock or menu
+  bar inset changes. No absolute-position guarantee is made across arbitrary
+  display rearrangement beyond this restore-and-clamp policy.
+- An ordered-out panel saves its current frame when locking. If the panel has
+  not been created, a valid saved frame is used on first creation; otherwise the
+  current upper-right default is used and then saved if lock is active. Hidden
+  resizing uses the same center, sizing, validation, and locked-save rules.
+
+Menus, modes, data, and accessibility:
+
+- Both toggles appear after `Size` / `Размер` and before tooltip style in the
+  native menu-bar menu and custom pixel context menu. State changes made through
+  either surface use the same `AppState` actions. Enabling click-through from
+  the custom menu dismisses that menu before input pass-through begins.
+- The pixel menu's worst-case fixed panel is 394 x 443 pt. Only one side submenu
+  is open at once, and highlighting either new top-level row closes a size or
+  tooltip-style submenu. Placement continues to prefer a free quadrant; when a
+  display's visible height is below 443 pt, the menu is clamped as far inside as
+  possible rather than claiming full containment.
+- Standard, Turbo, Reduce Motion, S/M/L, renderer cadence, tooltip styles,
+  reconnect, stale or missing data, and wake behavior are unchanged. Click-
+  through adds no read and does not pause visible quota reactions. Detailed
+  tooltip history is unavailable until click-through is disabled; the menu bar
+  continues to provide current and secondary quota, issues, controls, and the
+  existing accessible summary rather than duplicating the graph.
+- Native menu items expose localized labels, toggle state, and help explaining
+  that pointer input passes to applications underneath and is disabled from the
+  menu bar. Custom pixel rows expose equivalent localized label, value, and help
+  instead of relying only on visual selection.
+- The target accessibility behavior is for the pet to remain in the external
+  accessibility tree and retain both custom actions during click-through. This
+  must be verified against a built `.app`. If AppKit cannot provide it reliably,
+  the approved fallback is the guaranteed native menu-bar toggle with pet custom
+  actions explicitly unavailable while click-through is enabled; any additional
+  workaround requires a new design decision.
+
+Architecture, performance, and privacy:
+
+- `AppState` remains the preference source of truth. `PetPanelController` is the
+  only AppKit seam and applies one effective policy:
+  `allowsPointer = !clickThrough` and
+  `allowsDrag = !clickThrough && !positionLocked && contextMenuPanel == nil`.
+  SwiftUI menus only read state and call narrow actions.
+- The feature adds no dependency, service, process, timer, polling loop,
+  `TimelineView`, render cadence, App Server read, telemetry, permission, or
+  network traffic. Boolean preferences and frame data remain local in
+  `UserDefaults` and are not sensitive product data.
+
+Acceptance criteria for this update:
+
+- deterministic tests cover fresh, migrated, invalid, persisted, and relaunched
+  preferences; all four lock/click-through combinations; every menu and
+  accessibility entry point; and left, secondary, and Control-click sequences
+  at exactly 6.0 and 6.01 pt;
+- integration tests cover atomic enable/disable ordering, tooltip exit/reentry,
+  pointer cancellation, an already-started drag, context-menu opening and every
+  dismissal path, active manual and quota reactions, hide/show, fullscreen,
+  reconnect, stale/missing data, wake, and panel-not-yet-created behavior;
+- frame tests cover S/M/L center preservation, locked hidden resize, relocking,
+  invalid and non-finite geometry, four screen quadrants, negative coordinates,
+  rotated and removed displays, and visible-frame changes without repetitive
+  writes;
+- English and Russian menu fixtures cover the worst conditional item set, both
+  submenu states, Standard/Turbo, Reduce Motion, S/M/L, keyboard traversal, and
+  localized accessibility label, value, and help;
+- an external VoiceOver/accessibility inspection of the built `.app` verifies
+  the native escape and either the target pet actions or the approved fallback;
+- focused macOS tests pass, `./script/build_and_run.sh --verify` builds and
+  launches the app, and visual QA confirms the changed menu states and recovery
+  flow without new idle rendering or App Server traffic.
+
+Explicit non-goals are edge snapping, magnetic placement, per-Space or per-size
+positions, desktop-widget mode, window-level changes, global hotkeys, helper
+processes, new permissions, renderer or quota changes, signing, packaging, or
+distribution changes.
 
 ## Approved absorption interaction
 
@@ -672,13 +993,15 @@ progress.
 
 ## Current MVP status
 
-- The functional pet, all eleven quota states, Turbo behavior, Reduce Motion,
-  VoiceOver summaries, fullscreen preference, and reconnect flow are implemented.
+- The functional pet, all eleven quota states, mode-neutral tooltips, Turbo
+  behavior, finite consumption reactions, Reduce Motion, VoiceOver
+  summaries, fullscreen preference, and reconnect flow are implemented.
 - Launch at login is implemented with the native `SMAppService` main-app login
   item and verified through a logout/login cycle using an Apple Development
   signed build.
-- Local Debug build, launch, and unit tests pass. The tests cover all
-  66 bundled sprite frames, quota mapping, Turbo behavior, visibility,
+- Local Debug build, launch, and unit tests pass. The tests cover all 66 bundled
+  sprite frames, quota mapping and transition classification, consumption
+  reaction arbitration and timing, tooltip lifecycle, Turbo behavior, visibility,
   fullscreen policy, quota freshness, launch-at-login state handling, and
   automatic/manual reconnects.
 - A local unsigned Release build passes. During an eight-second active-animation
