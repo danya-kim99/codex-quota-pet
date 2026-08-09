@@ -78,16 +78,12 @@ refreshes. `QuotaTooltipView` owns the finite visible-only Turbo-badge highlight
 task and cancels it from that signal; AppKit does not inspect quota or own
 animation phases. The task uses no timer, `TimelineView`, persistence, or
 network request and settles with no idle redraw after its bounded cycle.
-`QuotaHistoryClassifier` classifies accepted primary-window transitions once
-for history and the transient consumption effect. A credible reset remains a
-classifier result and history boundary, never a consumption event. `AppState`
-owns consumption continuity and cadence. `BlackHoleView` renders only accepted
-finite consumption events, handles manual-absorption priority, and returns to
-the existing idle schedule after completion. AppKit may suppress presentation
-while the pet is hidden, dragged, resized, or covered by its context menu, but
-never interprets quota values. Consumption events are session-local,
-accessibility-hidden, and add no persistence, process, polling, dependency, or
-network traffic.
+`QuotaHistoryClassifier` is the shared domain contract for accepted quota-window
+transitions. Local history consumes it now; a future reset or consumption
+feature must reuse it rather than compare raw percentages elsewhere. A credible
+reset remains a classifier result and history boundary, never consumption. The
+current app has no transient consumption visual or AppKit presentation
+suppression, and AppKit never interprets quota values.
 `PetPanelController` also owns a separate transient key-capable `NSPanel` for
 the custom pixel context menu. Local pointer monitoring distinguishes secondary
 clicks from absorption and dragging, while a short-lived global monitor closes

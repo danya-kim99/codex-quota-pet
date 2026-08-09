@@ -3,125 +3,6 @@ import CoreFoundation
 import Observation
 import ServiceManagement
 
-enum QuotaConsumptionReactionKind: Int, CaseIterable, Equatable, Sendable {
-    case small = 1
-    case medium
-    case large
-    case lastLight
-
-    var packetCount: Int {
-        switch self {
-        case .small: 1
-        case .medium: 3
-        case .large, .lastLight: 5
-        }
-    }
-
-    var normalDuration: TimeInterval {
-        switch self {
-        case .small: 0.46
-        case .medium: 0.67
-        case .large: 0.83
-        case .lastLight: 1.15
-        }
-    }
-
-    var reducedMotionDuration: TimeInterval {
-        switch self {
-        case .small: 0.16
-        case .medium: 0.20
-        case .large: 0.24
-        case .lastLight: 0.28
-        }
-    }
-}
-
-struct QuotaConsumptionEvent: Equatable, Identifiable, Sendable {
-    let id: Int
-    let kind: QuotaConsumptionReactionKind
-}
-
-struct QuotaConsumptionCadence: Equatable, Sendable {
-    private(set) var position = 0
-
-    mutating func advance(
-        by delta: Int,
-        reachesZero: Bool
-    ) -> QuotaConsumptionReactionKind? {
-        guard delta > 0 else { return nil }
-        let previousPosition = position
-        let total = previousPosition + delta
-        position = total % 10
-        if reachesZero { return .lastLight }
-        if total >= 10 { return .large }
-        if previousPosition < 5, total >= 5 { return .medium }
-        return .small
-    }
-
-    mutating func reset() {
-        position = 0
-    }
-}
-
-struct QuotaReactionQueue: Equatable, Sendable {
-    private(set) var active: QuotaConsumptionEvent?
-    private(set) var pending: QuotaConsumptionEvent?
-
-    mutating func receive(
-        _ event: QuotaConsumptionEvent,
-        deferPlayback: Bool
-    ) -> QuotaConsumptionEvent? {
-        if deferPlayback {
-            pending = Self.stronger(pending, event)
-            return nil
-        }
-        if event.kind == .lastLight {
-            active = event
-            pending = nil
-            return event
-        }
-        guard active == nil else {
-            pending = Self.stronger(pending, event)
-            return nil
-        }
-        active = event
-        return event
-    }
-
-    mutating func completeActive(
-        id: Int,
-        startPending: Bool
-    ) -> QuotaConsumptionEvent? {
-        guard active?.id == id else { return nil }
-        active = nil
-        return startPending ? resumePending() : nil
-    }
-
-    mutating func cancelActive() {
-        active = nil
-    }
-
-    mutating func resumePending() -> QuotaConsumptionEvent? {
-        guard active == nil, let pending else { return nil }
-        active = pending
-        self.pending = nil
-        return pending
-    }
-
-    mutating func reset() {
-        active = nil
-        pending = nil
-    }
-
-    private static func stronger(
-        _ current: QuotaConsumptionEvent?,
-        _ candidate: QuotaConsumptionEvent
-    ) -> QuotaConsumptionEvent {
-        guard let current else { return candidate }
-        return candidate.kind.rawValue > current.kind.rawValue ? candidate : current
-    }
-}
-
 @MainActor
 @Observable
 final class AppState {
@@ -145,9 +26,6 @@ final class AppState {
     private(set) var launchAtLoginError: String?
     private(set) var absorptionRequestID = 0
     private(set) var absorptionResetID = 0
-    private(set) var quotaConsumptionEvent: QuotaConsumptionEvent?
-    private(set) var quotaReactionResetID = 0
-    private(set) var quotaReactionPresentationAllowed = true
 
     private let appServer: any CodexAppServerClient
     private let defaults: UserDefaults
@@ -161,10 +39,7 @@ final class AppState {
     private var reconnectAttempt = 0
     private var reconnectTask: Task<Void, Never>?
     private var requiresHistoryGap = true
-    private var requiresQuotaReactionBaseline = true
     private var historyRevision = -1
-    private var quotaConsumptionCadence = QuotaConsumptionCadence()
-    private var quotaConsumptionEventID = 0
 
     init(
         defaults: UserDefaults = .standard,
@@ -195,12 +70,6 @@ final class AppState {
         petSize = PetSize(
             rawValue: defaults.string(forKey: AppConstants.petSizeKey) ?? ""
         ) ?? .large
-        #if DEBUG
-        if let previewSize = ProcessInfo.processInfo.environment["BLACK_HOLE_SIZE_PREVIEW"],
-           let size = PetSize(rawValue: previewSize) {
-            petSize = size
-        }
-        #endif
         tooltipStyle = TooltipStyle(
             rawValue: defaults.string(forKey: AppConstants.tooltipStyleKey) ?? ""
         ) ?? .smooth
@@ -240,8 +109,6 @@ final class AppState {
         reconnectTask = nil
         reconnectAttempt = 0
         requiresHistoryGap = true
-        requiresQuotaReactionBaseline = true
-        resetQuotaConsumptionContinuity()
 
         if hasStarted {
             connect(isRetry: false)
@@ -257,8 +124,6 @@ final class AppState {
         appServer.stop()
         connectionState = .disconnected
         requiresHistoryGap = true
-        requiresQuotaReactionBaseline = true
-        resetQuotaConsumptionContinuity()
     }
 
     func refreshQuotaIfStale(
@@ -303,46 +168,14 @@ final class AppState {
     private func didReceive(_ snapshot: QuotaSnapshot) {
         let observedAt = now()
         let forceHistoryGap = requiresHistoryGap
-        let forceQuotaReactionBaseline = requiresQuotaReactionBaseline
         requiresHistoryGap = false
-        requiresQuotaReactionBaseline = false
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempt = 0
-        let currentSample = QuotaHistorySample(snapshot: snapshot, observedAt: observedAt)
-        let quotaTransition: QuotaSnapshotTransition?
-        let reachesZero: Bool
-        if let quota, let quotaUpdatedAt {
-            let acceptedPreviousSample = QuotaHistorySample(
-                snapshot: quota,
-                observedAt: quotaUpdatedAt
-            )
-            quotaTransition = QuotaHistoryClassifier.transition(
-                previousSample: acceptedPreviousSample,
-                currentSample: currentSample,
-                previousWindow: acceptedPreviousSample.primary,
-                currentWindow: currentSample.primary,
-                forceGap: forceQuotaReactionBaseline
-            )
-            reachesZero = (acceptedPreviousSample.primary?.remainingPercent ?? 0) > 0
-                && currentSample.primary?.remainingPercent == 0
-        } else {
-            quotaTransition = nil
-            reachesZero = false
-        }
-
         quota = snapshot
         quotaUpdatedAt = observedAt
         errorMessage = nil
         connectionState = .connected
-        if let quotaTransition {
-            applyQuotaTransition(
-                quotaTransition,
-                reachesZero: reachesZero
-            )
-        } else {
-            resetQuotaConsumptionContinuity()
-        }
         Task { [weak self, historyStore] in
             let update = await historyStore.record(
                 snapshot: snapshot,
@@ -361,8 +194,6 @@ final class AppState {
         errorMessage = message
         connectionState = .reconnecting
         requiresHistoryGap = true
-        requiresQuotaReactionBaseline = true
-        resetQuotaConsumptionContinuity()
 
         let delay = retryDelays.isEmpty
             ? 0
@@ -383,9 +214,6 @@ final class AppState {
 
     func togglePetVisibility() {
         isPetVisible.toggle()
-        if !isPetVisible {
-            setQuotaReactionPresentationAllowed(false)
-        }
     }
 
     func requestAbsorption() {
@@ -396,24 +224,11 @@ final class AppState {
         absorptionResetID &+= 1
     }
 
-    func cancelQuotaReactionPresentation() {
-        quotaReactionResetID &+= 1
-    }
-
-    func setQuotaReactionPresentationAllowed(_ isAllowed: Bool) {
-        guard isAllowed != quotaReactionPresentationAllowed else { return }
-        quotaReactionPresentationAllowed = isAllowed
-        if !isAllowed {
-            cancelQuotaReactionPresentation()
-        }
-    }
-
     func setPetSize(_ size: PetSize) {
         guard size != petSize else { return }
         petSize = size
         defaults.set(size.rawValue, forKey: AppConstants.petSizeKey)
         resetAbsorptionScene()
-        cancelQuotaReactionPresentation()
     }
 
     func setTooltipStyle(_ style: TooltipStyle) {
@@ -442,8 +257,6 @@ final class AppState {
 
     func noteWakeForQuotaHistory() {
         requiresHistoryGap = true
-        requiresQuotaReactionBaseline = true
-        resetQuotaConsumptionContinuity()
     }
 
     func clearQuotaHistory() {
@@ -485,35 +298,6 @@ final class AppState {
         historyRevision = update.revision
         quotaHistory = update.presentation
         quotaHistoryIssue = update.issue
-    }
-
-    private func applyQuotaTransition(
-        _ transition: QuotaSnapshotTransition,
-        reachesZero: Bool
-    ) {
-        switch transition {
-        case .duplicate:
-            return
-        case let .consumption(delta):
-            guard let kind = quotaConsumptionCadence.advance(
-                by: delta,
-                reachesZero: reachesZero
-            ) else { return }
-            quotaConsumptionEventID &+= 1
-            let event = QuotaConsumptionEvent(id: quotaConsumptionEventID, kind: kind)
-            if quotaReactionPresentationAllowed {
-                quotaConsumptionEvent = event
-            }
-        case .reset:
-            resetQuotaConsumptionContinuity()
-        case .correction, .discontinuity:
-            resetQuotaConsumptionContinuity()
-        }
-    }
-
-    private func resetQuotaConsumptionContinuity() {
-        quotaConsumptionCadence.reset()
-        cancelQuotaReactionPresentation()
     }
 
     nonisolated private static func storedBoolean(

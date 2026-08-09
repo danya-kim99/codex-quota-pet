@@ -29,10 +29,6 @@ VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
 
-Confident same-window quota drops produce a short local visual reaction without
-adding quota reads. The reaction is decorative, bounded, and replaced by static
-stepped states when Reduce Motion is enabled.
-
 The renderer uses a compact pixel-art style. Its three color layers rotate and
 animate independently around a fixed black core.
 

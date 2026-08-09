@@ -424,7 +424,7 @@ Persistence and privacy:
   retried only on the next meaningful snapshot or heartbeat.
 - The regular menu shows a short localized nonmodal status when history was
   restarted or is not being saved. Quota display, reconnect, pet animation,
-  consumption reactions remain independent of persistence.
+  transition classification remains independent of persistence.
 - `Clear Local History…` / `Очистить локальную историю…` appears only in the
   regular menu and uses a native confirmation with Cancel as the default. A
   successful clear removes active history and quarantines, leaves the current
@@ -534,138 +534,30 @@ export, cloud sync, analytics, a backend, notifications, a dashboard/settings
 window, a database, third-party charts/storage, new sprites, signing changes,
 or distribution changes.
 
-## Approved real quota-consumption reaction
+## Deferred real quota-consumption reaction redesign
 
-The real quota-consumption reaction design freeze was approved for
-implementation on 8 August 2026. It reacts only to confidently classified
-primary-window consumption and does not add another quota read, App Server
-process, backend, renderer, dependency, or persisted reaction ledger.
+The procedural quota-consumption reaction was withdrawn on 9 August 2026 after
+its flat native SwiftUI/Canvas visual was rejected.
 
-Trigger and identity semantics:
-
-- The feature consumes the same accepted snapshots and shared transition
-  classification as local history. A transition is comparable only within one
-  uninterrupted connection, with compatible limit identity, the same non-null
-  reset timestamp, compatible duration metadata, forward local time, and no
-  gap longer than 90 minutes.
-- Startup, reconnect, every macOS wake, credible reset, correction, account,
-  plan or limit change, missing primary window, incompatible metadata, backward
-  clock movement, and a gap over 90 minutes establish a new baseline and reset
-  the reaction cadence. A duplicate snapshot refreshes freshness only.
-- `AppState` owns a monotonic session-local event identity and the cadence.
-  `BlackHoleView` receives an already-classified reaction and never compares raw
-  quota percentages. Cadence and identities are not persisted across launches.
-- Every confidently observed consumed percentage point advances the cadence.
-  Ordinary points use Small, every fifth point uses Medium, and every tenth
-  point uses Large instead of Medium. The sequence repeats every ten points.
-- A multi-point transition advances by the complete observed delta but emits at
-  most one reaction: Large if it crosses a tenth-point boundary, otherwise
-  Medium if it crosses a fifth-point boundary, otherwise Small. The actual
-  remainder is retained and no catch-up animation is queued.
-- A confidently classified transition from a positive value to exactly zero
-  emits Last Light instead of Small, Medium, or Large. An initial, reconnected,
-  corrected, reset, or otherwise discontinuous zero snapshot never emits it.
-- One automatic reaction can be active and at most one can be pending. Rapid
-  pending events merge to the strongest level, `Large > Medium > Small`; the
-  active reaction is never restarted or extended. Last Light preempts another
-  automatic reaction and clears its pending event. There is no unbounded queue.
-
-Approved normal-motion presentation:
-
-- Small lasts 460 ms and sends one pixel-light packet along a curved orbit into
-  the event horizon.
-- Medium lasts 670 ms and sends three staggered packets along visibly distinct
-  trajectories into the event horizon.
-- Large lasts 830 ms and sends five packets along distinct trajectories before
-  a segmented lensing ring briefly forms and collapses inward.
-- Last Light lasts 1.15 seconds. Five packets gather into a complete photon
-  ring; the ring shifts from gold through orange to violet, breaks, drains into
-  the event horizon as two short light threads, and leaves a brief violet
-  afterglow. The authoritative zero-quota sprite appears immediately beneath
-  the effect.
-- The approved prototype freezes composition, phase ordering, relative
-  intensity, and timing rather than final pixel fidelity. The native SwiftUI
-  implementation may refine packet tails, depth, curves, and easing without
-  changing those semantics.
-
-Modes, sizes, motion, and performance:
-
-- Standard and Turbo use identical reaction counts, paths, timing, and
-  intensity. Existing Turbo rotation and bounded pulse continue, but the
-  reaction does not add a whole-pet scale or brightness pulse.
-- S, M, and L keep identical event semantics and timing. Trajectories adapt to
-  the current scene and stay inside panel bounds; packet thickness and tail
-  length retain a readable minimum at S. The effect never resizes the panel and
-  adds no size-specific sprite set.
-- Reduce Motion removes travel, rotation, acceleration, scaling, and pet pulse.
-  Small is one fixed stepped glint for 160 ms; Medium is three fixed glints for
-  200 ms; Large is five fixed glints plus a stationary segmented ring for
-  240 ms; Last Light is one stationary full ring stepping gold, orange, violet,
-  then off over 280 ms.
-- Normal motion may use 30 fps only while a reaction is active. Standard then
-  returns to its current sprite-frame schedule; Turbo returns to its existing
-  pulse schedule. Reduce Motion updates only at finite step boundaries.
-
-Interaction and lifecycle behavior:
-
-- Manual absorption always has priority. Starting it cancels an active
-  automatic reaction without replay. An automatic event received while one or
-  more manual absorptions are active occupies the single merged pending slot and
-  starts only after all manual absorption plans finish. Last Light also waits
-  for manual absorption.
-- An open tooltip remains open, immediately reflects the new quota, and is not
-  suppressed by an automatic reaction. The decorative effect renders behind it.
-- Starting a drag, opening the context menu, or resizing cancels active and
-  pending automatic reactions. Consumption accepted during those interactions
-  advances cadence but is not animated or replayed.
-- Manual hide and fullscreen suppression cancel active and pending reactions.
-  Comparable hidden consumption still advances cadence, but showing the pet
-  never replays a backlog.
-- Stale or disconnected state cancels active and pending reactions and resets
-  cadence. The first successful reconnect snapshot is a new baseline.
-- All reaction layers are accessibility-hidden, noninteractive, and do not
-  expand pet hit testing. Future position lock and click-through remain an
-  independent pointer policy: a visible click-through pet still renders real
-  reactions, while AppKit never interprets quota data.
-
-Localization and accessibility:
-
-- Small, Medium, Large, and Last Light are internal design names and add no
-  visible copy or localization strings. Existing localized pet, tooltip, and
-  menu-bar summaries remain the source of exact percentage and connection state.
-- The feature adds no keyboard stop, accessibility action, VoiceOver
-  announcement, sound, notification, history, or enable/disable preference.
-
-Acceptance criteria for this update:
-
-- deterministic tests cover first and duplicate snapshots, same-window single
-  and multi-point drops, repeated fifth/tenth cadence, zero override, missing
-  metadata, reset, correction, reconnect, wake, long gap, clock reversal, and
-  identity changes;
-- event tests cover monotonic exactly-once identity, one active/one merged
-  pending reaction, strongest-level merging, Last Light preemption, manual
-  absorption priority, suppression, and cadence continuation or reset;
-- visual-state tests cover the approved normal and Reduce Motion timings and
-  prove that rendering returns to the existing idle schedule;
-- Standard and Turbo, S/M/L, zero, tooltip, manual absorption, drag, resize,
-  context menu, hide/fullscreen, and disconnected states retain their approved
-  behavior without extra App Server traffic or changed input policy;
-- focused macOS tests pass, `./script/build_and_run.sh --verify` builds and
-  launches the app, and screenshot QA covers representative Small, Medium,
-  Large, Last Light, and Reduce Motion states.
-
-Explicit non-goals are secondary-window reactions, token or cost estimates,
-floating text, sound, notifications, achievements, analytics, persisted
-cadence, a reaction setting, new raster sprite sets, a new renderer, polling,
-processes, dependencies, position-lock/click-through implementation, signing,
-packaging, or distribution changes.
+- The current production app has no automatic quota-consumption event, cadence,
+  queue, playback, or AppKit presentation suppression.
+- `QuotaHistoryClassifier` remains the shared semantic contract for conservative
+  snapshot transitions. The previously agreed fifth/tenth-point cadence and
+  exactly-once decisions remain non-production input for a separate redesign.
+- The former visual freeze, coalescing behavior, timing, Reduce Motion treatment,
+  and procedural Canvas implementation are withdrawn and must not be reused as
+  approved behavior.
+- Any future reaction requires a separate representative prototype and design
+  freeze. Its production visual must use authored assets and frame playback in
+  the existing black-hole/reset visual language; native procedural SwiftUI or
+  Canvas effect animation is not permitted.
 
 ## Approved position lock and pointer click-through
 
 The position-lock and pointer-click-through design freeze was approved for
 implementation on 8 August 2026. It changes only pet-window input and position
-policy; quota acquisition, rendering, reactions, and menu-bar availability stay
-independent.
+policy; quota acquisition, rendering, manual interaction, and menu-bar
+availability stay independent.
 
 Preferences and precedence:
 
@@ -707,8 +599,8 @@ Pointer behavior and transitions:
   that suppression.
 - Context-menu opening keeps panel movement disabled. Every dismissal path
   recalculates the effective policy instead of unconditionally making the panel
-  movable. Already-running manual or quota-consumption reactions may finish;
-  click-through never changes their visible presentation.
+  movable. Already-running manual absorption may finish; click-through never
+  changes its visible presentation.
 
 Position persistence and displays:
 
@@ -747,10 +639,10 @@ Menus, modes, data, and accessibility:
   possible rather than claiming full containment.
 - Standard, Turbo, Reduce Motion, S/M/L, renderer cadence, tooltip styles,
   reconnect, stale or missing data, and wake behavior are unchanged. Click-
-  through adds no read and does not pause visible quota reactions. Detailed
-  tooltip history is unavailable until click-through is disabled; the menu bar
-  continues to provide current and secondary quota, issues, controls, and the
-  existing accessible summary rather than duplicating the graph.
+  through adds no read and does not pause sprite or manual-absorption animation.
+  Detailed tooltip history is unavailable until click-through is disabled; the
+  menu bar continues to provide current and secondary quota, issues, controls,
+  and the existing accessible summary rather than duplicating the graph.
 - Native menu items expose localized labels, toggle state, and help explaining
   that pointer input passes to applications underneath and is disabled from the
   menu bar. Custom pixel rows expose equivalent localized label, value, and help
@@ -782,7 +674,7 @@ Acceptance criteria for this update:
   at exactly 6.0 and 6.01 pt;
 - integration tests cover atomic enable/disable ordering, tooltip exit/reentry,
   pointer cancellation, an already-started drag, context-menu opening and every
-  dismissal path, active manual and quota reactions, hide/show, fullscreen,
+  dismissal path, active manual absorption, hide/show, fullscreen,
   reconnect, stale/missing data, wake, and panel-not-yet-created behavior;
 - frame tests cover S/M/L center preservation, locked hidden resize, relocking,
   invalid and non-finite geometry, four screen quadrants, negative coordinates,
@@ -994,16 +886,16 @@ progress.
 ## Current MVP status
 
 - The functional pet, all eleven quota states, mode-neutral tooltips, Turbo
-  behavior, finite consumption reactions, Reduce Motion, VoiceOver
-  summaries, fullscreen preference, and reconnect flow are implemented.
+  behavior, Reduce Motion, VoiceOver summaries, fullscreen preference, and
+  reconnect flow are implemented. Automatic quota-consumption reactions are
+  deferred pending a separate authored-frame redesign.
 - Launch at login is implemented with the native `SMAppService` main-app login
   item and verified through a logout/login cycle using an Apple Development
   signed build.
 - Local Debug build, launch, and unit tests pass. The tests cover all 66 bundled
-  sprite frames, quota mapping and transition classification, consumption
-  reaction arbitration and timing, tooltip lifecycle, Turbo behavior, visibility,
-  fullscreen policy, quota freshness, launch-at-login state handling, and
-  automatic/manual reconnects.
+  sprite frames, quota mapping and transition classification, tooltip lifecycle,
+  Turbo behavior, visibility, fullscreen policy, quota freshness,
+  launch-at-login state handling, and automatic/manual reconnects.
 - A local unsigned Release build passes. During an eight-second active-animation
   sample it held approximately 3.1–3.2% CPU and 21 MB of memory without growth.
 - Runtime recovery was verified by terminating only the app's child Codex App

@@ -1,13 +1,20 @@
 # Workstream: real quota-consumption reaction
 
-Status: approved implementation complete; automated release QA passed. The live
-effect screenshot matrix remains unverified because the macOS session was locked.
+Status: implementation withdrawn; the production visual was rejected and a
+separate redesign is required.
 
 Shared context: [README.md](README.md)
 
-The sections below preserve the original discovery handoff. The authoritative
-implemented contract is
-[Approved real quota-consumption reaction](../PRODUCT_SPEC.md#approved-real-quota-consumption-reaction).
+The current production app has no automatic quota-consumption presentation.
+`QuotaHistoryClassifier` and the agreed conservative transition/cadence semantics
+remain useful design input, but the former procedural SwiftUI/Canvas visual and
+its visual freeze are not approved for reuse. A future visual must use authored
+assets and frames in the existing black-hole/reset visual language, not synthesize
+the effect with a native procedural SwiftUI/Canvas animation.
+
+The sections below preserve the original discovery and design history as a
+handoff. Current status is recorded in
+[Deferred real quota-consumption reaction redesign](../PRODUCT_SPEC.md#deferred-real-quota-consumption-reaction-redesign).
 
 ## Product intent
 
@@ -37,9 +44,9 @@ Relevant files:
 - `Views/BlackHoleView.swift`
 - `Tests/RateLimitDecodingTests.swift`
 
-## Recommended first-slice hypothesis
+## Rejected first-slice hypothesis (historical)
 
-Use one short code-native pixel/glow reaction for a confidently classified drop
+The withdrawn implementation used a code-native pixel/glow reaction for a confidently classified drop
 in the **primary** remaining percentage within the same quota window.
 
 - Small, medium, and large deltas may have three restrained intensity bands.
@@ -53,7 +60,7 @@ in the **primary** remaining percentage within the same quota window.
   build an unbounded animation queue.
 - After the effect, return to the existing Standard/Turbo idle schedule.
 
-This is a starting point for the design chat, not approved behavior.
+This approach is rejected and is retained only as historical context.
 
 ## Trigger contract to resolve
 
@@ -188,6 +195,9 @@ discovery, protocol/transition semantics, one representative visual prototype,
 and a consolidated design freeze. Do not modify production Swift, generate the
 full final asset set, or start release work until I explicitly approve the
 complete design freeze for implementation.
+
+The withdrawn procedural SwiftUI/Canvas visual must not be reused. Develop an
+authored asset/frame-based direction in the existing black-hole/reset language.
 
 Resolve every open trigger, overlap, Reduce Motion, performance, S/M/L,
 tooltip/drag/menu, localization, accessibility, and failure-state decision in

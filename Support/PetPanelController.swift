@@ -196,7 +196,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             applyInputPolicy()
             updateHoverRearmForPanelShow()
             panel.orderFrontRegardless()
-            updateQuotaReactionPresentationAllowed()
             return
         }
 
@@ -246,11 +245,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         panel.orderFrontRegardless()
-        updateQuotaReactionPresentationAllowed()
     }
 
     func hide() {
-        appState?.setQuotaReactionPresentationAllowed(false)
         dismissContextMenu(animated: false)
         cancelDragTracking()
         absorptionPointerStart = nil
@@ -258,11 +255,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         appState?.resetAbsorptionScene()
         hideTooltip()
         panel?.orderOut(nil)
-        appState?.setQuotaReactionPresentationAllowed(false)
     }
 
     func resize(to size: PetSize) {
-        appState?.cancelQuotaReactionPresentation()
         dismissContextMenu(animated: true)
         hideTooltip()
         guard let panel else { return }
@@ -296,7 +291,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             cancelDragTracking()
             hideTooltip()
             dismissContextMenu(animated: false, applyMouseEvents: false)
-            updateQuotaReactionPresentationAllowed()
             applyInputPolicy(applyMouseEvents: false)
             panel?.ignoresMouseEvents = true
         } else {
@@ -371,7 +365,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func beginDragTracking() {
         guard !isDraggingPet else { return }
         isDraggingPet = true
-        appState?.setQuotaReactionPresentationAllowed(false)
         restoreTooltipAfterDrag = tooltipPanel?.isVisible == true
         dragCompletionTask?.cancel()
         stopResetCountdownUpdates()
@@ -431,7 +424,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         cancelDragTracking()
-        appState.setQuotaReactionPresentationAllowed(false)
         absorptionPointerStart = nil
         hideTooltip()
         appState.refreshLaunchAtLoginStatus()
@@ -616,7 +608,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         contextMenuPresentation = nil
         removeOutsidePointerMonitor()
         applyInputPolicy(applyMouseEvents: applyMouseEvents)
-        updateQuotaReactionPresentationAllowed()
 
         let completion = contextMenuDismissCompletion
         contextMenuDismissCompletion = nil
@@ -948,7 +939,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         if shouldRestore {
             setTooltipVisible(true)
         }
-        updateQuotaReactionPresentationAllowed()
     }
 
     private func cancelDragTracking() {
@@ -956,12 +946,6 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         dragCompletionTask = nil
         isDraggingPet = false
         restoreTooltipAfterDrag = false
-    }
-
-    private func updateQuotaReactionPresentationAllowed() {
-        appState?.setQuotaReactionPresentationAllowed(
-            panel?.isVisible == true && !isDraggingPet && contextMenuPanel == nil
-        )
     }
 
     private var inputPolicy: PetPanelInputPolicy {

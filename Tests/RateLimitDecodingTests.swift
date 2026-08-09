@@ -1602,7 +1602,7 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 }
 
-final class QuotaConsumptionReactionTests: XCTestCase {
+final class QuotaTransitionClassifierTests: XCTestCase {
     func testSharedTransitionClassifierSeparatesConsumptionFromUnsafeChanges() {
         let start = Date(timeIntervalSince1970: 10_000)
         let reset = Int64(start.addingTimeInterval(3_600).timeIntervalSince1970)
@@ -1747,437 +1747,6 @@ final class QuotaConsumptionReactionTests: XCTestCase {
         )
     }
 
-    func testCadenceRepeatsSmallMediumAndLargeEveryTenPoints() {
-        var cadence = QuotaConsumptionCadence()
-        var kinds: [QuotaConsumptionReactionKind] = []
-        for _ in 1...20 {
-            kinds.append(cadence.advance(by: 1, reachesZero: false)!)
-        }
-
-        let decade: [QuotaConsumptionReactionKind] = [
-            .small, .small, .small, .small, .medium,
-            .small, .small, .small, .small, .large
-        ]
-        XCTAssertEqual(kinds, decade + decade)
-        XCTAssertEqual(cadence.position, 0)
-    }
-
-    func testMultiPointCadenceKeepsRemainderAndZeroOverridesMilestone() {
-        var cadence = QuotaConsumptionCadence()
-        for _ in 0..<4 {
-            XCTAssertEqual(cadence.advance(by: 1, reachesZero: false), .small)
-        }
-        XCTAssertEqual(cadence.advance(by: 6, reachesZero: false), .large)
-        XCTAssertEqual(cadence.position, 0)
-
-        XCTAssertEqual(cadence.advance(by: 3, reachesZero: false), .small)
-        XCTAssertEqual(cadence.advance(by: 2, reachesZero: false), .medium)
-        XCTAssertEqual(cadence.position, 5)
-        XCTAssertEqual(cadence.advance(by: 15, reachesZero: false), .large)
-        XCTAssertEqual(cadence.position, 0)
-
-        XCTAssertEqual(cadence.advance(by: 10, reachesZero: true), .lastLight)
-        XCTAssertEqual(cadence.position, 0)
-    }
-
-    func testQueueBoundsPendingWorkAndLastLightPreempts() {
-        var queue = QuotaReactionQueue()
-        let small = QuotaConsumptionEvent(id: 1, kind: .small)
-        let medium = QuotaConsumptionEvent(id: 2, kind: .medium)
-        let anotherSmall = QuotaConsumptionEvent(id: 3, kind: .small)
-        let large = QuotaConsumptionEvent(id: 4, kind: .large)
-        let lastLight = QuotaConsumptionEvent(id: 5, kind: .lastLight)
-
-        XCTAssertEqual(queue.receive(small, deferPlayback: false), small)
-        XCTAssertNil(queue.receive(medium, deferPlayback: false))
-        XCTAssertNil(queue.receive(anotherSmall, deferPlayback: false))
-        XCTAssertEqual(queue.pending, medium)
-        XCTAssertNil(queue.receive(large, deferPlayback: false))
-        XCTAssertEqual(queue.pending, large)
-
-        XCTAssertEqual(queue.receive(lastLight, deferPlayback: false), lastLight)
-        XCTAssertEqual(queue.active, lastLight)
-        XCTAssertNil(queue.pending)
-
-        XCTAssertNil(queue.receive(small, deferPlayback: false))
-        XCTAssertEqual(
-            queue.completeActive(id: lastLight.id, startPending: true),
-            small
-        )
-        XCTAssertEqual(queue.active, small)
-        XCTAssertNil(queue.pending)
-    }
-
-    func testQueueDefersForManualAbsorptionAndResetClearsBothSlots() {
-        var queue = QuotaReactionQueue()
-        let medium = QuotaConsumptionEvent(id: 1, kind: .medium)
-        let large = QuotaConsumptionEvent(id: 2, kind: .large)
-        let small = QuotaConsumptionEvent(id: 3, kind: .small)
-
-        XCTAssertNil(queue.receive(medium, deferPlayback: true))
-        XCTAssertNil(queue.receive(large, deferPlayback: true))
-        XCTAssertEqual(queue.pending, large)
-        XCTAssertEqual(queue.resumePending(), large)
-        XCTAssertNil(queue.receive(small, deferPlayback: false))
-
-        queue.cancelActive()
-        XCTAssertNil(queue.active)
-        XCTAssertEqual(queue.pending, small)
-        XCTAssertEqual(queue.resumePending(), small)
-        queue.reset()
-        XCTAssertNil(queue.active)
-        XCTAssertNil(queue.pending)
-    }
-
-    func testVisualTimingMotionPhasesAndIdleScheduleAreDeterministic() {
-        let normalDurations = QuotaConsumptionReactionKind.allCases.map(\.normalDuration)
-        let reducedDurations = QuotaConsumptionReactionKind.allCases.map(\.reducedMotionDuration)
-        XCTAssertEqual(normalDurations, [0.46, 0.67, 0.83, 1.15])
-        XCTAssertEqual(reducedDurations, [0.16, 0.20, 0.24, 0.28])
-
-        let justBeforeLargeRing = QuotaReactionVisualState(
-            kind: .large,
-            elapsed: QuotaReactionVisualState.largeRingStart - 0.001,
-            usesReducedMotion: false
-        )
-        XCTAssertEqual(justBeforeLargeRing.phase, .packets)
-        XCTAssertLessThan(justBeforeLargeRing.packetProgress(index: 4), 1)
-
-        let atLargeRing = QuotaReactionVisualState(
-            kind: .large,
-            elapsed: QuotaReactionVisualState.largeRingStart,
-            usesReducedMotion: false
-        )
-        XCTAssertEqual(atLargeRing.packetProgress(index: 4), 1, accuracy: 0.0001)
-        XCTAssertEqual(atLargeRing.phase, .lensingRing)
-        XCTAssertEqual(
-            QuotaReactionVisualState(
-                kind: .lastLight,
-                elapsed: 0.60,
-                usesReducedMotion: false
-            ).phase,
-            .photonRing
-        )
-        XCTAssertEqual(
-            QuotaReactionVisualState(
-                kind: .lastLight,
-                elapsed: 0.82,
-                usesReducedMotion: false
-            ).phase,
-            .drain
-        )
-        XCTAssertEqual(
-            QuotaReactionVisualState(
-                kind: .lastLight,
-                elapsed: 1.0,
-                usesReducedMotion: false
-            ).phase,
-            .afterglow
-        )
-
-        let reducedEarly = QuotaReactionVisualState(
-            kind: .medium,
-            elapsed: 0.02,
-            usesReducedMotion: true
-        )
-        let reducedLate = QuotaReactionVisualState(
-            kind: .medium,
-            elapsed: 0.14,
-            usesReducedMotion: true
-        )
-        XCTAssertEqual(reducedEarly.packetProgress(index: 0), 0)
-        XCTAssertEqual(reducedLate.packetProgress(index: 0), 0)
-        XCTAssertEqual(reducedEarly.timelineInterval, 0.05, accuracy: 0.0001)
-
-        let idleInterval = 0.14
-        XCTAssertEqual(
-            QuotaReactionVisualState.timelineInterval(
-                hasManualAnimation: false,
-                activeReaction: nil,
-                turboPulse: false,
-                idleInterval: idleInterval
-            ),
-            idleInterval,
-            accuracy: 0.0001
-        )
-        XCTAssertEqual(
-            QuotaReactionVisualState.timelineInterval(
-                hasManualAnimation: false,
-                activeReaction: reducedEarly,
-                turboPulse: false,
-                idleInterval: idleInterval
-            ),
-            0.05,
-            accuracy: 0.0001
-        )
-        XCTAssertEqual(
-            QuotaReactionVisualState.timelineInterval(
-                hasManualAnimation: false,
-                activeReaction: nil,
-                turboPulse: true,
-                idleInterval: idleInterval
-            ),
-            1.0 / 30.0,
-            accuracy: 0.0001
-        )
-    }
-
-    func testPacketRoutesAreDistinctAndStayInsideEverySceneSize() {
-        XCTAssertEqual(QuotaReactionRoute.packetRoutes.count, 5)
-        for size in PetSize.allCases.map(\.sceneSize) {
-            let end = CGPoint(x: size.width / 2, y: size.height / 2)
-            let midpoints = QuotaReactionRoute.packetRoutes.map {
-                $0.point(progress: 0.5, in: size, end: end)
-            }
-            for lhs in midpoints.indices {
-                for rhs in midpoints.indices where lhs < rhs {
-                    XCTAssertNotEqual(midpoints[lhs], midpoints[rhs])
-                }
-            }
-            for route in QuotaReactionRoute.packetRoutes {
-                for step in 0...20 {
-                    let point = route.point(
-                        progress: CGFloat(step) / 20,
-                        in: size,
-                        end: end
-                    )
-                    XCTAssertGreaterThanOrEqual(point.x, 0)
-                    XCTAssertLessThanOrEqual(point.x, size.width)
-                    XCTAssertGreaterThanOrEqual(point.y, 0)
-                    XCTAssertLessThanOrEqual(point.y, size.height)
-                }
-            }
-        }
-    }
-
-    @MainActor
-    func testAppStateEmitsMonotonicExactlyOnceEventsAcrossLifecycle() async {
-        let appServer = FakeAppServer()
-        var now = Date(timeIntervalSince1970: 10_000)
-        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
-        let appState = AppState(
-            appServer: appServer,
-            retryDelays: [60],
-            now: { now },
-            historyStore: QuotaHistoryStore(fileURL: nil)
-        )
-        appState.start()
-
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
-        XCTAssertNil(appState.quotaConsumptionEvent)
-
-        for point in 1...10 {
-            now.addTimeInterval(1)
-            appServer.send(
-                snapshot: Self.snapshot(
-                    remainingPercent: 100 - point,
-                    resetsAt: reset
-                )
-            )
-            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
-            let expectedKind: QuotaConsumptionReactionKind = switch point {
-            case 5: .medium
-            case 10: .large
-            default: .small
-            }
-            XCTAssertEqual(appState.quotaConsumptionEvent?.kind, expectedKind)
-        }
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 90, resetsAt: reset))
-        await Self.drainMainActor()
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 10)
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 91, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 91 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 10)
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 90, resetsAt: reset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 11 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-
-        appState.retryNow()
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 89, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 89 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 11)
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 88, resetsAt: reset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 12 }
-
-        appState.noteWakeForQuotaHistory()
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 87, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 87 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 12)
-
-        appState.setQuotaReactionPresentationAllowed(false)
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 86, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 86 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 12)
-        appState.setQuotaReactionPresentationAllowed(true)
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 85, resetsAt: reset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 14 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 0, resetsAt: reset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 15 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .lastLight)
-        appState.stop()
-    }
-
-    @MainActor
-    func testClearingHistoryDoesNotResetReactionCadenceOrContinuity() async {
-        let appServer = FakeAppServer()
-        let historyStore = QuotaHistoryStore(fileURL: nil)
-        var now = Date(timeIntervalSince1970: 20_000)
-        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
-        let appState = AppState(
-            appServer: appServer,
-            retryDelays: [60],
-            now: { now },
-            historyStore: historyStore
-        )
-        appState.start()
-
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
-        for point in 1...4 {
-            now.addTimeInterval(1)
-            appServer.send(
-                snapshot: Self.snapshot(
-                    remainingPercent: 100 - point,
-                    resetsAt: reset
-                )
-            )
-            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
-        }
-        await Self.waitUntil { appState.quotaHistory.points.count >= 2 }
-        XCTAssertGreaterThanOrEqual(appState.quotaHistory.points.count, 2)
-
-        appState.clearQuotaHistory()
-        await Self.waitUntil { appState.quotaHistory.points.isEmpty }
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 95, resetsAt: reset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 5 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .medium)
-        appState.stop()
-    }
-
-    @MainActor
-    func testAppStateIdentityChangesResetReactionCadence() async {
-        let appServer = FakeAppServer()
-        var now = Date(timeIntervalSince1970: 30_000)
-        let reset = Int64(now.addingTimeInterval(3_600).timeIntervalSince1970)
-        let appState = AppState(
-            appServer: appServer,
-            retryDelays: [60],
-            now: { now },
-            historyStore: QuotaHistoryStore(fileURL: nil)
-        )
-        appState.start()
-
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: reset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
-        for point in 1...4 {
-            now.addTimeInterval(1)
-            appServer.send(
-                snapshot: Self.snapshot(
-                    remainingPercent: 100 - point,
-                    resetsAt: reset
-                )
-            )
-            await Self.waitUntil { appState.quotaConsumptionEvent?.id == point }
-        }
-
-        now.addTimeInterval(1)
-        appServer.send(
-            snapshot: Self.snapshot(
-                remainingPercent: 96,
-                resetsAt: reset,
-                planType: "team"
-            )
-        )
-        await Self.waitUntil { appState.quota?.planType == "team" }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 4)
-
-        now.addTimeInterval(1)
-        appServer.send(
-            snapshot: Self.snapshot(
-                remainingPercent: 95,
-                resetsAt: reset,
-                planType: "team"
-            )
-        )
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 5 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-
-        now.addTimeInterval(1)
-        appServer.send(
-            snapshot: Self.snapshot(
-                remainingPercent: 92,
-                resetsAt: reset,
-                planType: "team"
-            )
-        )
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 6 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-
-        now.addTimeInterval(1)
-        appServer.send(
-            snapshot: Self.snapshot(
-                remainingPercent: 92,
-                resetsAt: reset,
-                limitId: "codex-team",
-                planType: "team"
-            )
-        )
-        await Self.waitUntil { appState.quota?.limitId == "codex-team" }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 6)
-
-        now.addTimeInterval(1)
-        appServer.send(
-            snapshot: Self.snapshot(
-                remainingPercent: 91,
-                resetsAt: reset,
-                limitId: "codex-team",
-                planType: "team"
-            )
-        )
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 7 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-        appState.stop()
-    }
-
-    @MainActor
-    func testPanelSuppressionAndResizeOnlyControlPresentation() throws {
-        let suiteName = "BlackHoleQuotaReactionTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let appState = AppState(defaults: defaults)
-        let controller = PetPanelController()
-
-        controller.show(appState: appState)
-        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
-        let resetID = appState.quotaReactionResetID
-        appState.setPetSize(.medium)
-        controller.resize(to: .medium)
-        XCTAssertGreaterThan(appState.quotaReactionResetID, resetID)
-
-        let frame = try XCTUnwrap(controller.petFrame)
-        controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
-        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
-        controller.hide()
-        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
-    }
-
     func testResetClassifierRequiresExactCredibleBoundaryForAnyDelta() {
         let start = Date(timeIntervalSince1970: 40_000)
         let oldReset = Int64(start.addingTimeInterval(30).timeIntervalSince1970)
@@ -2253,41 +1822,6 @@ final class QuotaConsumptionReactionTests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testCredibleResetIsNotConsumptionAndResetsReactionCadence() async {
-        let appServer = FakeAppServer()
-        var now = Date(timeIntervalSince1970: 50_000)
-        let oldReset = Int64(now.addingTimeInterval(30).timeIntervalSince1970)
-        let newReset = oldReset + 18_000
-        let appState = AppState(
-            appServer: appServer,
-            retryDelays: [60],
-            now: { now },
-            historyStore: QuotaHistoryStore(fileURL: nil)
-        )
-        appState.start()
-
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 24, resetsAt: oldReset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 24 }
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 20, resetsAt: oldReset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 1 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-
-        let reactionResetID = appState.quotaReactionResetID
-        now.addTimeInterval(29)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 100, resetsAt: newReset))
-        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 100 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.id, 1)
-        XCTAssertGreaterThan(appState.quotaReactionResetID, reactionResetID)
-
-        now.addTimeInterval(1)
-        appServer.send(snapshot: Self.snapshot(remainingPercent: 99, resetsAt: newReset))
-        await Self.waitUntil { appState.quotaConsumptionEvent?.id == 2 }
-        XCTAssertEqual(appState.quotaConsumptionEvent?.kind, .small)
-        appState.stop()
-    }
-
     private static func transition(
         from previous: QuotaHistorySample,
         to current: QuotaHistorySample,
@@ -2345,20 +1879,6 @@ final class QuotaConsumptionReactionTests: XCTestCase {
             },
             secondary: nil
         )
-    }
-
-    @MainActor
-    private static func waitUntil(_ condition: () -> Bool) async {
-        for _ in 0..<200 where !condition() {
-            await Task.yield()
-        }
-    }
-
-    @MainActor
-    private static func drainMainActor() async {
-        for _ in 0..<10 {
-            await Task.yield()
-        }
     }
 }
 
@@ -2503,7 +2023,6 @@ final class PositionLockClickThroughTests: XCTestCase {
         XCTAssertFalse(controller.isContextMenuVisible)
         XCTAssertTrue(controller.isPanelIgnoringMouseEvents)
         XCTAssertFalse(controller.isPanelMovableByWindowBackground)
-        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
 
         appState.setPassesPointerInputThrough(false)
         controller.pointerClickThroughDidChange()
@@ -2513,7 +2032,7 @@ final class PositionLockClickThroughTests: XCTestCase {
     }
 
     @MainActor
-    func testClickThroughClearsTransientInputSuppressionWithoutCancellingReactions() throws {
+    func testClickThroughClearsTransientInputSuppression() throws {
         let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let frameName = "PositionLockClickThroughTests.\(UUID().uuidString)"
@@ -2529,37 +2048,27 @@ final class PositionLockClickThroughTests: XCTestCase {
         controller.setTooltipVisible(true)
         XCTAssertTrue(controller.isTooltipVisible)
         XCTAssertTrue(controller.isResetCountdownUpdateActive)
-        let tooltipReactionResetID = appState.quotaReactionResetID
         appState.setPassesPointerInputThrough(true)
         controller.pointerClickThroughDidChange()
         XCTAssertFalse(controller.isTooltipVisible)
         XCTAssertFalse(controller.isResetCountdownUpdateActive)
-        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
-        XCTAssertEqual(appState.quotaReactionResetID, tooltipReactionResetID)
 
         appState.setPassesPointerInputThrough(false)
         controller.pointerClickThroughDidChange()
         controller.beginDragTracking()
         XCTAssertTrue(controller.isDragTrackingActive)
-        XCTAssertFalse(appState.quotaReactionPresentationAllowed)
-        let dragReactionResetID = appState.quotaReactionResetID
         appState.setPassesPointerInputThrough(true)
         controller.pointerClickThroughDidChange()
         XCTAssertFalse(controller.isDragTrackingActive)
-        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
-        XCTAssertEqual(appState.quotaReactionResetID, dragReactionResetID)
 
         appState.setPassesPointerInputThrough(false)
         controller.pointerClickThroughDidChange()
         let frame = try XCTUnwrap(controller.petFrame)
         controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
         XCTAssertTrue(controller.isContextMenuVisible)
-        let contextReactionResetID = appState.quotaReactionResetID
         controller.contextMenuActions(appState: appState)
             .setPassesPointerInputThrough(true)
         XCTAssertFalse(controller.isContextMenuVisible)
-        XCTAssertTrue(appState.quotaReactionPresentationAllowed)
-        XCTAssertEqual(appState.quotaReactionResetID, contextReactionResetID)
         XCTAssertEqual(appState.absorptionResetID, absorptionResetID)
         controller.hide()
     }
