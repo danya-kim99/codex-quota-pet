@@ -165,6 +165,208 @@ final class QuotaHistoryTests: XCTestCase {
         )
     }
 
+    func testPresentationDerivesAdaptiveYDomainFromAllDisplayedPoints() {
+        struct DomainCase {
+            let name: String
+            let percentages: [Int]
+            let boundaries: [QuotaHistoryBoundary]
+            let expected: ClosedRange<Int>
+        }
+
+        let cases = [
+            DomainCase(name: "empty", percentages: [], boundaries: [], expected: 0...100),
+            DomainCase(
+                name: "slow change",
+                percentages: [99, 97],
+                boundaries: [.baseline, .continuous],
+                expected: 90...100
+            ),
+            DomainCase(
+                name: "flat",
+                percentages: [50, 50],
+                boundaries: [.baseline, .continuous],
+                expected: 45...55
+            ),
+            DomainCase(
+                name: "low edge",
+                percentages: [0, 1],
+                boundaries: [.baseline, .continuous],
+                expected: 0...10
+            ),
+            DomainCase(
+                name: "high edge",
+                percentages: [99, 100],
+                boundaries: [.baseline, .continuous],
+                expected: 90...100
+            ),
+            DomainCase(
+                name: "broad",
+                percentages: [20, 80],
+                boundaries: [.baseline, .continuous],
+                expected: 15...85
+            ),
+            DomainCase(
+                name: "full",
+                percentages: [0, 100],
+                boundaries: [.baseline, .continuous],
+                expected: 0...100
+            ),
+            DomainCase(
+                name: "gap includes both sides",
+                percentages: [82, 80],
+                boundaries: [.baseline, .gap],
+                expected: 75...85
+            ),
+            DomainCase(
+                name: "reset includes both sides",
+                percentages: [8, 100],
+                boundaries: [.baseline, .reset],
+                expected: 5...100
+            ),
+            DomainCase(
+                name: "equally close expands lower",
+                percentages: [7, 8],
+                boundaries: [.baseline, .continuous],
+                expected: 0...10
+            ),
+            DomainCase(
+                name: "closer upper expansion",
+                percentages: [8],
+                boundaries: [.baseline],
+                expected: 5...15
+            )
+        ]
+        let now = Date(timeIntervalSince1970: 4_250_000)
+        let reset = Int64(now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970)
+
+        for testCase in cases {
+            let samples = zip(testCase.percentages, testCase.boundaries)
+                .enumerated()
+                .map { index, value in
+                    var sample = QuotaHistorySample(
+                        snapshot: Self.snapshot(
+                            remainingPercent: value.0,
+                            resetsAt: reset
+                        ),
+                        observedAt: now.addingTimeInterval(TimeInterval(index - 2) * 60)
+                    )
+                    sample.primaryBoundary = value.1
+                    return sample
+                }
+            let presentation = QuotaHistoryPresentation.make(samples: samples, now: now)
+
+            XCTAssertEqual(presentation.yDomain, testCase.expected, testCase.name)
+            XCTAssertGreaterThanOrEqual(
+                presentation.yDomain.upperBound - presentation.yDomain.lowerBound,
+                10,
+                testCase.name
+            )
+            XCTAssertEqual(presentation.yDomain.lowerBound % 5, 0, testCase.name)
+            XCTAssertEqual(presentation.yDomain.upperBound % 5, 0, testCase.name)
+            XCTAssertGreaterThanOrEqual(presentation.yDomain.lowerBound, 0, testCase.name)
+            XCTAssertLessThanOrEqual(presentation.yDomain.upperBound, 100, testCase.name)
+            XCTAssertTrue(
+                presentation.points.allSatisfy {
+                    presentation.yDomain.contains($0.remainingPercent)
+                },
+                testCase.name
+            )
+        }
+    }
+
+    func testPresentationGroupsConsecutiveDisplayedGapBoundaries() {
+        let cases: [(
+            name: String,
+            boundaries: [QuotaHistoryBoundary],
+            minutes: [TimeInterval]?,
+            expected: [Range<Int>]
+        )] = [
+            ("empty", [], nil, []),
+            ("one point", [.baseline], nil, []),
+            ("none", [.baseline, .continuous], nil, []),
+            ("single", [.baseline, .gap], nil, [0..<2]),
+            ("consecutive", [.baseline, .gap, .gap, .gap], nil, [0..<4]),
+            (
+                "split by continuous",
+                [.baseline, .gap, .continuous, .gap],
+                nil,
+                [0..<2, 2..<4]
+            ),
+            (
+                "split by reset",
+                [.baseline, .gap, .reset, .gap],
+                nil,
+                [0..<2, 2..<4]
+            ),
+            (
+                "split by baseline",
+                [.baseline, .gap, .baseline, .gap],
+                nil,
+                [0..<2, 2..<4]
+            ),
+            ("same x", [.baseline, .gap, .gap], [0, 0, 0], [0..<3]),
+            ("clock reversed", [.baseline, .gap, .gap], [-3, -1, -2], [0..<3])
+        ]
+        let now = Date(timeIntervalSince1970: 4_375_000)
+        let reset = Int64(now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970)
+
+        for testCase in cases {
+            let samples = testCase.boundaries.enumerated().map { index, boundary in
+                var sample = QuotaHistorySample(
+                    snapshot: Self.snapshot(
+                        remainingPercent: 80 - index,
+                        resetsAt: reset
+                    ),
+                    observedAt: now.addingTimeInterval(
+                        (testCase.minutes?[index] ?? TimeInterval(index - 10)) * 60
+                    )
+                )
+                sample.primaryBoundary = boundary
+                return sample
+            }
+            let presentation = QuotaHistoryPresentation.make(samples: samples, now: now)
+
+            XCTAssertEqual(presentation.gapRanges, testCase.expected, testCase.name)
+            XCTAssertTrue(
+                presentation.gapRanges.allSatisfy {
+                    $0.lowerBound >= presentation.points.startIndex
+                        && $0.upperBound <= presentation.points.endIndex
+                        && !$0.isEmpty
+                },
+                testCase.name
+            )
+            XCTAssertTrue(
+                zip(presentation.gapRanges, presentation.gapRanges.dropFirst())
+                    .allSatisfy { $0.upperBound <= $1.lowerBound },
+                testCase.name
+            )
+        }
+
+        let denseCount = QuotaHistoryPresentation.maximumRenderPoints + 61
+        let denseSamples = (0..<denseCount)
+            .map { index in
+                var sample = QuotaHistorySample(
+                    snapshot: Self.snapshot(
+                        remainingPercent: 100 - index % 100,
+                        resetsAt: reset
+                    ),
+                    observedAt: now.addingTimeInterval(TimeInterval(index - denseCount) * 60)
+                )
+                sample.primaryBoundary = index == 0 ? .baseline : .gap
+                return sample
+            }
+        let decimated = QuotaHistoryPresentation.make(samples: denseSamples, now: now)
+
+        XCTAssertEqual(decimated.points.count, QuotaHistoryPresentation.maximumRenderPoints)
+        XCTAssertTrue(decimated.points.dropFirst().allSatisfy {
+            $0.boundaryBefore == .gap
+        })
+        XCTAssertEqual(
+            decimated.gapRanges,
+            [decimated.points.startIndex..<decimated.points.endIndex]
+        )
+    }
+
     func testPresentationKeepsEarlierCompletedSegmentUntilCurrentSegmentIsComparable() {
         let now = Date(timeIntervalSince1970: 4_500_000)
         let reset = Int64(now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970)

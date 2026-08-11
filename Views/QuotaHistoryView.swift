@@ -162,7 +162,18 @@ private struct QuotaHistoryChart: View {
                 let elapsed = point.observedAt.timeIntervalSince(presentation.rangeStart)
                 let x = plotRect.minX
                     + min(1, max(0, CGFloat(elapsed / range))) * plotRect.width
-                let fraction = CGFloat(min(100, max(0, point.remainingPercent))) / 100
+                let yRange = max(
+                    1,
+                    presentation.yDomain.upperBound - presentation.yDomain.lowerBound
+                )
+                let fraction = min(
+                    1,
+                    max(
+                        0,
+                        CGFloat(point.remainingPercent - presentation.yDomain.lowerBound)
+                            / CGFloat(yRange)
+                    )
+                )
                 let y = plotRect.minY + (1 - fraction) * plotRect.height
                 return CGPoint(x: x, y: y)
             }
@@ -176,12 +187,16 @@ private struct QuotaHistoryChart: View {
             }
 
             context.draw(
-                Text("100%").font(axisFont).foregroundStyle(labelColor),
+                Text("\(presentation.yDomain.upperBound)%")
+                    .font(axisFont)
+                    .foregroundStyle(labelColor),
                 at: CGPoint(x: plotRect.minX - 4, y: plotRect.minY),
                 anchor: .trailing
             )
             context.draw(
-                Text("0%").font(axisFont).foregroundStyle(labelColor),
+                Text("\(presentation.yDomain.lowerBound)%")
+                    .font(axisFont)
+                    .foregroundStyle(labelColor),
                 at: CGPoint(x: plotRect.minX - 4, y: plotRect.maxY),
                 anchor: .trailing
             )
@@ -196,9 +211,34 @@ private struct QuotaHistoryChart: View {
                 anchor: .bottomTrailing
             )
 
-            let latestGapIndex = points.indices.reversed().first {
-                points[$0].boundaryBefore == .gap
+            for gapRange in presentation.gapRanges {
+                let xPositions = gapRange.map { plotPoint(points[$0]).x }
+                guard let minimumX = xPositions.min(),
+                      let maximumX = xPositions.max() else { continue }
+                let gapRect = CGRect(
+                    x: minimumX,
+                    y: plotRect.minY,
+                    width: maximumX - minimumX,
+                    height: plotRect.height
+                )
+                let gap = Path(gapRect)
+                context.fill(gap, with: .color(.white.opacity(0.035)))
+                context.stroke(
+                    gap,
+                    with: .color(.white.opacity(0.42)),
+                    style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+                )
+                if gapRange == presentation.gapRanges.last, gapRect.width >= 44 {
+                    context.draw(
+                        Text(gapLabel)
+                            .font(boundaryFont)
+                            .foregroundStyle(labelColor),
+                        at: CGPoint(x: gapRect.midX, y: 0),
+                        anchor: .top
+                    )
+                }
             }
+
             let latestResetIndex = points.indices.reversed().first {
                 points[$0].boundaryBefore == .reset
             }
@@ -247,29 +287,6 @@ private struct QuotaHistoryChart: View {
                                 .font(boundaryFont)
                                 .foregroundStyle(resetColor),
                             at: CGPoint(x: labelX, y: 0),
-                            anchor: .top
-                        )
-                    }
-                } else if current.boundaryBefore == .gap {
-                    let gapRect = CGRect(
-                        x: min(start.x, end.x),
-                        y: plotRect.minY,
-                        width: abs(end.x - start.x),
-                        height: plotRect.height
-                    )
-                    let gap = Path(gapRect)
-                    context.fill(gap, with: .color(.white.opacity(0.035)))
-                    context.stroke(
-                        gap,
-                        with: .color(.white.opacity(0.42)),
-                        style: StrokeStyle(lineWidth: 1, dash: [3, 3])
-                    )
-                    if index == latestGapIndex, gapRect.width >= 44 {
-                        context.draw(
-                            Text(gapLabel)
-                                .font(boundaryFont)
-                                .foregroundStyle(labelColor),
-                            at: CGPoint(x: gapRect.midX, y: 0),
                             anchor: .top
                         )
                     }

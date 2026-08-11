@@ -367,6 +367,15 @@ The relaunch-continuity and chart-clarity amendment was approved for
 implementation on 8 August 2026. It keeps every existing history boundary and
 storage rule while making retained history visibly survive app lifecycle gaps.
 
+The adaptive history Y-scale amendment was approved for development on
+10 August 2026. It replaces only the fixed vertical chart domain so small
+observed integer-percentage changes remain legible without adding another
+interaction or changing tooltip geometry.
+
+The grouped history-gap amendment was approved for development on
+11 August 2026. It removes overlapping internal borders from adjacent displayed
+gap boundaries without changing their time positions or inferring missing data.
+
 - History contains only locally observed integer percentage snapshots and the
   minimum reset-window and limit identity metadata required to decide whether
   adjacent observations are comparable. It never stores tokens, cost, request
@@ -433,19 +442,34 @@ Persistence and privacy:
 
 Presentation:
 
-- The default range is the latest 24 hours. X is time-proportional across that
-  fixed range and Y is fixed at 0...100% so small movements are not exaggerated.
+- The default range is the latest 24 hours. X remains time-proportional across
+  that fixed range. L/M derive one shared adaptive Y-domain from every displayed
+  primary point, including observations on both sides of a reset or gap. The
+  domain adds 2 percentage points of padding on each available side, rounds
+  outward to 5-point boundaries, clamps to 0...100%, and expands in 5-point
+  steps to a minimum 10-point span. If expansion has two equally close choices,
+  the lower domain wins. The domain changes only with the derived history
+  presentation and never animates. The integer-percentage source still cannot
+  expose movement below one percentage point.
 - L and M show a static chart plus the latest uninterrupted comparable segment.
   Smooth uses an antialiased line; Pixel uses a stepped line. Both use identical
   data semantics and the current quota color. The chart title is `Last 24 h` /
   `Последние 24 ч`; compact endpoints and observed duration share its header.
-  Minimal `100%` / `0%` and `24 h ago` / `now` (`24 ч назад` / `сейчас`)
-  anchors explain the fixed axes without a full legend. The current endpoint is
-  an outlined marker. A reset stays a line break with an outlined diamond and a
-  direct `Reset` / `Сброс` label; its diamond sits between the adjacent
-  observations rather than pretending to be a measured percentage. Other
-  lost-continuity boundaries become a neutral lightly filled dashed span, with
-  the most recent span directly labeled `Gap` / `Перерыв` when it fits. Flat
+  Two numeric Y anchors show the actual upper and lower domain bounds, while
+  `24 h ago` / `now` (`24 ч назад` / `сейчас`) continue to explain the fixed
+  X-axis. There is no separate `Zoom` / `Увеличено` label or interactive zoom.
+  The current endpoint is an outlined marker. A reset stays a line break with an
+  outlined diamond and a direct `Reset` / `Сброс` label; its diamond sits between
+  the adjacent observations rather than pretending to be a measured percentage.
+  Consecutive displayed lost-continuity boundaries form one maximal neutral
+  lightly filled dashed span with no internal borders. Continuous, reset, and
+  baseline boundaries always end a span; even a short real continuous segment
+  remains visible and separates adjacent spans. Grouping uses the already
+  derived displayed points, preserves the outer time positions, and changes
+  presentation only: it does not claim one outage, its duration, or a quota
+  transition through missing continuity. The most recent grouped span is
+  directly labeled `Gap` / `Перерыв` when it fits; there is no separate badge.
+  Every displayed observation remains inside the shared domain, and flat
   observations remain horizontal. These additions do not change panel geometry.
 - User copy shows endpoints instead of percentage-point notation: for example,
   `85% → 77%` with `over 6 hours observed`, and in compact form
@@ -519,7 +543,8 @@ Acceptance criteria for this update:
   unwritable storage, in-memory continuation, retry, and confirmed clear are
   safe and do not affect live quota behavior;
 - Smooth and Pixel L/M/S render the approved current/earlier endpoint copy,
-  direct axis, gap, reset, and current-point cues, graph/compact composition,
+  adaptive Y-domain and actual bound labels, grouped gap, reset, and
+  current-point cues, graph/compact composition,
   Standard/Turbo, Reduce Motion, stale, missing, English, Russian,
   accessibility, and visible/hidden geometry states;
 - all tooltip placements, display edges, accessibility text sizes, hover,
