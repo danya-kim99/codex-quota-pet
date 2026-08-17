@@ -791,14 +791,14 @@ final class RateLimitDecodingTests: XCTestCase {
         let catalog = try AbsorbableObjectCatalog(bundle: appBundle)
 
         XCTAssertEqual(catalog.manifest.canvas, .init(width: 80, height: 80))
-        XCTAssertEqual(catalog.manifest.objects.count, 31)
+        XCTAssertEqual(catalog.manifest.objects.count, 33)
         XCTAssertEqual(
             Dictionary(uniqueKeysWithValues: catalog.manifest.categories.map { ($0.id, $0.weight) }),
             ["space": 2, "animals": 2, "characters": 1]
         )
         XCTAssertEqual(
             catalog.manifest.objects.filter { $0.category == "characters" }.count,
-            7
+            9
         )
 
         for object in catalog.manifest.objects {

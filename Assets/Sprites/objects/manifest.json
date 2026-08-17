@@ -172,6 +172,16 @@
       "id": "character-botanical-shirt",
       "category": "characters",
       "asset": "absorb-character-botanical-shirt"
+    },
+    {
+      "id": "character-taupe-loungewear",
+      "category": "characters",
+      "asset": "absorb-character-taupe-loungewear"
+    },
+    {
+      "id": "character-tied-cream-sweater",
+      "category": "characters",
+      "asset": "absorb-character-tied-cream-sweater"
     }
   ]
 }

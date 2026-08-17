@@ -15,6 +15,8 @@ OBJECT_SOURCE = ROOT / "docs/concepts/absorbable-objects-contact-sheet-v1.png"
 CHARACTER_SOURCE = ROOT / "docs/concepts/characters-contact-sheet-v1.png"
 CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-05-v1.png"
 FINAL_CHARACTER_PAIR_SOURCE = ROOT / "docs/concepts/absorbable-people-06-07-v2.png"
+TAUPE_LOUNGEWEAR_SOURCE = ROOT / "docs/concepts/absorbable-person-08-v5.png"
+TIED_CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-09-v4.png"
 OUTPUT_DIR = ROOT / "Assets/Sprites/objects"
 PREVIEW = ROOT / "Assets/Sprites/previews/absorbable-objects-atlas.png"
 CANVAS_SIZE = (80, 80)
@@ -61,6 +63,8 @@ MODELS = [
     ("character-cream-sweater", "characters"),
     ("character-cargo-skirt", "characters"),
     ("character-botanical-shirt", "characters"),
+    ("character-taupe-loungewear", "characters"),
+    ("character-tied-cream-sweater", "characters"),
 ]
 
 OBJECT_MODELS = MODELS[:24]
@@ -530,8 +534,26 @@ def main() -> None:
     sprites.update(
         extract_sheet(
             FINAL_CHARACTER_PAIR_SOURCE,
-            CHARACTER_MODELS[5:],
+            CHARACTER_MODELS[5:7],
             columns=2,
+            rows=1,
+            inset=28,
+        )
+    )
+    sprites.update(
+        extract_sheet(
+            TAUPE_LOUNGEWEAR_SOURCE,
+            CHARACTER_MODELS[7:8],
+            columns=1,
+            rows=1,
+            inset=28,
+        )
+    )
+    sprites.update(
+        extract_sheet(
+            TIED_CREAM_SWEATER_SOURCE,
+            CHARACTER_MODELS[8:9],
+            columns=1,
             rows=1,
             inset=28,
         )

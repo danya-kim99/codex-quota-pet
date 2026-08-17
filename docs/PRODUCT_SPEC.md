@@ -733,8 +733,8 @@ V3 design and uses the bundled manifest-driven asset set.
 - Objects spawn inside an edge of the selected 400 × 220, 320 × 176, or
   240 × 132 pt pet window. The feature does not create a desktop-wide overlay
   or inspect applications, files, or other windows.
-- The bundled set contains 31 approved models: twelve space objects, twelve
-  cute animals, and seven characters. Category selection uses `2 : 2 : 1`
+- The bundled set contains 33 approved models: twelve space objects, twelve
+  cute animals, and nine characters. Category selection uses `2 : 2 : 1`
   weights, producing 40% space objects, 40% animals, and 20% characters, with
   no immediate model repeat.
 - At most three objects can be active. Their starting sides differ when
@@ -788,6 +788,15 @@ the cargo-skirt and botanical-shirt characters. It supersedes their V1 concept
 and aligns them with the approved white-shirt, purple-shirt, and green-hoodie
 character style. The catalog remains 31 models with seven characters, and the
 existing character category weight and interaction behavior are unchanged.
+
+On 17 August 2026, the user approved two additional character concepts:
+[`absorbable-person-08-v5.png`](concepts/absorbable-person-08-v5.png), the man
+in a taupe loungewear set, and
+[`absorbable-person-09-v4.png`](concepts/absorbable-person-09-v4.png), the woman
+with round glasses, a vivid golden-yellow face-framing streak, a tied cream
+sweater, and wide gray trousers. Her V4 concept supersedes V3. The catalog now
+contains 33 models with nine characters. The existing `characters` category
+weight, selection behavior, animation, and interaction rules remain unchanged.
 
 The V2 astronaut animation is the approved representative visual prototype.
 The slower V3 timing is approved through the three-object launch with varied
