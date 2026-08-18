@@ -85,6 +85,59 @@ struct MenuBarContent: View {
                 }
             }
 
+            Menu(
+                String.localizedStringWithFormat(
+                    localized("menu.object_mix.format"),
+                    appState.absorptionCategoryWeightsSummary
+                )
+            ) {
+                Text(localized("menu.object_mix.hint.frequency"))
+                Text(localized("menu.object_mix.hint.zero"))
+
+                ForEach(appState.absorptionCategories, id: \.id) { category in
+                    let currentWeight = appState.absorptionCategoryWeights[
+                        category.id,
+                        default: category.weight
+                    ]
+                    Picker(
+                        String.localizedStringWithFormat(
+                            localized("menu.object_mix.category.format"),
+                            localized("absorption.category.\(category.id)"),
+                            currentWeight
+                        ),
+                        selection: Binding(
+                            get: { currentWeight },
+                            set: {
+                                appState.setAbsorptionCategoryWeight(
+                                    $0,
+                                    for: category.id
+                                )
+                            }
+                        )
+                    ) {
+                        ForEach(0...3, id: \.self) { weight in
+                            Text(weight == 0 ? localized("menu.object_mix.off") : String(weight))
+                                .tag(weight)
+                                .disabled(
+                                    !appState.canSetAbsorptionCategoryWeight(
+                                        weight,
+                                        for: category.id
+                                    )
+                                )
+                        }
+                    }
+                    .help(localized("menu.object_mix.hint"))
+                    .accessibilityValue(
+                        currentWeight == 0
+                            ? localized("menu.object_mix.off")
+                            : String(currentWeight)
+                    )
+                    .accessibilityHint(localized("menu.object_mix.hint"))
+                }
+            }
+            .help(localized("menu.object_mix.hint"))
+            .accessibilityHint(localized("menu.object_mix.hint"))
+
             Toggle(
                 localized("menu.lock_position"),
                 isOn: Binding(

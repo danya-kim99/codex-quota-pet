@@ -148,6 +148,7 @@ struct PixelContextMenuActions {
     let dismiss: () -> Void
     let retry: () -> Void
     let setPetSize: (PetSize) -> Void
+    let setAbsorptionCategoryWeight: (String, Int) -> Void
     let setPetPositionLocked: (Bool) -> Void
     let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
@@ -161,7 +162,12 @@ struct PixelContextMenuActions {
 
 struct PixelContextMenuView: View {
     nonisolated static let mainWidth: CGFloat = 232
-    nonisolated static let submenuWidth: CGFloat = 146
+    nonisolated static let compactSubmenuWidth: CGFloat = 146
+    nonisolated static let submenuWidth: CGFloat = 214
+    nonisolated static let matrixCategoryWidth: CGFloat = 76
+    nonisolated static let matrixCellSize: CGFloat = 31
+    nonisolated static let matrixCategoryCount = 3
+    nonisolated static let matrixWeights = Array(0...3)
     nonisolated static let menuGap: CGFloat = 8
     nonisolated static let purpleShadowOffset = CGSize(width: 4, height: -4)
     nonisolated static let blackShadowOffset = CGSize(width: 8, height: -8)
@@ -175,7 +181,7 @@ struct PixelContextMenuView: View {
     )
     nonisolated static let panelSize = CGSize(
         width: mainWidth + menuGap + submenuWidth + shadowTrailingInset,
-        height: 443
+        height: 474
     )
 
     let appState: AppState
@@ -188,6 +194,7 @@ struct PixelContextMenuView: View {
     @State private var selectedSize: PetSize?
     @State private var selectedTooltipStyle: TooltipStyle?
     @State private var showsSizeSubmenu = true
+    @State private var showsObjectMixSubmenu = false
     @State private var showsTooltipStyleSubmenu = false
 
     var body: some View {
@@ -306,6 +313,18 @@ struct PixelContextMenuView: View {
             )
 
             row(
+                .objectMix,
+                title: String.localizedStringWithFormat(
+                    localized("menu.object_mix.format"),
+                    appState.absorptionCategoryWeightsSummary
+                ),
+                icon: .mix,
+                showsDisclosure: true,
+                accessibilityValue: appState.absorptionCategoryWeightsSummary,
+                accessibilityHelp: localized("menu.object_mix.hint")
+            )
+
+            row(
                 .positionLock,
                 title: localized("menu.lock_position"),
                 icon: .lock,
@@ -389,58 +408,172 @@ struct PixelContextMenuView: View {
     @ViewBuilder
     private var submenuSlot: some View {
         if showsSizeSubmenu {
-            VStack(spacing: 0) {
-                ForEach(PetSize.allCases, id: \.self) { size in
-                    PixelMenuRow(
-                        title: size.label,
-                        icon: size == .small ? .small : size == .medium ? .medium : .large,
-                        isSelected: selectedSize == size,
-                        isChecked: appState.petSize == size,
-                        showsDisclosure: false,
-                        isEnabled: true,
-                        isDestructive: false
-                    ) {
-                        actions.setPetSize(size)
-                    } onHover: { isHovering in
-                        guard isHovering else { return }
-                        selectedItem = .size
-                        selectedSize = size
+            compactSubmenu {
+                VStack(spacing: 0) {
+                    ForEach(PetSize.allCases, id: \.self) { size in
+                        PixelMenuRow(
+                            title: size.label,
+                            icon: size == .small ? .small : size == .medium ? .medium : .large,
+                            isSelected: selectedSize == size,
+                            isChecked: appState.petSize == size,
+                            showsDisclosure: false,
+                            isEnabled: true,
+                            isDestructive: false
+                        ) {
+                            actions.setPetSize(size)
+                        } onHover: { isHovering in
+                            guard isHovering else { return }
+                            selectedItem = .size
+                            selectedSize = size
+                        }
                     }
                 }
+                .padding(7)
+                .frame(width: Self.compactSubmenuWidth)
+                .background(PixelMenuBackground())
             }
-            .padding(7)
-            .frame(width: Self.submenuWidth)
-            .background(PixelMenuBackground())
-            .padding(.top, submenuTopPadding)
+        } else if showsObjectMixSubmenu {
+            objectMixMatrix
+                .padding(.top, submenuTopPadding)
         } else if showsTooltipStyleSubmenu {
-            VStack(spacing: 0) {
-                ForEach(TooltipStyle.allCases, id: \.self) { style in
-                    PixelMenuRow(
-                        title: style.title,
-                        icon: style == .smooth ? .smooth : .pixel,
-                        isSelected: selectedTooltipStyle == style,
-                        isChecked: appState.tooltipStyle == style,
-                        showsDisclosure: false,
-                        isEnabled: true,
-                        isDestructive: false
-                    ) {
-                        actions.setTooltipStyle(style)
-                    } onHover: { isHovering in
-                        guard isHovering else { return }
-                        selectedItem = .tooltipStyle
-                        selectedTooltipStyle = style
+            compactSubmenu {
+                VStack(spacing: 0) {
+                    ForEach(TooltipStyle.allCases, id: \.self) { style in
+                        PixelMenuRow(
+                            title: style.title,
+                            icon: style == .smooth ? .smooth : .pixel,
+                            isSelected: selectedTooltipStyle == style,
+                            isChecked: appState.tooltipStyle == style,
+                            showsDisclosure: false,
+                            isEnabled: true,
+                            isDestructive: false
+                        ) {
+                            actions.setTooltipStyle(style)
+                        } onHover: { isHovering in
+                            guard isHovering else { return }
+                            selectedItem = .tooltipStyle
+                            selectedTooltipStyle = style
+                        }
                     }
                 }
+                .padding(7)
+                .frame(width: Self.compactSubmenuWidth)
+                .background(PixelMenuBackground())
             }
-            .padding(7)
-            .frame(width: Self.submenuWidth)
-            .background(PixelMenuBackground())
-            .padding(.top, submenuTopPadding)
         } else {
             Color.clear
                 .frame(width: Self.submenuWidth, height: 1)
                 .allowsHitTesting(false)
         }
+    }
+
+    private func compactSubmenu<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(
+                width: Self.submenuWidth,
+                alignment: presentation.placement.opensRight ? .leading : .trailing
+            )
+            .padding(.top, submenuTopPadding)
+    }
+
+    private var objectMixMatrix: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 0) {
+                Color.clear
+                    .frame(width: Self.matrixCategoryWidth, height: 18)
+
+                ForEach(Self.matrixWeights, id: \.self) { weight in
+                    Text(String(weight))
+                        .frame(width: Self.matrixCellSize, height: 18)
+                }
+            }
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(PixelPalette.mutedGold)
+            .accessibilityHidden(true)
+
+            ForEach(
+                Array(appState.absorptionCategories.prefix(Self.matrixCategoryCount)),
+                id: \.id
+            ) { category in
+                let categoryName = localized("absorption.category.\(category.id)")
+                let currentWeight = appState.absorptionCategoryWeights[
+                    category.id,
+                    default: category.weight
+                ]
+
+                HStack(spacing: 0) {
+                    Text(categoryName)
+                        .lineLimit(1)
+                        .frame(
+                            width: Self.matrixCategoryWidth,
+                            height: Self.matrixCellSize,
+                            alignment: .leading
+                        )
+                        .accessibilityHidden(true)
+
+                    ForEach(Self.matrixWeights, id: \.self) { weight in
+                        let isEnabled = appState.canSetAbsorptionCategoryWeight(
+                            weight,
+                            for: category.id
+                        )
+                        let presentation = PixelObjectMixCellPresentation(
+                            weight: weight,
+                            currentWeight: currentWeight,
+                            isEnabled: isEnabled
+                        )
+                        PixelObjectMixWeightCell(
+                            weight: weight,
+                            presentation: presentation,
+                            accessibilityLabel: objectMixCellAccessibilityLabel(
+                                categoryName: categoryName,
+                                weight: weight
+                            ),
+                            accessibilityHelp: localized(
+                                isEnabled
+                                    ? "menu.object_mix.hint"
+                                    : "menu.object_mix.matrix.last_active.help"
+                            )
+                        ) {
+                            actions.setAbsorptionCategoryWeight(category.id, weight)
+                        }
+                    }
+                }
+            }
+
+            PixelDivider()
+
+            Text(localized("menu.object_mix.matrix.hint.zero"))
+                .frame(height: 18)
+                .accessibilityHidden(true)
+            Text(localized("menu.object_mix.matrix.hint.frequency"))
+                .frame(height: 18)
+                .accessibilityHidden(true)
+        }
+        .font(.system(size: 11, weight: .medium, design: .monospaced))
+        .foregroundStyle(PixelPalette.mutedGold)
+        .padding(7)
+        .frame(width: Self.submenuWidth)
+        .background(PixelMenuBackground())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(localized("menu.object_mix.matrix.accessibility.label"))
+        .accessibilityValue(appState.absorptionCategoryWeightsSummary)
+        .accessibilityHint(localized("menu.object_mix.hint"))
+    }
+
+    private func objectMixCellAccessibilityLabel(
+        categoryName: String,
+        weight: Int
+    ) -> String {
+        let weightLabel = weight == 0
+            ? localized("menu.object_mix.matrix.zero.accessibility")
+            : String(weight)
+        return String.localizedStringWithFormat(
+            localized("menu.object_mix.matrix.cell.accessibility.format"),
+            categoryName,
+            weightLabel
+        )
     }
 
     private func row(
@@ -473,6 +606,7 @@ struct PixelContextMenuView: View {
             selectedTooltipStyle = nil
             selectedItem = item
             showsSizeSubmenu = item == .size
+            showsObjectMixSubmenu = item == .objectMix
             showsTooltipStyleSubmenu = item == .tooltipStyle
         }
     }
@@ -498,6 +632,7 @@ struct PixelContextMenuView: View {
         }
         items += [
             .size,
+            .objectMix,
             .positionLock,
             .pointerClickThrough,
             .tooltipStyle,
@@ -534,12 +669,14 @@ struct PixelContextMenuView: View {
         let index = items.firstIndex(of: selectedItem) ?? 0
         selectedItem = items[(index + offset + items.count) % items.count]
         showsSizeSubmenu = selectedItem == .size
+        showsObjectMixSubmenu = selectedItem == .objectMix
         showsTooltipStyleSubmenu = selectedItem == .tooltipStyle
     }
 
     private func enterSizeSubmenu() {
         guard presentation.phase == .open, selectedItem == .size else { return }
         showsSizeSubmenu = true
+        showsObjectMixSubmenu = false
         showsTooltipStyleSubmenu = false
         selectedTooltipStyle = nil
         selectedSize = appState.petSize
@@ -548,6 +685,7 @@ struct PixelContextMenuView: View {
     private func enterTooltipStyleSubmenu() {
         guard presentation.phase == .open, selectedItem == .tooltipStyle else { return }
         showsSizeSubmenu = false
+        showsObjectMixSubmenu = false
         showsTooltipStyleSubmenu = true
         selectedSize = nil
         selectedTooltipStyle = appState.tooltipStyle
@@ -556,6 +694,10 @@ struct PixelContextMenuView: View {
     private func enterSelectedSubmenu() {
         if selectedItem == .size {
             enterSizeSubmenu()
+        } else if selectedItem == .objectMix {
+            showsSizeSubmenu = false
+            showsObjectMixSubmenu = true
+            showsTooltipStyleSubmenu = false
         } else if selectedItem == .tooltipStyle {
             enterTooltipStyleSubmenu()
         }
@@ -579,6 +721,10 @@ struct PixelContextMenuView: View {
             actions.retry()
         case .size:
             enterSizeSubmenu()
+        case .objectMix:
+            showsSizeSubmenu = false
+            showsObjectMixSubmenu = true
+            showsTooltipStyleSubmenu = false
         case .positionLock:
             actions.setPetPositionLocked(!appState.isPetPositionLocked)
         case .pointerClickThrough:
@@ -647,12 +793,16 @@ struct PixelContextMenuView: View {
 
     private var submenuTopPadding: CGFloat {
         let firstRowOffset: CGFloat = appState.connectionState == .connected ? 7 : 38
-        return firstRowOffset + (showsTooltipStyleSubmenu ? 93 : 0)
+        if showsObjectMixSubmenu {
+            return firstRowOffset + 31
+        }
+        return firstRowOffset + (showsTooltipStyleSubmenu ? 124 : 0)
     }
 
     private enum ItemID: Equatable {
         case retry
         case size
+        case objectMix
         case positionLock
         case pointerClickThrough
         case tooltipStyle
@@ -662,6 +812,111 @@ struct PixelContextMenuView: View {
         case openLoginItems
         case hidePet
         case quit
+    }
+}
+
+struct PixelObjectMixCellPresentation: Equatable {
+    let isSelected: Bool
+    let isEnabled: Bool
+
+    init(weight: Int, currentWeight: Int, isEnabled: Bool) {
+        isSelected = weight == currentWeight
+        self.isEnabled = isEnabled
+    }
+
+    var acceptsAction: Bool {
+        isEnabled && !isSelected
+    }
+}
+
+private struct PixelObjectMixWeightCell: View {
+    let weight: Int
+    let presentation: PixelObjectMixCellPresentation
+    let accessibilityLabel: String
+    let accessibilityHelp: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            guard presentation.acceptsAction else { return }
+            action()
+        } label: {
+            Text(String(weight))
+        }
+        .buttonStyle(
+            PixelObjectMixCellButtonStyle(
+                isSelected: presentation.isSelected,
+                isHovering: isHovering,
+                isEnabled: presentation.isEnabled
+            )
+        )
+        .disabled(!presentation.isEnabled)
+        .onHover { isHovering in
+            self.isHovering = presentation.isEnabled && isHovering
+        }
+        .onChange(of: presentation.isEnabled) { _, isEnabled in
+            if !isEnabled {
+                isHovering = false
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHelp)
+        .accessibilityAddTraits(presentation.isSelected ? .isSelected : [])
+    }
+}
+
+private struct PixelObjectMixCellButtonStyle: ButtonStyle {
+    let isSelected: Bool
+    let isHovering: Bool
+    let isEnabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11, weight: .bold, design: .monospaced))
+            .foregroundStyle(foregroundColor)
+            .frame(
+                width: PixelContextMenuView.matrixCellSize,
+                height: PixelContextMenuView.matrixCellSize
+            )
+            .contentShape(Rectangle())
+            .background(fillColor(isPressed: configuration.isPressed))
+            .overlay {
+                Rectangle()
+                    .stroke(
+                        borderColor,
+                        lineWidth: isHovering && isEnabled && !isSelected ? 2 : 1
+                    )
+            }
+    }
+
+    private var foregroundColor: Color {
+        if !isEnabled {
+            return PixelPalette.disabled
+        }
+        if isSelected {
+            return PixelPalette.darkText
+        }
+        return isHovering ? PixelPalette.highlightText : PixelPalette.mutedGold
+    }
+
+    private func fillColor(isPressed: Bool) -> Color {
+        guard isEnabled else { return PixelPalette.disabledBackground }
+        if isPressed {
+            return isSelected
+                ? PixelPalette.brightGold.opacity(0.72)
+                : PixelPalette.orange.opacity(0.42)
+        }
+        if isSelected {
+            return PixelPalette.brightGold
+        }
+        return isHovering ? PixelPalette.hoverBackground : PixelPalette.cellBackground
+    }
+
+    private var borderColor: Color {
+        guard isEnabled else { return PixelPalette.innerBorder.opacity(0.35) }
+        return isHovering && !isSelected ? PixelPalette.brightGold : PixelPalette.innerBorder
     }
 }
 
@@ -823,6 +1078,9 @@ private struct PixelPanelShape: Shape {
 
 enum PixelPalette {
     static let background = Color(red: 0.063, green: 0.043, blue: 0.094)
+    static let cellBackground = Color(red: 0.071, green: 0.051, blue: 0.098)
+    static let disabledBackground = Color(red: 0.129, green: 0.090, blue: 0.157)
+    static let darkText = Color(red: 0.090, green: 0.063, blue: 0.118)
     static let border = Color(red: 0.557, green: 0.431, blue: 0.125)
     static let innerBorder = Color(red: 0.294, green: 0.204, blue: 0.118)
     static let hoverBackground = Color(red: 0.290, green: 0.196, blue: 0.106)
@@ -837,6 +1095,7 @@ enum PixelPalette {
 private enum PixelMenuIcon {
     case retry
     case size
+    case mix
     case style
     case history
     case smooth
@@ -865,6 +1124,11 @@ private enum PixelMenuIcon {
             [
                 "###......###", "#..........#", "#..........#", "............",
                 "............", "#..........#", "#..........#", "###......###"
+            ]
+        case .mix:
+            [
+                ".##########.", ".#.#.#.#.##.", ".##########.", ".#.#.#.#.##.",
+                ".##########.", ".#.#.#.#.##.", ".##########.", "............"
             ]
         case .style:
             [

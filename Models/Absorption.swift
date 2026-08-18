@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreFoundation
 import Foundation
 
 struct AbsorbableObjectManifest: Decodable, Equatable {
@@ -9,7 +10,7 @@ struct AbsorbableObjectManifest: Decodable, Equatable {
 
     struct Category: Decodable, Equatable {
         let id: String
-        let weight: Double
+        let weight: Int
     }
 
     struct Object: Decodable, Equatable, Identifiable {
@@ -36,6 +37,10 @@ enum AbsorbableObjectCatalogError: Error, Equatable {
 struct AbsorbableObjectCatalog {
     let manifest: AbsorbableObjectManifest
 
+    var defaultCategoryWeights: [String: Int] {
+        Dictionary(uniqueKeysWithValues: manifest.categories.map { ($0.id, $0.weight) })
+    }
+
     init(data: Data) throws {
         let manifest = try JSONDecoder().decode(AbsorbableObjectManifest.self, from: data)
         try Self.validate(manifest)
@@ -55,15 +60,22 @@ struct AbsorbableObjectCatalog {
 
     func select(
         excluding excludedID: String?,
+        categoryWeights: [String: Int]? = nil,
         categoryRoll: Double,
         objectRoll: Double
     ) -> AbsorbableObjectManifest.Object? {
-        let eligibleObjects = manifest.objects.filter { $0.id != excludedID }
+        let weights = effectiveCategoryWeights(categoryWeights)
+        let activeObjects = manifest.objects.filter { weights[$0.category, default: 0] > 0 }
+        let eligibleObjects = activeObjects.filter { $0.id != excludedID }
+        if eligibleObjects.isEmpty, activeObjects.count == 1 {
+            return activeObjects[0]
+        }
         let eligibleCategories = manifest.categories.filter { category in
             eligibleObjects.contains { $0.category == category.id }
         }
         guard let category = Self.weightedCategory(
             from: eligibleCategories,
+            weights: weights,
             roll: categoryRoll
         ) else {
             return nil
@@ -78,6 +90,38 @@ struct AbsorbableObjectCatalog {
         return objects[index]
     }
 
+    func resolvedCategoryWeights(from storedValue: Any?) -> [String: Int] {
+        guard let storedValue else { return defaultCategoryWeights }
+        guard let stored = storedValue as? [String: Any] else {
+            return defaultCategoryWeights
+        }
+
+        var resolved = defaultCategoryWeights
+        for category in manifest.categories {
+            guard let value = stored[category.id] else { continue }
+            guard let weight = Self.preferenceWeight(value) else {
+                return defaultCategoryWeights
+            }
+            resolved[category.id] = weight
+        }
+        return validatedCategoryWeights(resolved) ?? defaultCategoryWeights
+    }
+
+    func validatedCategoryWeights(_ weights: [String: Int]) -> [String: Int]? {
+        var resolved = defaultCategoryWeights
+        for category in manifest.categories {
+            guard let weight = weights[category.id] else { continue }
+            guard 0...3 ~= weight else { return nil }
+            resolved[category.id] = weight
+        }
+        return resolved.values.contains(where: { $0 > 0 }) ? resolved : nil
+    }
+
+    private func effectiveCategoryWeights(_ weights: [String: Int]?) -> [String: Int] {
+        guard let weights else { return defaultCategoryWeights }
+        return validatedCategoryWeights(weights) ?? defaultCategoryWeights
+    }
+
     private static func validate(_ manifest: AbsorbableObjectManifest) throws {
         guard manifest.canvas.width == 80, manifest.canvas.height == 80 else {
             throw AbsorbableObjectCatalogError.invalidCanvas
@@ -88,7 +132,7 @@ struct AbsorbableObjectCatalog {
             guard categoryIDs.insert(category.id).inserted else {
                 throw AbsorbableObjectCatalogError.duplicateCategory(category.id)
             }
-            guard category.weight > 0 else {
+            guard 1...3 ~= category.weight else {
                 throw AbsorbableObjectCatalogError.invalidCategoryWeight(category.id)
             }
         }
@@ -114,20 +158,30 @@ struct AbsorbableObjectCatalog {
 
     private static func weightedCategory(
         from categories: [AbsorbableObjectManifest.Category],
+        weights: [String: Int],
         roll: Double
     ) -> AbsorbableObjectManifest.Category? {
-        let totalWeight = categories.reduce(0) { $0 + $1.weight }
+        let totalWeight = categories.reduce(0) { $0 + weights[$1.id, default: 0] }
         guard totalWeight > 0 else { return nil }
 
-        let target = unitInterval(roll) * totalWeight
-        var cumulativeWeight = 0.0
+        let target = unitInterval(roll) * Double(totalWeight)
+        var cumulativeWeight = 0
         for category in categories {
-            cumulativeWeight += category.weight
-            if target < cumulativeWeight {
+            cumulativeWeight += weights[category.id, default: 0]
+            if target < Double(cumulativeWeight) {
                 return category
             }
         }
         return categories.last
+    }
+
+    private static func preferenceWeight(_ value: Any) -> Int? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: number.objCType)),
+              let weight = Int(exactly: number.doubleValue),
+              0...3 ~= weight else { return nil }
+        return weight
     }
 
     private static func unitInterval(_ value: Double) -> Double {

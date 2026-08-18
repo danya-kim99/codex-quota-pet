@@ -148,13 +148,17 @@ enum QuotaHistoryClassifier {
         currentWindow: QuotaHistoryWindow?,
         forceGap: Bool
     ) -> QuotaHistoryBoundary {
-        switch transition(
+        boundary(for: transition(
             previousSample: previousSample,
             currentSample: currentSample,
             previousWindow: previousWindow,
             currentWindow: currentWindow,
             forceGap: forceGap
-        ) {
+        ))
+    }
+
+    static func boundary(for transition: QuotaSnapshotTransition) -> QuotaHistoryBoundary {
+        switch transition {
         case .duplicate, .consumption:
             return .continuous
         case .reset:
@@ -178,6 +182,8 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
     let points: [QuotaHistoryPoint]
     let rangeStart: Date
     let rangeEnd: Date
+    let yDomain: ClosedRange<Int>
+    let gapRanges: [Range<Int>]
     let startPercent: Int?
     let endPercent: Int?
     let observedDuration: TimeInterval?
@@ -191,6 +197,8 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
             points: [],
             rangeStart: now.addingTimeInterval(-rangeDuration),
             rangeEnd: now,
+            yDomain: 0...100,
+            gapRanges: [],
             startPercent: nil,
             endPercent: nil,
             observedDuration: nil,
@@ -225,10 +233,13 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         }
 
         let summary = summarySegment(in: recent, currentUnavailable: currentUnavailable)
+        let points = decimated(allPoints)
         return Self(
-            points: decimated(allPoints),
+            points: points,
             rangeStart: rangeStart,
             rangeEnd: now,
+            yDomain: yDomain(for: points),
+            gapRanges: gapRanges(in: points),
             startPercent: summary.samples.first?.primary?.remainingPercent,
             endPercent: summary.samples.last?.primary?.remainingPercent,
             observedDuration: summary.samples.count >= 2
@@ -391,6 +402,50 @@ struct QuotaHistoryPresentation: Equatable, Sendable {
         return details.joined(separator: ", ")
     }
 
+    private static func yDomain(for points: [QuotaHistoryPoint]) -> ClosedRange<Int> {
+        guard let rawMinimum = points.map(\.remainingPercent).min(),
+              let rawMaximum = points.map(\.remainingPercent).max() else {
+            return 0...100
+        }
+
+        let minimum = min(100, max(0, rawMinimum))
+        let maximum = min(100, max(0, rawMaximum))
+        var lower = max(0, minimum - 2) / 5 * 5
+        var upper = min(100, (min(100, maximum + 2) + 4) / 5 * 5)
+
+        while upper - lower < 10 {
+            if lower > 0, upper < 100 {
+                if minimum - lower <= upper - maximum {
+                    lower -= 5
+                } else {
+                    upper += 5
+                }
+            } else if lower > 0 {
+                lower -= 5
+            } else {
+                upper += 5
+            }
+        }
+        return lower...upper
+    }
+
+    private static func gapRanges(in points: [QuotaHistoryPoint]) -> [Range<Int>] {
+        var ranges: [Range<Int>] = []
+        var runStart: Int?
+        for index in points.indices.dropFirst() {
+            if points[index].boundaryBefore == .gap {
+                runStart = runStart ?? index - 1
+            } else if let start = runStart {
+                ranges.append(start..<index)
+                runStart = nil
+            }
+        }
+        if let start = runStart {
+            ranges.append(start..<points.endIndex)
+        }
+        return ranges
+    }
+
     private static func summarySegment(
         in samples: [QuotaHistorySample],
         currentUnavailable: Bool
@@ -502,7 +557,8 @@ actor QuotaHistoryStore {
     func record(
         snapshot: QuotaSnapshot,
         at observedAt: Date,
-        forceGap: Bool
+        forceGap: Bool,
+        primaryTransition: QuotaSnapshotTransition? = nil
     ) -> QuotaHistoryStoreUpdate {
         ensureLoaded(at: observedAt)
         var current = QuotaHistorySample(snapshot: snapshot, observedAt: observedAt)
@@ -520,11 +576,13 @@ actor QuotaHistoryStore {
             }
 
             current.primaryBoundary = QuotaHistoryClassifier.boundary(
-                previousSample: previous,
-                currentSample: current,
-                previousWindow: previous.primary,
-                currentWindow: current.primary,
-                forceGap: forceGap
+                for: primaryTransition ?? QuotaHistoryClassifier.transition(
+                    previousSample: previous,
+                    currentSample: current,
+                    previousWindow: previous.primary,
+                    currentWindow: current.primary,
+                    forceGap: forceGap
+                )
             )
             current.secondaryBoundary = QuotaHistoryClassifier.boundary(
                 previousSample: previous,

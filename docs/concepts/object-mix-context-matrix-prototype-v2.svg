@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07070a"/>
+      <stop offset="0.56" stop-color="#110b18"/>
+      <stop offset="1" stop-color="#05060a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#7d2b69" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#7d2b69" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="150%" height="160%">
+      <feDropShadow dx="8" dy="-8" stdDeviation="0" flood-color="#000000" flood-opacity="0.88"/>
+      <feDropShadow dx="4" dy="-4" stdDeviation="0" flood-color="#5b214f" flood-opacity="0.64"/>
+    </filter>
+    <symbol id="pixelPanel" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path d="M3 0H97V2H99V4H100V96H99V98H97V100H3V98H1V96H0V4H1V2H3Z"
+            fill="#100b18" stroke="#9c7728" stroke-width="1.25" vector-effect="non-scaling-stroke"/>
+      <path d="M4 3H96V5H98V95H96V97H4V95H2V5H4Z"
+            fill="none" stroke="#4b341e" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    </symbol>
+    <style>
+      .ui { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Monaco, monospace; }
+      .title { fill:#fff6d0; font-size:34px; font-weight:750; letter-spacing:-.5px; }
+      .subtitle { fill:#b8adbd; font-size:18px; font-weight:460; }
+      .step { fill:#d7b663; font-size:14px; font-weight:760; letter-spacing:1.8px; }
+      .cardTitle { fill:#f6f0df; font-size:23px; font-weight:700; }
+      .copy { fill:#aaa0af; font-size:15px; font-weight:470; }
+      .row { fill:#d5bd62; font-size:14px; font-weight:600; }
+      .rowBright { fill:#fff3a6; font-size:14px; font-weight:700; }
+      .rowMuted { fill:#806b83; font-size:14px; font-weight:600; }
+      .meta { fill:#a89052; font-size:12px; font-weight:700; letter-spacing:.45px; }
+      .caption { fill:#c4b8c8; font-size:15px; font-weight:520; }
+      .small { fill:#a99dad; font-size:13px; font-weight:500; }
+      .ratio { font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="210" cy="150" r="310" fill="url(#glow)"/>
+  <circle cx="1720" cy="900" r="380" fill="#c87925" opacity="0.06"/>
+
+  <g class="ui">
+    <text x="58" y="64" class="title">Состав объектов · матрица для мыши</text>
+    <text x="58" y="96" class="subtitle">Эскиз V2 · три категории × четыре прямых выбора · один клик, без drill-down</text>
+
+    <rect x="30" y="126" width="850" height="870" fill="#ffffff" fill-opacity="0.026" stroke="#ffffff" stroke-opacity="0.08"/>
+    <rect x="910" y="126" width="470" height="870" fill="#ffffff" fill-opacity="0.026" stroke="#ffffff" stroke-opacity="0.08"/>
+    <rect x="1410" y="126" width="480" height="870" fill="#ffffff" fill-opacity="0.026" stroke="#ffffff" stroke-opacity="0.08"/>
+
+    <!-- Default full menu -->
+    <g>
+      <text x="64" y="170" class="step">01 · ОСНОВНОЙ СЦЕНАРИЙ</text>
+      <text x="64" y="207" class="cardTitle">Hover открывает всю матрицу</text>
+      <text x="64" y="234" class="copy">Текущие веса видны без дополнительных переходов.</text>
+
+      <g filter="url(#shadow)">
+        <use href="#pixelPanel" x="64" y="286" width="366" height="610"/>
+        <use href="#pixelPanel" x="444" y="334" width="386" height="284"/>
+      </g>
+
+      <g class="mono">
+        <text x="88" y="322" class="row">▣  Размер</text><text x="402" y="322" class="row">›</text>
+        <rect x="76" y="336" width="342" height="38" fill="#4a321a"/>
+        <rect x="76" y="336" width="4" height="38" fill="#ffe548"/>
+        <rect x="416" y="336" width="2" height="38" fill="#ff9b20"/>
+        <text x="88" y="361" class="rowBright">▥  Состав объектов (2:2:1)</text><text x="402" y="361" class="rowBright">›</text>
+        <text x="88" y="400" class="row">▣  Закрепить</text><text x="395" y="400" class="row">✓</text>
+        <text x="88" y="439" class="row">⌁  Пропускать ввод</text>
+        <text x="88" y="478" class="row">▧  Стиль подсказки</text><text x="402" y="478" class="row">›</text>
+        <text x="88" y="517" class="row">▤  Динамика квоты</text><text x="395" y="517" class="row">✓</text>
+        <text x="88" y="556" class="row">▱  Полный экран</text>
+        <text x="88" y="595" class="row">⇥  Запускать при входе</text>
+        <line x1="80" y1="621" x2="414" y2="621" stroke="#4b341e" stroke-width="2"/>
+        <text x="88" y="656" class="row">◉  Скрыть питомца</text>
+        <text x="88" y="695" fill="#ff9b20" font-size="14" font-weight="700">⏻  Выход</text>
+
+        <text x="462" y="363" class="meta">ВЕС КАТЕГОРИИ</text>
+        <text x="665" y="363" class="meta ratio">0   1   2   3</text>
+
+        <text x="462" y="407" class="row">Космос</text>
+        <rect x="652" y="379" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="693" y="379" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="734" y="379" width="39" height="39" fill="#ffe548" stroke="#ffe548"/>
+        <rect x="775" y="379" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <text x="668" y="405" class="row">0</text><text x="709" y="405" class="row">1</text>
+        <text x="750" y="405" fill="#17101e" font-size="14" font-weight="800">2</text><text x="791" y="405" class="row">3</text>
+
+        <text x="462" y="451" class="row">Зверюшки</text>
+        <rect x="652" y="423" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="693" y="423" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="734" y="423" width="39" height="39" fill="#ffe548" stroke="#ffe548"/>
+        <rect x="775" y="423" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <text x="668" y="449" class="row">0</text><text x="709" y="449" class="row">1</text>
+        <text x="750" y="449" fill="#17101e" font-size="14" font-weight="800">2</text><text x="791" y="449" class="row">3</text>
+
+        <text x="462" y="495" class="row">Персонажи</text>
+        <rect x="652" y="467" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="693" y="467" width="39" height="39" fill="#ffe548" stroke="#ffe548"/>
+        <rect x="734" y="467" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <rect x="775" y="467" width="39" height="39" fill="#120d19" stroke="#4b341e"/>
+        <text x="668" y="493" class="row">0</text><text x="709" y="493" fill="#17101e" font-size="14" font-weight="800">1</text>
+        <text x="750" y="493" class="row">2</text><text x="791" y="493" class="row">3</text>
+
+        <line x1="458" y1="526" x2="816" y2="526" stroke="#4b341e" stroke-width="2"/>
+        <text x="462" y="555" class="meta">0 = НЕ ПОКАЗЫВАТЬ</text>
+        <text x="462" y="581" class="meta">БОЛЬШЕ = ЧАЩЕ</text>
+      </g>
+
+      <text x="64" y="936" class="caption">Фиксированная геометрия: 462 × 474 pt</text>
+      <text x="445" y="936" class="caption">Ячейка: 31 × 31 pt</text>
+      <text x="64" y="965" class="small">Main 232 + gap 8 + matrix 214 + shadow 8 · одна боковая панель</text>
+    </g>
+
+    <!-- Hover and applied -->
+    <g>
+      <text x="944" y="170" class="step">02 · НАВЕДЕНИЕ И КЛИК</text>
+      <text x="944" y="207" class="cardTitle">Один клик меняет вес</text>
+      <text x="944" y="234" class="copy">Матрица остаётся открытой.</text>
+
+      <text x="944" y="282" class="meta ratio">ДО · 2:2:1</text>
+      <g filter="url(#shadow)"><use href="#pixelPanel" x="944" y="300" width="402" height="236"/></g>
+      <g class="mono">
+        <text x="962" y="330" class="meta">КАТЕГОРИЯ</text><text x="1180" y="330" class="meta ratio">0  1  2  3</text>
+        <text x="962" y="373" class="row">Космос</text>
+        <text x="962" y="415" class="row">Зверюшки</text>
+        <text x="962" y="457" class="row">Персонажи</text>
+        <g>
+          <rect x="1166" y="344" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1206" y="344" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1246" y="344" width="38" height="38" fill="#ffe548"/><rect x="1286" y="344" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+          <rect x="1166" y="386" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1206" y="386" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1246" y="386" width="38" height="38" fill="#ffe548"/><rect x="1286" y="386" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+          <rect x="1166" y="428" width="38" height="38" fill="#4a321a" stroke="#ffe548" stroke-width="2"/><rect x="1206" y="428" width="38" height="38" fill="#ffe548"/><rect x="1246" y="428" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1286" y="428" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+        </g>
+        <text x="1179" y="369" class="row">0</text><text x="1219" y="369" class="row">1</text><text x="1259" y="369" fill="#17101e" font-size="14" font-weight="800">2</text><text x="1299" y="369" class="row">3</text>
+        <text x="1179" y="411" class="row">0</text><text x="1219" y="411" class="row">1</text><text x="1259" y="411" fill="#17101e" font-size="14" font-weight="800">2</text><text x="1299" y="411" class="row">3</text>
+        <text x="1179" y="453" class="rowBright">0</text><text x="1219" y="453" fill="#17101e" font-size="14" font-weight="800">1</text><text x="1259" y="453" class="row">2</text><text x="1299" y="453" class="row">3</text>
+      </g>
+      <path d="M1171 473L1183 500L1190 483L1207 478Z" fill="#f5eee0" stroke="#17101e" stroke-width="2"/>
+      <text x="944" y="568" class="small">Hover — золотая рамка. Текущий вес остаётся залитым.</text>
+
+      <text x="944" y="628" class="meta ratio">ПОСЛЕ КЛИКА · 2:2:0</text>
+      <g filter="url(#shadow)"><use href="#pixelPanel" x="944" y="646" width="402" height="236"/></g>
+      <g class="mono">
+        <text x="962" y="676" class="meta">КАТЕГОРИЯ</text><text x="1180" y="676" class="meta ratio">0  1  2  3</text>
+        <text x="962" y="719" class="row">Космос</text><text x="962" y="761" class="row">Зверюшки</text><text x="962" y="803" class="row">Персонажи</text>
+        <g>
+          <rect x="1166" y="690" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1206" y="690" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1246" y="690" width="38" height="38" fill="#ffe548"/><rect x="1286" y="690" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+          <rect x="1166" y="732" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1206" y="732" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1246" y="732" width="38" height="38" fill="#ffe548"/><rect x="1286" y="732" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+          <rect x="1166" y="774" width="38" height="38" fill="#ffe548"/><rect x="1206" y="774" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1246" y="774" width="38" height="38" fill="#120d19" stroke="#4b341e"/><rect x="1286" y="774" width="38" height="38" fill="#120d19" stroke="#4b341e"/>
+        </g>
+        <text x="1179" y="715" class="row">0</text><text x="1219" y="715" class="row">1</text><text x="1259" y="715" fill="#17101e" font-size="14" font-weight="800">2</text><text x="1299" y="715" class="row">3</text>
+        <text x="1179" y="757" class="row">0</text><text x="1219" y="757" class="row">1</text><text x="1259" y="757" fill="#17101e" font-size="14" font-weight="800">2</text><text x="1299" y="757" class="row">3</text>
+        <text x="1179" y="799" fill="#17101e" font-size="14" font-weight="800">0</text><text x="1219" y="799" class="row">1</text><text x="1259" y="799" class="row">2</text><text x="1299" y="799" class="row">3</text>
+      </g>
+      <text x="944" y="920" class="caption">Ratio обновляется в тот же момент</text>
+      <text x="944" y="949" class="small">Меню не закрывается: можно настроить следующую строку.</text>
+    </g>
+
+    <!-- Safety and placement -->
+    <g>
+      <text x="1444" y="170" class="step">03 · ЗАЩИТА И РАЗМЕЩЕНИЕ</text>
+      <text x="1444" y="207" class="cardTitle">Последний ноль недоступен</text>
+      <text x="1444" y="234" class="copy">Видим, но не реагирует на hover.</text>
+
+      <text x="1444" y="282" class="meta ratio">СОСТАВ · 0:3:0</text>
+      <g filter="url(#shadow)"><use href="#pixelPanel" x="1444" y="300" width="414" height="246"/></g>
+      <g class="mono">
+        <text x="1462" y="330" class="meta">КАТЕГОРИЯ</text><text x="1686" y="330" class="meta ratio">0  1  2  3</text>
+        <text x="1462" y="375" class="row">Космос</text><text x="1462" y="419" class="row">Зверюшки</text><text x="1462" y="463" class="row">Персонажи</text>
+        <g>
+          <rect x="1672" y="344" width="40" height="40" fill="#ffe548"/><rect x="1714" y="344" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1756" y="344" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1798" y="344" width="40" height="40" fill="#120d19" stroke="#4b341e"/>
+          <rect x="1672" y="388" width="40" height="40" fill="#211728" stroke="#4b341e" stroke-opacity="0.35"/><rect x="1714" y="388" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1756" y="388" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1798" y="388" width="40" height="40" fill="#ffe548"/>
+          <rect x="1672" y="432" width="40" height="40" fill="#ffe548"/><rect x="1714" y="432" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1756" y="432" width="40" height="40" fill="#120d19" stroke="#4b341e"/><rect x="1798" y="432" width="40" height="40" fill="#120d19" stroke="#4b341e"/>
+        </g>
+        <text x="1686" y="371" fill="#17101e" font-size="14" font-weight="800">0</text><text x="1728" y="371" class="row">1</text><text x="1770" y="371" class="row">2</text><text x="1812" y="371" class="row">3</text>
+        <text x="1686" y="415" class="rowMuted">0</text><text x="1728" y="415" class="row">1</text><text x="1770" y="415" class="row">2</text><text x="1812" y="415" fill="#17101e" font-size="14" font-weight="800">3</text>
+        <text x="1686" y="459" fill="#17101e" font-size="14" font-weight="800">0</text><text x="1728" y="459" class="row">1</text><text x="1770" y="459" class="row">2</text><text x="1812" y="459" class="row">3</text>
+        <line x1="1458" y1="495" x2="1844" y2="495" stroke="#4b341e" stroke-width="2"/>
+        <text x="1462" y="524" class="meta">ЗВЕРЮШКИ · 0 НЕДОСТУПЕН</text>
+      </g>
+
+      <text x="1444" y="590" class="caption">Без уведомления, тряски и подсказки</text>
+      <text x="1444" y="617" class="small">AppState остаётся финальной защитой.</text>
+
+      <text x="1444" y="681" class="step">ОТКРЫТИЕ СЛЕВА</text>
+      <g filter="url(#shadow)">
+        <use href="#pixelPanel" x="1444" y="716" width="232" height="176"/>
+        <use href="#pixelPanel" x="1690" y="694" width="168" height="218"/>
+      </g>
+      <g class="mono">
+        <text x="1458" y="746" class="meta">0   1   2   3</text>
+        <text x="1458" y="780" class="row">КОСМОС   · · ■ ·</text>
+        <text x="1458" y="814" class="row">ЗВЕРИ    · · ■ ·</text>
+        <text x="1458" y="848" class="row">ПЕРСОН.  · ■ · ·</text>
+        <text x="1708" y="735" class="row">▣ Размер      ›</text>
+        <rect x="1700" y="750" width="148" height="34" fill="#4a321a"/>
+        <text x="1708" y="773" class="rowBright">▥ Состав 2:2:1</text>
+        <text x="1708" y="807" class="row">▣ Закрепить ✓</text>
+      </g>
+      <text x="1444" y="944" class="small">Матрица переезжает целиком.</text>
+      <text x="1444" y="965" class="small">Порядок 0 → 3 не зеркалится.</text>
+    </g>
+
+    <text x="960" y="1045" text-anchor="middle" class="small">Mouse-first · базовая доступность macOS сохраняется · production UI и design freeze не изменены</text>
+  </g>
+</svg>
