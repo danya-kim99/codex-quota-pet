@@ -6,5 +6,6 @@ enum AppConstants {
     static let showQuotaDynamicsKey = "showQuotaDynamics"
     static let petPositionLockedKey = "petPositionLocked"
     static let passesPointerInputThroughKey = "passesPointerInputThrough"
+    static let absorptionCategoryWeightsKey = "absorptionCategoryWeights"
     static let petPanelFrameName = "CodexQuotaPetLockedFrame"
 }

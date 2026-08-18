@@ -79,11 +79,18 @@ task and cancels it from that signal; AppKit does not inspect quota or own
 animation phases. The task uses no timer, `TimelineView`, persistence, or
 network request and settles with no idle redraw after its bounded cycle.
 `QuotaHistoryClassifier` is the shared domain contract for accepted quota-window
-transitions. Local history consumes it now; a future reset or consumption
-feature must reuse it rather than compare raw percentages elsewhere. A credible
-reset remains a classifier result and history boundary, never consumption. The
-current app has no transient consumption visual or AppKit presentation
-suppression, and AppKit never interprets quota values.
+transitions. Local history and the implemented consumption presentation reuse it
+so one transition has one meaning. For consumption, `AppState` owns session-local
+cadence, immutable active and merged-pending event state, eligibility, and
+cancellation. `BlackHoleView` may only select and schedule manifest-addressed
+authored APNG slots; it never compares quota or synthesizes effect geometry.
+System ImageIO decodes lossless RGBA assets off the main actor, and a bounded
+active/pending cache is released after playback. `PetPanelController` supplies
+existing visibility, drag, resize, menu, and fullscreen lifecycle signals but
+never interprets quota values. The runtime selects the implemented 264-entry
+full-scene APNG matrix plus the shared Reduce Motion overlay; no quota-effect
+geometry is synthesized at runtime. A classified reset remains a history
+boundary, never becomes consumption, and clears consumption continuity.
 `PetPanelController` also owns a separate transient key-capable `NSPanel` for
 the custom pixel context menu. Local pointer monitoring distinguishes secondary
 clicks from absorption and dragging, while a short-lived global monitor closes

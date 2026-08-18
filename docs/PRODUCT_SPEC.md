@@ -433,7 +433,7 @@ Persistence and privacy:
   retried only on the next meaningful snapshot or heartbeat.
 - The regular menu shows a short localized nonmodal status when history was
   restarted or is not being saved. Quota display, reconnect, pet animation,
-  transition classification remains independent of persistence.
+  and transition classification remain independent of persistence.
 - `Clear Local History…` / `Очистить локальную историю…` appears only in the
   regular menu and uses a native confirmation with Cancel as the default. A
   successful clear removes active history and quarantines, leaves the current
@@ -543,10 +543,9 @@ Acceptance criteria for this update:
   unwritable storage, in-memory continuation, retry, and confirmed clear are
   safe and do not affect live quota behavior;
 - Smooth and Pixel L/M/S render the approved current/earlier endpoint copy,
-  adaptive Y-domain and actual bound labels, grouped gap, reset, and
-  current-point cues, graph/compact composition,
-  Standard/Turbo, Reduce Motion, stale, missing, English, Russian,
-  accessibility, and visible/hidden geometry states;
+  adaptive Y-domain and actual bound labels, grouped gap, reset, and current-point cues,
+  graph/compact composition, Standard/Turbo, Reduce Motion, stale, missing,
+  English, Russian, accessibility, and visible/hidden geometry states;
 - all tooltip placements, display edges, accessibility text sizes, hover,
   click, drag, resize, style changes, hide/fullscreen, reconnect, and context
   menu behavior remain correct with no extra App Server traffic;
@@ -559,23 +558,224 @@ export, cloud sync, analytics, a backend, notifications, a dashboard/settings
 window, a database, third-party charts/storage, new sprites, signing changes,
 or distribution changes.
 
-## Deferred real quota-consumption reaction redesign
+## Approved real quota-consumption reaction — Relativistic Hotspot Plunge
 
-The procedural quota-consumption reaction was withdrawn on 9 August 2026 after
-its flat native SwiftUI/Canvas visual was rejected.
+The authored-frame redesign was approved for design freeze on 10 August 2026.
+It supersedes the withdrawn procedural SwiftUI/Canvas reaction. The four
+representative Small, Medium, Large, and Last Light motion previews are approved
+as concept references. On 12 August 2026 the user approved the four final
+transparent explicit-keyframe masters after actual-size S/L review and explicitly
+authorized the 264-sequence derivative bake and production Swift integration.
+The approved masters preserve the complete authoritative accretion disk in every
+slot and add only connected contour layers; no destructive erase, particle-stamp,
+sampled-orbit, procedural interpolation, or runtime effect geometry is allowed.
 
-- The current production app has no automatic quota-consumption event, cadence,
-  queue, playback, or AppKit presentation suppression.
-- `QuotaHistoryClassifier` remains the shared semantic contract for conservative
-  snapshot transitions. The previously agreed fifth/tenth-point cadence and
-  exactly-once decisions remain non-production input for a separate redesign.
-- The former visual freeze, coalescing behavior, timing, Reduce Motion treatment,
-  and procedural Canvas implementation are withdrawn and must not be reused as
-  approved behavior.
-- Any future reaction requires a separate representative prototype and design
-  freeze. Its production visual must use authored assets and frame playback in
-  the existing black-hole/reset visual language; native procedural SwiftUI or
-  Canvas effect animation is not permitted.
+Trigger, continuity, and cadence:
+
+- The feature consumes `.consumption(delta:)` from the existing shared
+  `QuotaHistoryClassifier` for the primary window. `BlackHoleView` never compares
+  raw percentages, and AppKit never interprets quota data.
+- A comparison requires two accepted primary samples from one uninterrupted
+  connection, forward local time no more than 90 minutes apart, compatible
+  account, plan, limit identity, equal non-null `resetsAt`, and equal
+  `windowDurationMins`; both duration values may be `nil`. Missing primary or
+  reset metadata, incompatible identity or duration, startup, reconnect, wake,
+  forced gap, backward clock movement, correction, and reset establish a
+  baseline or discontinuity and never emit consumption.
+- Duplicate and secondary-only changes neither emit nor cancel a reaction. The
+  accepted snapshot order is authoritative because the protocol supplies no
+  independent observation timestamp.
+- Cadence is session-local to the uninterrupted primary window and is not
+  persisted. Every confidently consumed percentage point advances it even when
+  presentation is suppressed or cancelled. Ordinary points use Small, every
+  fifth point uses Medium, and every tenth point uses Large instead of Medium.
+  A multi-point delta emits at most one event at the strongest crossed milestone,
+  `Large > Medium > Small`.
+- A confident positive-to-zero transition emits Last Light instead of the
+  cadence result. Reset, correction, reconnect, wake, identity change, and every
+  other discontinuity clear cadence and transient events; duplicates, visual
+  suppression, cancellation, and local-history visibility or clearing do not.
+- Event identity, active state, pending state, and cadence are local to the
+  current process and are never persisted or replayed after relaunch or view
+  recreation.
+
+Approved normal-motion presentation:
+
+| Kind | Frames | Duration | Frozen visual contract |
+| --- | ---: | ---: | --- |
+| Small | 10 at 24 fps | 416.7 ms | One compact inner-disk hotspot with a short restrained plunge |
+| Medium | 20 at 24 fps | 833.3 ms | One complete representative Relativistic Hotspot Plunge |
+| Large | 30 at 24 fps | 1.25 s | Two connected disk disturbances and exactly one coronal loop |
+| Last Light | 40 at 24 fps | 1.667 s | Near-complete lensed orbit, redshift, plunge, and exact 0% handoff |
+
+- Every sequence is finite, non-looping, and advances only through uniquely
+  authored raster slots without temporal interpolation. Exact endpoint slots may
+  deliberately match an existing idle sprite.
+- A bright inner-disk knot Doppler-brightens, shears into a crescent under
+  differential rotation, produces physically connected upper and lower lensed
+  images, redshifts as approved, and disappears at the opaque shadow edge. The
+  black shadow remains circular, centered, fixed, and non-emissive. The disk
+  never opens; light and matter never emerge from the event horizon.
+- Small remains local. Medium establishes the complete motion grammar. Large is
+  the upper consumption bound and contains two connected disturbances plus one
+  coronal loop, without reset-like crown, jets, explosion, or loose debris. Last
+  Light has no coronal loop and settles into the canonical 0% state.
+- Small, Medium, and Large transient colors are white, gold, amber, and
+  orange-red. Independent purple, violet, magenta, cyan, and blue are prohibited
+  except colors already present in the current quota sprite. Last Light may
+  redshift its moving hotspot through magenta and violet while retaining the
+  canonical mixed gold/orange/magenta/violet 0% destination.
+- The former packet routes, vector rings, drain threads, glints, Canvas geometry,
+  exact procedural timings, overlay-only composition, and easing are rejected
+  history and are not design constraints.
+
+Reduce Motion, modes, and sizes:
+
+- Reduce Motion replaces Small, Medium, and Large with one common transparent
+  authored APNG overlay: a stationary hotspot uses three discrete brightness
+  slots of 120 ms each, for 360 ms total. It has no orbit, lensing, deformation,
+  pulse, scale, travel, or acceleration. Last Light immediately shows the
+  authoritative 0% sprite without decorative playback.
+- Any Reduce Motion value change during playback cancels active and pending
+  reactions, immediately reveals the latest authoritative sprite, and creates
+  no conversion, catch-up, or replay.
+- Standard and Turbo use identical assets, slots, timing, and intensity. Idle
+  rotation and Turbo pulse freeze during playback. A Standard/Turbo change does
+  not cancel or restart the sequence; idle resumes after the exact phase handoff.
+- S, M, and L use one raster family, nearest-neighbor `.aspectFit`, identical
+  timing, and the existing `240 x 132`, `320 x 176`, and `400 x 220` scene
+  bounds. There is no size-specific art, phase omission, runtime scale effect,
+  panel resize, or hit-region change.
+- Every effect pixel, including baked glow, stays inside a 10 px safe inset on
+  the source canvas. Semantically necessary hotspot, crescent, and loop features
+  are at least two source pixels thick and remain distinguishable at actual S
+  size; otherwise the master art is revised instead of creating an S variant.
+
+Asset and playback contract:
+
+- Normal motion is one lossless RGBA APNG matrix of four kinds, eleven quota
+  buckets, and six idle phases: 264 manifest-addressed sequences. Each authored
+  sequence uses the existing transparent `384 x 272 px` canvas, anchor
+  `(192, 136)`, equatorial disk plane, sRGB color, and nearest-neighbor display.
+  Existing idle PNGs remain authoritative and unchanged.
+- Small, Medium, and Large select the authoritative destination bucket and
+  captured idle phase; their first and last slots are the exact destination PNG
+  for that phase. Last Light enters from the captured positive source bucket and
+  phase and ends on the exact phase-compatible `quota-0-frame-N`.
+- One offline authoring/bake step derives bucket and phase variants from four
+  reviewed master animations. Runtime may only select, decode through system
+  ImageIO, cache, and schedule authored slots. It must not synthesize effect
+  geometry through SwiftUI `Canvas`, paths, runtime particles or deformation,
+  Core Image animation, Metal, or another renderer, and it adds no dependency.
+- Decode and prefetch work remain off the main actor. Cache scope is bounded to
+  active and pending playback and is released afterward. Missing, corrupt, or
+  undecodable assets safely skip to the authoritative idle sprite without a
+  crash, user-facing error, pending event, or replay. No new idle work is added.
+- Bundle size, first-play latency, missed holds, peak memory, and cache release
+  are measured from shipping candidates before implementation is accepted; the
+  APNG decision is not permission to ship an unmeasured asset bundle.
+
+Queue, suppression, and arbitration:
+
+- At most one immutable reaction is active and one reaction is merged pending.
+  A new event never restarts, retargets, or restitches active playback. Pending
+  stores the latest authoritative target and the strongest received kind,
+  `Last Light > Large > Medium > Small`, without summing deltas a second time.
+  After active completes, pending starts once from the latest authoritative
+  bucket and frozen phase, without an intermediate idle frame.
+- Presentation starts only while the pet is visible, connected, and not being
+  dragged, resized, fullscreen-suppressed, manually hidden, covered by its
+  context menu, or running manual absorption. A classified event arriving while
+  ineligible still updates history and cadence but creates no active or pending
+  playback, catch-up, or replay.
+- Drag begin, resize or size change, context-menu opening, hide, fullscreen
+  suppression, disconnect, wake, view disappearance, any Reduce Motion change,
+  and successful manual-absorption start immediately clear active and pending
+  reactions and reveal the latest authoritative sprite.
+- Manual absorption retains user-action priority. Consumption during absorption
+  advances classifier history and cadence but is visually suppressed without a
+  queue or replay.
+- Position lock, visible click-through, an open tooltip, tooltip style or history
+  preference changes, duplicates, secondary-only updates, and Standard/Turbo
+  changes do not suppress or cancel playback.
+- A true reset clears consumption cadence plus active and pending consumption.
+
+Tooltip, menu, accessibility, and localization:
+
+- An open tooltip stays open above decorative playback. Authoritative quota,
+  local history, reset time, menu content, and existing accessibility summaries
+  update immediately and never wait for animation. Opening the tooltip during
+  playback does not cancel it or add a read beyond existing stale-on-hover logic.
+- The feature adds no visible copy, tooltip or menu row, setting, localization
+  string, sound, notification, achievement, VoiceOver announcement, child
+  window, keyboard stop, hit target, or interaction. Artwork is decorative,
+  accessibility-hidden, and noninteractive; English and Russian remain unchanged.
+- Visual QA must reject alternating full-scene bright and dark frames and more
+  than three qualifying luminance or red flashes in any second. Reduce Motion
+  and flash safety are acceptance requirements, not subjective polish.
+
+Normative concept references:
+
+- [Small preview](concepts/quota-consumption-relativistic-hotspot-small-preview-v1.gif),
+  SHA-256 `d96b561b92c524bf56212badfb4152e297a9ded654414ccc251c55864fa8676a`;
+- [Medium preview](concepts/quota-consumption-relativistic-hotspot-medium-preview-v1.gif),
+  SHA-256 `ce4f05f1b1e0dcf34d7194b1a68fe42a90692e2606a7ee4c74d18bf0ff8c6353`;
+- [Large preview](concepts/quota-consumption-relativistic-hotspot-large-preview-v1.gif),
+  SHA-256 `1f791f2e1a47def9d6c3c78733f91241890b7d1e13ab5558cad6c2141d662657`;
+- [Last Light preview](concepts/quota-consumption-final-redshift-last-light-preview-v1.gif),
+  SHA-256 `b1e5e33857bcbad0d18579f1830049de1e6f85eb0d16903ace4c29243f492bfd`.
+
+The GIFs are motion and relative-intensity references. They contain a 500 ms
+final review hold and GIF delay quantization that are absent from production.
+Their black review background, crop, compression, provisional pixel clusters,
+AI interpolation artifacts, and nontransparent matte are non-normative and do
+not ship. Normative aspects are the motion grammar, relative Small/Medium/Large
+intensity, single Large loop, Last Light orbit and redshift, fixed shadow, palette
+relationships, and finite return to the canonical sprite.
+
+Normative shipping masters approved on 12 August 2026:
+
+- `quota-consumption-master-small.apng`, SHA-256
+  `c7305f68785dc1129f1949fe98d428ccbb67923865c2d449da3faef0e378be37`;
+- `quota-consumption-master-medium.apng`, SHA-256
+  `d4f7ac15247390f70d3d1a204609459ec42af7c8d44bd7a3e19ad311e8085ed5`;
+- `quota-consumption-master-large.apng`, SHA-256
+  `15bc0b9e6f303506f27728079b655900cce40c1eaeaf070fcd5e47d6a699be5d`;
+- `quota-consumption-master-last-light.apng`, SHA-256
+  `c207becaa5adf7483fc21dbdb477f99843e491c8c51ce76c18f637bf62609e19`.
+
+These lossless RGBA APNGs, rather than the earlier opaque GIF concepts, are the
+authoritative source for derivative bake and runtime acceptance.
+
+Acceptance criteria:
+
+- deterministic classifier and cadence tests cover baseline, duplicate, 1-, 5-,
+  10-, and multi-point drops, crossing both milestones, positive-to-zero,
+  matching, missing, and mismatched window metadata, reset, correction, identity
+  change, missing primary, reconnect, wake, long gap, and backward clock;
+- state tests cover strongest pending merge, repeated arrivals, Last Light,
+  completion, every cancellation and suppression path, one and three active
+  absorptions, reset continuity, no replay, and immediate authoritative UI;
+- asset tests cover all manifest entries, exact frame counts and durations,
+  finite APNG playback, exact endpoint pixels, six-phase handoff, alpha, sRGB,
+  anchor, disk plane, 10 px safe inset, decode failure, and absence of procedural
+  effect geometry;
+- visual regression covers Standard/Turbo parity, S/M/L actual-size readability,
+  no clipping, feature thickness, Reduce Motion, 0%, tooltip coexistence, exact
+  entry and exit, final transparent-master review, and flash safety;
+- performance evidence covers first-play latency, missed authored holds, peak
+  memory, bundle size, cache release, exact return to idle cadence, and zero new
+  idle work;
+- focused macOS tests and `./script/build_and_run.sh --verify` pass after
+  implementation, with unchanged English, Russian, VoiceOver tree, panel
+  geometry, hit testing, and App Server traffic.
+
+Explicit non-goals are secondary-window reactions, token or cost estimates,
+persisted cadence or events, replay, exact-percentage, size-specific or
+mode-specific art, floating text, sound, notifications, achievements, analytics,
+backend or cloud work, quota controls, a new renderer or dependency, additional
+polling, process, read, setting, signing, packaging, release, or distribution
+changes.
 
 ## Approved position lock and pointer click-through
 
@@ -734,9 +934,9 @@ V3 design and uses the bundled manifest-driven asset set.
   240 × 132 pt pet window. The feature does not create a desktop-wide overlay
   or inspect applications, files, or other windows.
 - The bundled set contains 33 approved models: twelve space objects, twelve
-  cute animals, and nine characters. Category selection uses `2 : 2 : 1`
-  weights, producing 40% space objects, 40% animals, and 20% characters, with
-  no immediate model repeat.
+  cute animals, and nine characters. The default category selection uses
+  `2 : 2 : 1`, producing 40% space objects, 40% animals, and 20% characters,
+  with no immediate model repeat when an alternative is available.
 - At most three objects can be active. Their starting sides differ when
   possible, and their paths may cross only near the core.
 - A normal absorption lasts approximately 0.9–1.05 seconds. The object follows
@@ -754,8 +954,10 @@ V3 design and uses the bundled manifest-driven asset set.
 - The photon ring uses a restrained 100–150 ms flash with a softer outer contour
   and horizontal line. The disk reacts with a pulse capped at 2.2%. The fixed
   core size and quota-state geometry never change.
-- Absorption is silent, manually triggered, session-only, and has no counters,
-  achievements, progression, automatic events, settings, or persistence.
+- Absorption is silent and manually triggered, with no counters, achievements,
+  progression, or automatic events. Active plans and random history remain
+  session-only; only the separately approved category-weight preference may be
+  persisted.
 - The interaction is cosmetic and works at every quota value, including zero,
   with the same object duration in Standard and Turbo. It does not affect quota
   data, refresh behavior, service tier, or reset time.
@@ -803,6 +1005,196 @@ The slower V3 timing is approved through the three-object launch with varied
 trajectories. The user explicitly authorized implementation after the design
 and visual gates were complete.
 
+## Approved selectable absorption category weights
+
+The user approved this design freeze and the representative
+[`Object Mix` menu prototype](concepts/object-mix-menu-prototype-v1.png) on
+17 August 2026. This amendment supersedes only the fixed `2 : 2 : 1` selection
+rule and the former statement that absorption has no setting or persistence.
+The native-menu slice subsequently received separate authorization for
+production implementation. The Pixel context-menu amendment below was approved
+and explicitly authorized for implementation on 18 August 2026.
+
+Menu and interaction:
+
+- Immediately after `Size` / `Размер`, the native menu-bar menu exposes
+  `Object Mix (2:2:1)` / `Состав объектов (2:2:1)`. The trailing ratio shows the
+  three selected raw weights in Space, Animals, Characters order; it is not
+  converted to percentages.
+- The submenu contains native pickers for `Space` / `Космос`, `Animals` /
+  `Зверюшки`, and `Characters` / `Персонажи`. Each relative weight is an integer
+  from `0` through `3`; `0` is labelled `Off` / `Не показывать` and excludes the
+  category. A localized hint explains that larger weights appear more often.
+- At least one category must remain above zero. The zero choice is disabled for
+  the last active category without an alert. There is no reset command; choosing
+  `2 : 2 : 1` manually restores the default mix.
+- A changed mix applies to the next accepted absorption. Existing active plans
+  continue unchanged. The existing limit of three active objects and ignored
+  fourth click remain unchanged.
+- Category selection normalizes the positive configured weights. Selection
+  inside the selected category remains uniform. The same model is not selected
+  on consecutive accepted clicks when an alternative exists; if exactly one
+  model is available across all active categories, repeating it is allowed so
+  an accepted click still creates an object.
+- The native menu bar and the separately approved Pixel context-menu matrix are
+  the only settings surfaces. The tooltip and pet interaction surfaces remain
+  unchanged; no Settings window is added.
+
+Persistence, failure behavior, and ownership:
+
+- Fresh and migrated installs use manifest defaults `2 : 2 : 1`. The selected
+  mix persists locally across relaunches and never syncs or leaves the Mac.
+- A missing, malformed, out-of-range, or all-zero stored set falls back as a
+  whole to manifest defaults. Unknown stored category IDs are ignored, a removed
+  category has no effect, and a new manifest category receives its bundled
+  default weight.
+- `AppState` remains the preference source of truth. The bundled manifest and
+  `AbsorbableObjectCatalog` remain the sources of category identity, defaults,
+  validation, and normalized selection. SwiftUI reads state and invokes narrow
+  actions; AppKit does not own or interpret category weights.
+- Persistence failure does not affect quota data, active absorption plans, or
+  the current session value and does not add a modal error for this cosmetic
+  preference.
+
+State matrix and accessibility:
+
+- The same saved mix applies at every quota value, in Standard and Turbo, with
+  Reduce Motion, at S/M/L, with Smooth or Pixel tooltips, and while connected,
+  stale, reconnecting, or disconnected. It does not change animation, sizes,
+  trajectories, hover, drag, positioning, lock, click-through, hide/fullscreen,
+  freshness, wake, or retry behavior.
+- The native menu remains available while click-through is enabled or the pet is
+  hidden or fullscreen-suppressed. The Pixel matrix is available whenever the
+  existing pointer-operated pet context menu is available.
+- English and Russian localize the parent label, three category names, `Off` /
+  `Не показывать`, explanation, accessibility labels, values, and hints. Native
+  arrow-key, Return, Escape, and VoiceOver semantics expose the category, current
+  weight, relative-frequency meaning, and zero behavior.
+- The feature adds no App Server read, network request, analytics, timer,
+  renderer work, dependency, permission, signing, packaging, or distribution
+  change.
+
+Explicit non-goals are individual weights for the 33 models, physical mass,
+weight-dependent speed, trajectory or black-hole reaction, percentages,
+presets, import/export, sync, counters, collections, achievements, a reset
+command, or a Settings window.
+
+Acceptance criteria for this amendment:
+
+- deterministic tests cover all 63 valid `0...3` combinations, normalized
+  boundaries, zero-category exclusion, the default 40/40/20 distribution,
+  uniform within-category selection, no immediate repeat, and the single-model
+  repeat fallback;
+- fresh, migrated, valid, malformed, out-of-range, unknown, removed, new-category,
+  all-zero, persisted, and relaunched preference states resolve as specified;
+- UI prevents disabling the last active category, shows the raw current ratio,
+  applies changes only to future accepted clicks, and leaves active plans intact;
+- English and Russian menu fixtures and a built-app accessibility inspection
+  verify the native controls and the approved Pixel matrix;
+- all quota, renderer, Standard/Turbo, Reduce Motion, S/M/L, tooltip, pointer,
+  connection, hide/fullscreen, and idle-performance acceptance criteria remain
+  green with no new App Server traffic; focused tests, the full macOS suite, and
+  `./script/build_and_run.sh --verify` pass before implementation is considered
+  complete.
+
+### Approved Pixel context-menu matrix amendment
+
+The user approved the mouse-first matrix design freeze and the representative
+[`Pixel Object Mix Matrix V2` prototype](concepts/object-mix-context-matrix-prototype-v2.png)
+on 18 August 2026. This amendment supersedes only the earlier statements that
+the Pixel context menu was unchanged, that its contents did not include object
+weights, and that Pixel context-menu changes were a non-goal. It does not by
+itself authorize implementation; the user provided that authorization
+separately after approving the V2 prototype.
+
+Content and geometry:
+
+- Immediately after `Size` / `Размер`, the main Pixel menu adds
+  `Object Mix (2:2:1)` / `Состав объектов (2:2:1)` with a static decorative
+  12 × 12 pixel mix icon and a disclosure marker. The live raw ratio remains in
+  Space, Animals, Characters order and is never shown as percentages.
+- Hovering or clicking that row opens the existing single side slot as a matrix.
+  The current manifest has three localized category rows in manifest order and
+  four columns labelled `0`, `1`, `2`, and `3`. A future manifest change is not
+  part of this visual freeze and must not silently alter the fixed geometry.
+- The main column remains 232 pt, the inter-panel gap remains 8 pt, the matrix
+  side panel is 214 pt, and the trailing shadow allowance remains 8 pt. The
+  maximum fixed panel becomes 462 × 474 pt. Each matrix cell has a 31 × 31 pt
+  hit region matching the existing row height; the category label column is
+  76 pt. The panel does not scale with pet size.
+- The visible localized hints are `0 — Off` and `Higher — more often` in English,
+  and `0 — Не показывать` and `Больше — чаще` in Russian. The representative
+  matrix is readable without truncating `Characters` or `Персонажи`.
+- Right-opening and left-opening placements move the matrix as a whole while
+  preserving the logical left-to-right column order `0, 1, 2, 3`. Existing
+  quadrant selection, visible-frame clamping, multi-display behavior, shadows,
+  palette, and stepped borders remain unchanged.
+
+Mouse-first interaction and visual states:
+
+- Hovering the parent row shows the matrix immediately. Crossing the existing
+  8 pt gap does not close it. Hovering `Size`, `Tooltip Style`, or another main
+  row replaces or hides the side content according to the current menu behavior.
+- An available unselected cell has a dark background, inner border, and
+  muted-gold numeral. Hover uses the existing hover background with a
+  bright-gold outline. The selected cell uses a solid bright-gold fill with a
+  dark numeral, without a checkmark. Pressed feedback is confined to the cell
+  and adds no independent animation.
+- Clicking an enabled cell applies the weight on mouse-up, persists through the
+  existing `AppState` path, updates the selected fill and parent ratio in the
+  same presentation, and keeps the menu open for further edits. Clicking the
+  current cell is a no-op. Existing active absorption plans remain unchanged;
+  the new mix applies to the next accepted absorption.
+- The `0` cell of the last active category stays visible but uses the existing
+  disabled gray-purple treatment, does not react to hover or click, and causes
+  no alert, shake, tooltip, or modal error. Its enabled state is recalculated
+  immediately after every successful selection.
+- Outside click, repeated secondary click, Escape, pet hiding, and automatic
+  fullscreen suppression retain their existing dismissal behavior. A weight
+  click behaves like an in-place setting change and never starts dismissal.
+- The matrix is optimized for pointer use. No dedicated two-dimensional
+  keyboard navigation or new shortcut is added. Baseline macOS accessibility
+  remains required: the matrix is an accessibility group with the current raw
+  ratio; its 12 cells are standard buttons in row-major order; labels expose
+  category and weight; selected and disabled states are announced; the zero
+  choice exposes `Off` / `Не показывать`; decorative headers, hints, borders,
+  and icons do not duplicate speech. Existing Escape behavior remains.
+
+Ownership and non-goals:
+
+- `AppState` remains the only preference source of truth and final guard.
+  SwiftUI reads the manifest-ordered categories, current weights, summary, and
+  zero eligibility, then invokes one narrow weight-setting action. The context
+  menu panel controller does not store, validate, normalize, or interpret
+  weights. No new AppKit bridge, dependency, persistence path, timer, renderer
+  work, App Server request, analytics, permission, signing, packaging, or
+  distribution change is introduced.
+- Drill-down, a third panel, native popovers, a Settings window, category-specific
+  icons, cell animation, presets, reset, percentages, and individual object
+  weights remain out of scope. The selection algorithm, defaults, active-plan
+  behavior, tooltip, pet animation, and black-hole reaction remain unchanged.
+
+Acceptance criteria for the Pixel amendment:
+
+- the full English and Russian parent labels, live ratio, three category labels,
+  `0...3` headers, and both visible hints fit the approved 462 × 474 pt geometry;
+- all 12 cells expose 31 × 31 pt pointer targets, exactly one selected value per
+  category, distinct normal, hover, selected, pressed, and disabled treatments,
+  and immediate live updates without closing the menu;
+- every valid mix is reachable, only the last active category's zero is disabled,
+  and enabling another category immediately re-enables that zero without an
+  alert or transient error;
+- right and left placement preserve `0...3` order and remain correctly clamped
+  in all four quadrants, on multiple displays, with negative display coordinates,
+  and at the smallest supported visible frame;
+- connected, stale, reconnecting, disconnected, Standard, Turbo, Reduce Motion,
+  S/M/L, Smooth/Pixel tooltip, active-absorption, lock, click-through,
+  hide/fullscreen, launch-at-login, retry, dismissal, and no-network behavior do
+  not regress;
+- focused matrix and localization tests, the full macOS suite, built-app pointer
+  and VoiceOver inspection, and `./script/build_and_run.sh --verify` pass before
+  the amendment is considered implemented.
+
 ## Approved black-hole context menu
 
 The black-hole context-menu design update was approved for development on
@@ -817,7 +1209,8 @@ day, including its pixel icons, palette, layout, and reversible animation.
 - The context menu deliberately does not duplicate quota, reset, speed-mode,
   connection-status, or connection-error text from the tooltip and menu bar.
   Its ordered contents are: conditional `Retry Now`; a `Size` submenu with
-  `S`, `M`, and `L`; `Hide in Full Screen`; `Launch at Login`; conditional
+  `S`, `M`, and `L`; the separately approved `Object Mix` matrix;
+  `Hide in Full Screen`; `Launch at Login`; conditional
   launch-at-login approval, settings, and error items; a divider; `Hide Pet`;
   and the compact localized label `Quit` / `Выход`.
 - `Retry Now` appears only when the connection is not connected. Launch-at-login
@@ -928,8 +1321,9 @@ progress.
 
 - The functional pet, all eleven quota states, mode-neutral tooltips, Turbo
   behavior, Reduce Motion, VoiceOver summaries, fullscreen preference, and
-  reconnect flow are implemented. Automatic quota-consumption reactions are
-  deferred pending a separate authored-frame redesign.
+  reconnect flow are implemented. The authored-frame quota-consumption redesign
+  has approved explicit-keyframe masters and a completed 264-sequence production
+  integration as of 12 August 2026.
 - Launch at login is implemented with the native `SMAppService` main-app login
   item and verified through a logout/login cycle using an Apple Development
   signed build.

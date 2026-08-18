@@ -148,13 +148,17 @@ enum QuotaHistoryClassifier {
         currentWindow: QuotaHistoryWindow?,
         forceGap: Bool
     ) -> QuotaHistoryBoundary {
-        switch transition(
+        boundary(for: transition(
             previousSample: previousSample,
             currentSample: currentSample,
             previousWindow: previousWindow,
             currentWindow: currentWindow,
             forceGap: forceGap
-        ) {
+        ))
+    }
+
+    static func boundary(for transition: QuotaSnapshotTransition) -> QuotaHistoryBoundary {
+        switch transition {
         case .duplicate, .consumption:
             return .continuous
         case .reset:
@@ -553,7 +557,8 @@ actor QuotaHistoryStore {
     func record(
         snapshot: QuotaSnapshot,
         at observedAt: Date,
-        forceGap: Bool
+        forceGap: Bool,
+        primaryTransition: QuotaSnapshotTransition? = nil
     ) -> QuotaHistoryStoreUpdate {
         ensureLoaded(at: observedAt)
         var current = QuotaHistorySample(snapshot: snapshot, observedAt: observedAt)
@@ -571,11 +576,13 @@ actor QuotaHistoryStore {
             }
 
             current.primaryBoundary = QuotaHistoryClassifier.boundary(
-                previousSample: previous,
-                currentSample: current,
-                previousWindow: previous.primary,
-                currentWindow: current.primary,
-                forceGap: forceGap
+                for: primaryTransition ?? QuotaHistoryClassifier.transition(
+                    previousSample: previous,
+                    currentSample: current,
+                    previousWindow: previous.primary,
+                    currentWindow: current.primary,
+                    forceGap: forceGap
+                )
             )
             current.secondaryBoundary = QuotaHistoryClassifier.boundary(
                 previousSample: previous,

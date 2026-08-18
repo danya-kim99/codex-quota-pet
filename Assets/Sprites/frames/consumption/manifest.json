@@ -1,0 +1,2118 @@
+{
+  "entries" : [
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-0-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-10-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-20-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-30-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-40-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-50-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-60-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-70-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-80-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-90-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.4166666666666667,
+      "frameCount" : 10,
+      "kind" : "small",
+      "path" : "quota-consumption-small-bucket-100-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 0,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-0-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 10,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-10-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 20,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-20-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 30,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-30-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 40,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-40-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 50,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-50-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 60,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-60-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 70,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-70-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 80,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-80-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 90,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-90-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 100,
+      "duration" : 0.8333333333333334,
+      "frameCount" : 20,
+      "kind" : "medium",
+      "path" : "quota-consumption-medium-bucket-100-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-0-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-10-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-20-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-30-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-40-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-50-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-60-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-70-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-80-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-90-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.25,
+      "frameCount" : 30,
+      "kind" : "large",
+      "path" : "quota-consumption-large-bucket-100-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 0,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-0-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 10,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-10-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 20,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-20-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 30,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-30-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 40,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-40-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 50,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-50-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 60,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-60-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 70,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-70-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 80,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-80-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 90,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-90-phase-5.apng",
+      "phase" : 5
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-0.apng",
+      "phase" : 0
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-1.apng",
+      "phase" : 1
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-2.apng",
+      "phase" : 2
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-3.apng",
+      "phase" : 3
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-4.apng",
+      "phase" : 4
+    },
+    {
+      "bucket" : 100,
+      "duration" : 1.6666666666666667,
+      "frameCount" : 40,
+      "kind" : "last-light",
+      "path" : "quota-consumption-last-light-bucket-100-phase-5.apng",
+      "phase" : 5
+    }
+  ],
+  "frameRate" : 24,
+  "version" : 1
+}

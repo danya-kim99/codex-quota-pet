@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import SwiftUI
 
 struct BlackHoleView: View {
@@ -16,6 +17,24 @@ struct BlackHoleView: View {
     @State private var lastObjectID: String?
     @State private var reactionStart: Date?
     @State private var isTooltipSuppressed = false
+    @State private var quotaReactionAnimation: QuotaConsumptionPreviewAnimation?
+    @State private var quotaReactionStart: Date?
+    @State private var quotaReactionEventID: UInt64?
+    @State private var quotaReactionPhase = 0
+    @State private var quotaReactionFrozenAt: Date?
+    @State private var quotaReactionPlaybackTask: Task<Void, Never>?
+    @State private var quotaReactionPrefetchTask: Task<Void, Never>?
+    @State private var prefetchedQuotaReaction: (
+        eventID: UInt64,
+        animation: QuotaConsumptionPreviewAnimation
+    )?
+    #if DEBUG
+    @State private var didAttemptProductionQuotaReactionPreview = false
+    @State private var quotaReactionPreview: QuotaConsumptionPreviewAnimation?
+    @State private var quotaReactionPreviewStart: Date?
+    @State private var quotaReactionPreviewTask: Task<Void, Never>?
+    @State private var didAttemptQuotaReactionPreview = false
+    #endif
 
     private static let objectCatalog = try? AbsorbableObjectCatalog()
 
@@ -62,6 +81,23 @@ struct BlackHoleView: View {
         }
         .frame(width: sceneSize.width, height: sceneSize.height)
         .opacity(appState.connectionState == .connected ? 1 : 0.35)
+        .onAppear {
+            appState.setQuotaConsumptionReduceMotion(reduceMotion)
+            appState.setQuotaConsumptionPanelPresented(true)
+            startProductionQuotaReactionPreviewIfNeeded()
+            startQuotaReactionIfNeeded()
+            startQuotaReactionPreviewIfNeeded()
+        }
+        .onChange(of: appState.activeQuotaConsumptionReaction?.id) { _, _ in
+            startQuotaReactionIfNeeded()
+        }
+        .onChange(of: appState.pendingQuotaConsumptionReaction?.id) { _, _ in
+            prefetchPendingQuotaReaction()
+        }
+        .onChange(of: reduceMotion) { _, value in
+            stopQuotaReaction()
+            appState.setQuotaConsumptionReduceMotion(value)
+        }
         .onChange(of: appState.absorptionRequestID) { _, _ in
             startAbsorption()
         }
@@ -69,6 +105,10 @@ struct BlackHoleView: View {
             resetAbsorptionScene()
         }
         .onDisappear {
+            stopQuotaReaction()
+            appState.cancelQuotaConsumptionPresentation()
+            appState.setQuotaConsumptionPanelPresented(false)
+            stopQuotaReactionPreview()
             resetAbsorptionScene()
             setTooltipVisible(false)
         }
@@ -128,9 +168,17 @@ struct BlackHoleView: View {
 
     private var shouldPauseTimeline: Bool {
         reduceMotion && activePlans.isEmpty
+            && !isQuotaReactionPlaying
+            && !isQuotaReactionPreviewPlaying
     }
 
     private var timelineInterval: TimeInterval {
+        if let quotaReactionAnimation {
+            return quotaReactionAnimation.slotDuration
+        }
+        if isQuotaReactionPreviewPlaying {
+            return QuotaConsumptionPreviewAnimation.frameDuration
+        }
         if !activePlans.isEmpty || reactionStart != nil || shouldTurboPulse {
             return 1.0 / 30.0
         }
@@ -139,7 +187,7 @@ struct BlackHoleView: View {
 
     private func animationTime(at date: Date) -> TimeInterval {
         guard !reduceMotion else { return 0 }
-        return max(0, date.timeIntervalSince(animationStart))
+        return max(0, (quotaReactionFrozenAt ?? date).timeIntervalSince(animationStart))
     }
 
     private func pulseScale(at date: Date) -> CGFloat {
@@ -183,12 +231,44 @@ struct BlackHoleView: View {
 
     @ViewBuilder
     private func quotaSprite(at date: Date) -> some View {
-        if let sprite = SpriteFrames.image(
-            named: visualState.spriteName(
-                elapsedTime: animationTime(at: date),
-                speedMode: appState.speedMode
-            )
+        if let frame = quotaReactionAnimation?.frame(
+            at: date,
+            startedAt: quotaReactionStart,
+            finite: false
         ) {
+            if quotaReactionAnimation?.isOverlay == true {
+                idleQuotaSprite(at: date)
+                reactionImage(frame)
+            } else {
+                reactionImage(frame)
+            }
+        } else {
+        #if DEBUG
+        if let frame = quotaReactionPreview?.frame(
+            at: date,
+            startedAt: quotaReactionPreviewStart,
+            finite: true
+        ) {
+            reactionImage(frame)
+        } else {
+            idleQuotaSprite(at: date)
+        }
+        #else
+        idleQuotaSprite(at: date)
+        #endif
+        }
+    }
+
+    private func reactionImage(_ frame: CGImage) -> some View {
+        Image(decorative: frame, scale: 1)
+            .resizable()
+            .interpolation(.none)
+            .aspectRatio(contentMode: .fit)
+    }
+
+    @ViewBuilder
+    private func idleQuotaSprite(at date: Date) -> some View {
+        if let sprite = SpriteFrames.image(named: idleSpriteName(at: date)) {
             Image(nsImage: sprite)
                 .resizable()
                 .interpolation(.none)
@@ -198,10 +278,228 @@ struct BlackHoleView: View {
         }
     }
 
+    private func idleSpriteName(at date: Date) -> String {
+        guard quotaReactionFrozenAt != nil else {
+            return visualState.spriteName(
+                elapsedTime: animationTime(at: date),
+                speedMode: appState.speedMode
+            )
+        }
+        return QuotaConsumptionPreviewAnimation.frozenIdleSpriteName(
+            activeEvent: quotaReactionAnimation == nil
+                ? appState.activeQuotaConsumptionReaction
+                : nil,
+            authoritativeBucket: visualState.spriteStatePercent,
+            phase: quotaReactionPhase
+        )
+    }
+
+    private var isQuotaReactionPreviewPlaying: Bool {
+        #if DEBUG
+        quotaReactionPreview != nil && quotaReactionPreviewStart != nil
+        #else
+        false
+        #endif
+    }
+
+    private var isQuotaReactionPlaying: Bool {
+        appState.activeQuotaConsumptionReaction != nil
+    }
+
+    private func startProductionQuotaReactionPreviewIfNeeded() {
+        #if DEBUG
+        guard !didAttemptProductionQuotaReactionPreview,
+              let value = ProcessInfo.processInfo.environment[
+            "BLACK_HOLE_QUOTA_REACTION_PRODUCTION_PREVIEW"
+        ], let kind = QuotaConsumptionReactionKind(rawValue: value) else { return }
+        didAttemptProductionQuotaReactionPreview = true
+        appState.previewQuotaConsumptionReaction(
+            kind: kind,
+            remainingPercent: remainingPercent
+        )
+        #endif
+    }
+
+    private func startQuotaReactionIfNeeded() {
+        guard let event = appState.activeQuotaConsumptionReaction else {
+            if quotaReactionEventID != nil { stopQuotaReaction(resumeIdle: true) }
+            return
+        }
+        guard quotaReactionEventID != event.id else { return }
+
+        if quotaReactionFrozenAt == nil {
+            let now = Date()
+            quotaReactionFrozenAt = now
+            quotaReactionPhase = visualState.spriteFrameIndex(
+                elapsedTime: max(0, now.timeIntervalSince(animationStart)),
+                speedMode: appState.speedMode
+            )
+        }
+        quotaReactionEventID = event.id
+        quotaReactionAnimation = nil
+        quotaReactionStart = nil
+        quotaReactionPlaybackTask?.cancel()
+
+        if let prefetchedQuotaReaction,
+           prefetchedQuotaReaction.eventID == event.id {
+            self.prefetchedQuotaReaction = nil
+            beginQuotaReaction(event: event, animation: prefetchedQuotaReaction.animation)
+            return
+        }
+
+        let phase = quotaReactionPhase
+        let usesReduceMotion = reduceMotion
+        quotaReactionPlaybackTask = Task(priority: .userInitiated) { @MainActor in
+            let animation = await QuotaConsumptionPreviewAnimation.loadOffMain(
+                event: event,
+                phase: phase,
+                reduceMotion: usesReduceMotion
+            )
+            guard !Task.isCancelled,
+                  appState.activeQuotaConsumptionReaction?.id == event.id else { return }
+            guard let animation else {
+                appState.failQuotaConsumptionReaction(eventID: event.id)
+                stopQuotaReaction(resumeIdle: true)
+                return
+            }
+            beginQuotaReaction(event: event, animation: animation)
+        }
+    }
+
+    private func beginQuotaReaction(
+        event: QuotaConsumptionReactionEvent,
+        animation: QuotaConsumptionPreviewAnimation
+    ) {
+        quotaReactionEventID = event.id
+        quotaReactionAnimation = animation
+        quotaReactionStart = Date()
+        quotaReactionPlaybackTask?.cancel()
+        quotaReactionPlaybackTask = Task { @MainActor in
+            do {
+                try await Task.sleep(
+                    nanoseconds: UInt64(animation.duration * 1_000_000_000)
+                )
+            } catch {
+                return
+            }
+            guard appState.activeQuotaConsumptionReaction?.id == event.id else { return }
+            finishQuotaReaction(event: event)
+        }
+        prefetchPendingQuotaReaction()
+    }
+
+    private func finishQuotaReaction(event: QuotaConsumptionReactionEvent) {
+        if let pending = appState.pendingQuotaConsumptionReaction,
+           let prefetchedQuotaReaction,
+           prefetchedQuotaReaction.eventID == pending.id {
+            self.prefetchedQuotaReaction = nil
+            quotaReactionEventID = pending.id
+            appState.completeQuotaConsumptionReaction(eventID: event.id)
+            beginQuotaReaction(event: pending, animation: prefetchedQuotaReaction.animation)
+        } else {
+            appState.completeQuotaConsumptionReaction(eventID: event.id)
+            if appState.activeQuotaConsumptionReaction == nil {
+                stopQuotaReaction(resumeIdle: true)
+            } else {
+                startQuotaReactionIfNeeded()
+            }
+        }
+    }
+
+    private func prefetchPendingQuotaReaction() {
+        quotaReactionPrefetchTask?.cancel()
+        prefetchedQuotaReaction = nil
+        guard let pending = appState.pendingQuotaConsumptionReaction else { return }
+        let phase = quotaReactionPhase
+        let usesReduceMotion = reduceMotion
+        quotaReactionPrefetchTask = Task(priority: .utility) { @MainActor in
+            let animation = await QuotaConsumptionPreviewAnimation.loadOffMain(
+                event: pending,
+                phase: phase,
+                reduceMotion: usesReduceMotion
+            )
+            guard !Task.isCancelled,
+                  appState.pendingQuotaConsumptionReaction?.id == pending.id else { return }
+            guard let animation else {
+                appState.failQuotaConsumptionReaction(
+                    eventID: appState.activeQuotaConsumptionReaction?.id ?? pending.id
+                )
+                stopQuotaReaction(resumeIdle: true)
+                return
+            }
+            prefetchedQuotaReaction = (pending.id, animation)
+            quotaReactionPrefetchTask = nil
+        }
+    }
+
+    private func stopQuotaReaction(resumeIdle: Bool = false) {
+        quotaReactionPlaybackTask?.cancel()
+        quotaReactionPlaybackTask = nil
+        quotaReactionPrefetchTask?.cancel()
+        quotaReactionPrefetchTask = nil
+        quotaReactionAnimation = nil
+        prefetchedQuotaReaction = nil
+        quotaReactionStart = nil
+        quotaReactionEventID = nil
+        if resumeIdle, quotaReactionFrozenAt != nil {
+            animationStart = Date().addingTimeInterval(
+                -Double(quotaReactionPhase)
+                    * PetVisualState.spriteFrameDuration
+                    / visualState.rotationSpeed(for: appState.speedMode)
+            )
+        }
+        quotaReactionFrozenAt = nil
+    }
+
+    private func startQuotaReactionPreviewIfNeeded() {
+        #if DEBUG
+        guard !didAttemptQuotaReactionPreview,
+              let value = ProcessInfo.processInfo.environment[
+                  "BLACK_HOLE_QUOTA_REACTION_PREVIEW"
+              ],
+              let kind = QuotaConsumptionPreviewKind(rawValue: value) else {
+            return
+        }
+        didAttemptQuotaReactionPreview = true
+        quotaReactionPreviewTask = Task(priority: .userInitiated) { @MainActor in
+            let animation = await QuotaConsumptionPreviewAnimation.loadOffMain(kind: kind)
+            guard !Task.isCancelled, let animation else { return }
+
+            let startedAt = Date()
+            quotaReactionPreview = animation
+            quotaReactionPreviewStart = startedAt
+            do {
+                try await Task.sleep(
+                    nanoseconds: UInt64(animation.duration * 1_000_000_000)
+                )
+            } catch {
+                return
+            }
+            guard quotaReactionPreviewStart == startedAt else { return }
+            animationStart = animationStart.addingTimeInterval(
+                Date().timeIntervalSince(startedAt)
+            )
+            quotaReactionPreview = nil
+            quotaReactionPreviewStart = nil
+            quotaReactionPreviewTask = nil
+        }
+        #endif
+    }
+
+    private func stopQuotaReactionPreview() {
+        #if DEBUG
+        quotaReactionPreviewTask?.cancel()
+        quotaReactionPreviewTask = nil
+        quotaReactionPreview = nil
+        quotaReactionPreviewStart = nil
+        #endif
+    }
+
     private func startAbsorption() {
         guard activePlans.count < 3,
               let object = Self.objectCatalog?.select(
                 excluding: lastObjectID,
+                categoryWeights: appState.absorptionCategoryWeights,
                 categoryRoll: Double.random(in: 0..<1),
                 objectRoll: Double.random(in: 0..<1)
               ) else {
@@ -220,6 +518,7 @@ struct BlackHoleView: View {
             usesReducedMotion: reduceMotion
         )
         activePlans.append(plan)
+        appState.quotaConsumptionAbsorptionDidStart()
         lastObjectID = object.id
         isTooltipSuppressed = true
         setTooltipVisible(false)
@@ -229,7 +528,10 @@ struct BlackHoleView: View {
             try? await Task.sleep(nanoseconds: nanoseconds)
             guard activePlans.contains(where: { $0.id == plan.id }) else { return }
             activePlans.removeAll { $0.id == plan.id }
-            guard !plan.usesReducedMotion else { return }
+            if plan.usesReducedMotion {
+                appState.quotaConsumptionAbsorptionDidFinish()
+                return
+            }
 
             let startedAt = Date()
             reactionStart = startedAt
@@ -237,11 +539,13 @@ struct BlackHoleView: View {
             if reactionStart == startedAt {
                 reactionStart = nil
             }
+            appState.quotaConsumptionAbsorptionDidFinish()
         }
     }
 
     private func resetAbsorptionScene() {
         activePlans.removeAll()
+        appState.resetQuotaConsumptionAbsorptions()
         reactionStart = nil
         isTooltipSuppressed = false
     }
@@ -500,5 +804,218 @@ private enum SpriteFrames {
 
         cache.setObject(image, forKey: key)
         return image
+    }
+}
+
+typealias QuotaConsumptionPreviewKind = QuotaConsumptionReactionKind
+
+extension QuotaConsumptionReactionKind {
+    var assetName: String {
+        "quota-consumption-master-\(rawValue)"
+    }
+}
+
+struct QuotaConsumptionPreviewAnimation: @unchecked Sendable {
+    static let frameDuration = 1.0 / 24.0
+
+    let frames: [CGImage]
+    let slotDuration: TimeInterval
+    let isOverlay: Bool
+
+    var duration: TimeInterval {
+        Double(frames.count) * slotDuration
+    }
+
+    static func frozenIdleSpriteName(
+        activeEvent: QuotaConsumptionReactionEvent?,
+        authoritativeBucket: Int,
+        phase: Int
+    ) -> String {
+        "quota-\(activeEvent?.bucket ?? authoritativeBucket)-frame-\(phase)"
+    }
+
+    func frame(at date: Date, startedAt: Date?, finite: Bool) -> CGImage? {
+        guard let startedAt else { return nil }
+        let elapsed = max(0, date.timeIntervalSince(startedAt))
+        guard !finite || elapsed < duration else { return nil }
+        return frames[min(frames.count - 1, Int(elapsed / slotDuration))]
+    }
+
+    static func load(
+        kind: QuotaConsumptionPreviewKind,
+        bundle: Bundle = .main,
+        isCancelled: () -> Bool = { Task.isCancelled }
+    ) -> Self? {
+        guard let url = bundle.url(
+            forResource: kind.assetName,
+            withExtension: "apng",
+            subdirectory: "frames"
+        ) else { return nil }
+        return load(
+            url: url,
+            frameCount: kind.frameCount,
+            frameDuration: frameDuration,
+            isCancelled: isCancelled
+        )
+    }
+
+    static func loadOffMain(
+        kind: QuotaConsumptionPreviewKind,
+        bundle: Bundle = .main
+    ) async -> Self? {
+        await withTaskGroup(of: Self?.self) { group in
+            group.addTask { load(kind: kind, bundle: bundle) }
+            return await group.next() ?? nil
+        }
+    }
+
+    static func load(
+        event: QuotaConsumptionReactionEvent,
+        phase: Int,
+        reduceMotion: Bool,
+        bundle: Bundle = .main,
+        isCancelled: () -> Bool = { Task.isCancelled }
+    ) -> Self? {
+        if reduceMotion {
+            guard event.kind != .lastLight,
+                  let url = bundle.url(
+                    forResource: "quota-consumption-reduce-motion",
+                    withExtension: "apng",
+                    subdirectory: "frames"
+                  ) else { return nil }
+            return load(
+                url: url,
+                frameCount: 3,
+                frameDuration: 0.12,
+                isOverlay: true,
+                isCancelled: isCancelled
+            )
+        }
+
+        guard let manifest = QuotaConsumptionManifest.load(bundle: bundle),
+              let entry = manifest.entry(
+                kind: event.kind,
+                bucket: event.bucket,
+                phase: phase
+              ),
+              let url = bundle.url(
+                forResource: entry.path,
+                withExtension: nil,
+                subdirectory: "frames/consumption"
+              ) else { return nil }
+        return load(
+            url: url,
+            frameCount: entry.frameCount,
+            frameDuration: entry.duration / Double(entry.frameCount),
+            isCancelled: isCancelled
+        )
+    }
+
+    static func loadOffMain(
+        event: QuotaConsumptionReactionEvent,
+        phase: Int,
+        reduceMotion: Bool,
+        bundle: Bundle = .main
+    ) async -> Self? {
+        await withTaskGroup(of: Self?.self) { group in
+            group.addTask {
+                load(
+                    event: event,
+                    phase: phase,
+                    reduceMotion: reduceMotion,
+                    bundle: bundle
+                )
+            }
+            return await group.next() ?? nil
+        }
+    }
+
+    private static func load(
+        url: URL,
+        frameCount: Int,
+        frameDuration: TimeInterval,
+        isOverlay: Bool = false,
+        isCancelled: () -> Bool
+    ) -> Self? {
+        guard !isCancelled(),
+              frameDuration.isFinite,
+              frameDuration > 0,
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceGetCount(source) == frameCount else { return nil }
+
+        var frames: [CGImage] = []
+        frames.reserveCapacity(frameCount)
+        let decodeOptions = [
+            kCGImageSourceShouldCache: true,
+            kCGImageSourceShouldCacheImmediately: true
+        ] as CFDictionary
+        for index in 0..<frameCount {
+            guard !isCancelled(),
+                  let image = CGImageSourceCreateImageAtIndex(
+                      source,
+                      index,
+                      decodeOptions
+                  ),
+                  image.width == 384,
+                  image.height == 272,
+                  let properties = CGImageSourceCopyPropertiesAtIndex(
+                      source,
+                      index,
+                      nil
+                  ) as? [CFString: Any],
+                  let png = properties[kCGImagePropertyPNGDictionary]
+                      as? [CFString: Any],
+                  let delay = (
+                      png[kCGImagePropertyAPNGUnclampedDelayTime]
+                          ?? png[kCGImagePropertyAPNGDelayTime]
+                  ) as? NSNumber,
+                  abs(delay.doubleValue - frameDuration) < 0.002 else {
+                return nil
+            }
+            frames.append(image)
+        }
+        guard !isCancelled() else { return nil }
+        return Self(
+            frames: frames,
+            slotDuration: frameDuration,
+            isOverlay: isOverlay
+        )
+    }
+}
+
+struct QuotaConsumptionManifest: Decodable, Sendable {
+    let version: Int
+    let frameRate: Int
+    let entries: [Entry]
+
+    struct Entry: Decodable, Sendable {
+        let kind: QuotaConsumptionReactionKind
+        let bucket: Int
+        let phase: Int
+        let path: String
+        let frameCount: Int
+        let duration: TimeInterval
+    }
+
+    static func load(bundle: Bundle = .main) -> Self? {
+        guard let url = bundle.url(
+            forResource: "manifest",
+            withExtension: "json",
+            subdirectory: "frames/consumption"
+        ), let data = try? Data(contentsOf: url),
+           let manifest = try? JSONDecoder().decode(Self.self, from: data),
+           manifest.version == 1,
+           manifest.frameRate == 24 else { return nil }
+        return manifest
+    }
+
+    func entry(
+        kind: QuotaConsumptionReactionKind,
+        bucket: Int,
+        phase: Int
+    ) -> Entry? {
+        entries.first {
+            $0.kind == kind && $0.bucket == bucket && $0.phase == phase
+        }
     }
 }

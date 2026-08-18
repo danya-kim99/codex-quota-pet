@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#090A10"/>
+      <stop offset="0.52" stop-color="#14101B"/>
+      <stop offset="1" stop-color="#07090F"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.025"/>
+    </linearGradient>
+    <linearGradient id="menu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34343B"/>
+      <stop offset="1" stop-color="#24242A"/>
+    </linearGradient>
+    <linearGradient id="selection" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4D7DFF"/>
+      <stop offset="1" stop-color="#3566E6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#8854D9" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#8854D9" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.48"/>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="38"/>
+    </filter>
+    <style>
+      .ui { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; }
+      .title { font-size: 34px; font-weight: 720; fill: #F7F4FB; letter-spacing: -0.8px; }
+      .subtitle { font-size: 18px; font-weight: 450; fill: #B9B5C2; }
+      .step { font-size: 15px; font-weight: 700; fill: #D7B663; letter-spacing: 1.8px; }
+      .panelTitle { font-size: 25px; font-weight: 680; fill: #F4F1F7; letter-spacing: -0.35px; }
+      .panelCopy { font-size: 16px; font-weight: 440; fill: #AAA6B1; }
+      .menuPrimary { font-size: 18px; font-weight: 500; fill: #F8F7FA; }
+      .menuSecondary { font-size: 15px; font-weight: 450; fill: #C9C6CE; }
+      .menuMuted { font-size: 14px; font-weight: 450; fill: #9A97A1; }
+      .menuStrong { font-size: 19px; font-weight: 680; fill: #FFFFFF; }
+      .caption { font-size: 16px; font-weight: 470; fill: #C4C0CA; }
+      .ratio { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#background)"/>
+  <circle cx="270" cy="180" r="320" fill="url(#glow)" filter="url(#softGlow)"/>
+  <circle cx="1660" cy="860" r="350" fill="#D48735" opacity="0.09" filter="url(#softGlow)"/>
+
+  <g class="ui">
+    <text x="64" y="62" class="title">Состав объектов · макет V1</text>
+    <text x="64" y="94" class="subtitle">Нативное меню macOS · текущий состав всегда виден как отношение весов</text>
+
+    <!-- Stage cards -->
+    <g>
+      <rect x="30" y="126" width="600" height="900" rx="28" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.09"/>
+      <rect x="650" y="126" width="600" height="900" rx="28" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.09"/>
+      <rect x="1270" y="126" width="600" height="900" rx="28" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.09"/>
+    </g>
+
+    <!-- Stage 1 -->
+    <g>
+      <text x="70" y="174" class="step">01 · ОСНОВНОЕ МЕНЮ</text>
+      <text x="70" y="212" class="panelTitle">Новый пункт рядом с размером</text>
+      <text x="70" y="240" class="panelCopy">Заголовок сразу показывает текущую смесь.</text>
+
+      <g filter="url(#shadow)">
+        <rect x="70" y="276" width="520" height="650" rx="18" fill="url(#menu)" stroke="#FFFFFF" stroke-opacity="0.17"/>
+      </g>
+
+      <text x="96" y="319" class="menuStrong">Осталось 89%</text>
+      <text x="96" y="350" class="menuSecondary">Сброс: 22 авг., 14:30</text>
+      <text x="96" y="382" class="menuSecondary">Режим: Standard</text>
+      <line x1="84" y1="404" x2="576" y2="404" stroke="#FFFFFF" stroke-opacity="0.15"/>
+
+      <text x="96" y="443" class="menuPrimary">Скрыть питомца</text>
+      <text x="96" y="489" class="menuPrimary">Размер</text>
+      <text x="536" y="489" class="menuSecondary">L</text>
+      <text x="563" y="489" class="menuSecondary">›</text>
+
+      <rect x="82" y="505" width="496" height="44" rx="8" fill="url(#selection)"/>
+      <text x="96" y="534" class="menuPrimary">Состав объектов</text>
+      <text x="478" y="534" class="menuPrimary ratio">2:2:1</text>
+      <text x="563" y="534" class="menuPrimary">›</text>
+
+      <text x="96" y="581" class="menuPrimary">Зафиксировать позицию</text>
+      <text x="96" y="627" class="menuPrimary">Пропускать нажатия</text>
+      <text x="96" y="673" class="menuPrimary">Стиль подсказки</text>
+      <text x="563" y="673" class="menuSecondary">›</text>
+      <text x="96" y="719" class="menuPrimary">Динамика квоты</text>
+      <text x="96" y="765" class="menuPrimary">Скрывать в полном экране</text>
+      <text x="96" y="811" class="menuPrimary">Запускать при входе</text>
+      <line x1="84" y1="835" x2="576" y2="835" stroke="#FFFFFF" stroke-opacity="0.15"/>
+      <text x="96" y="876" class="menuPrimary">Выход</text>
+
+      <text x="70" y="968" class="caption">Одна строка, без отдельного окна настроек.</text>
+    </g>
+
+    <!-- Stage 2 -->
+    <g>
+      <text x="690" y="174" class="step">02 · СОСТАВ ОБЪЕКТОВ</text>
+      <text x="690" y="212" class="panelTitle">Три категории, три веса</text>
+      <text x="690" y="240" class="panelCopy">Числа остаются относительными, без процентов.</text>
+
+      <g filter="url(#shadow)">
+        <rect x="674" y="318" width="252" height="196" rx="16" fill="url(#menu)" stroke="#FFFFFF" stroke-opacity="0.17"/>
+        <rect x="940" y="364" width="286" height="274" rx="16" fill="url(#menu)" stroke="#FFFFFF" stroke-opacity="0.17"/>
+      </g>
+
+      <text x="694" y="358" class="menuPrimary">Размер</text>
+      <text x="900" y="358" class="menuSecondary">›</text>
+      <rect x="684" y="373" width="232" height="44" rx="8" fill="url(#selection)"/>
+      <text x="694" y="402" class="menuPrimary">Состав объектов</text>
+      <text x="900" y="402" class="menuPrimary">›</text>
+      <text x="694" y="449" class="menuPrimary">Зафиксировать</text>
+      <text x="694" y="487" class="menuPrimary">Стиль подсказки</text>
+
+      <text x="960" y="400" class="menuMuted">Чем выше вес, тем чаще</text>
+      <text x="960" y="424" class="menuMuted">0 исключает категорию</text>
+      <line x1="952" y1="444" x2="1214" y2="444" stroke="#FFFFFF" stroke-opacity="0.15"/>
+
+      <text x="960" y="480" class="menuPrimary">Космос</text>
+      <text x="1166" y="480" class="menuPrimary ratio">2</text>
+      <text x="1202" y="480" class="menuSecondary">›</text>
+      <text x="960" y="526" class="menuPrimary">Зверюшки</text>
+      <text x="1166" y="526" class="menuPrimary ratio">2</text>
+      <text x="1202" y="526" class="menuSecondary">›</text>
+      <rect x="950" y="542" width="266" height="44" rx="8" fill="url(#selection)"/>
+      <text x="960" y="571" class="menuPrimary">Персонажи</text>
+      <text x="1166" y="571" class="menuPrimary ratio">1</text>
+      <text x="1202" y="571" class="menuPrimary">›</text>
+      <text x="960" y="617" class="menuMuted">Текущий состав: 2:2:1</text>
+
+      <g transform="translate(690,720)">
+        <circle cx="15" cy="15" r="15" fill="#D7B663" fill-opacity="0.17"/>
+        <text x="10" y="21" font-size="18" font-weight="700" fill="#D7B663">i</text>
+        <text x="48" y="10" class="caption">Выбор действует со следующего клика.</text>
+        <text x="48" y="36" class="caption">Уже летящие объекты не меняются.</text>
+      </g>
+    </g>
+
+    <!-- Stage 3 -->
+    <g>
+      <text x="1310" y="174" class="step">03 · ВЫБОР ВЕСА</text>
+      <text x="1310" y="212" class="panelTitle">Ноль исключает категорию</text>
+      <text x="1310" y="240" class="panelCopy">Последнюю активную категорию отключить нельзя.</text>
+
+      <g filter="url(#shadow)">
+        <rect x="1310" y="318" width="520" height="88" rx="16" fill="url(#menu)" stroke="#FFFFFF" stroke-opacity="0.17"/>
+        <rect x="1412" y="430" width="316" height="252" rx="16" fill="url(#menu)" stroke="#FFFFFF" stroke-opacity="0.17"/>
+      </g>
+
+      <text x="1334" y="355" class="menuPrimary">Состав объектов</text>
+      <text x="1690" y="355" class="menuPrimary ratio">2:2:1</text>
+      <text x="1810" y="355" class="menuSecondary">›</text>
+      <rect x="1322" y="360" width="496" height="36" rx="8" fill="#FFFFFF" fill-opacity="0.045"/>
+      <text x="1334" y="386" class="menuSecondary">Персонажи — текущий вес 1</text>
+
+      <rect x="1422" y="442" width="296" height="44" rx="8" fill="url(#selection)"/>
+      <text x="1444" y="471" class="menuPrimary">0 — Не показывать</text>
+      <text x="1444" y="523" class="menuPrimary ratio">1</text>
+      <text x="1680" y="523" class="menuPrimary">✓</text>
+      <text x="1444" y="575" class="menuPrimary ratio">2</text>
+      <text x="1444" y="627" class="menuPrimary ratio">3</text>
+      <line x1="1426" y1="646" x2="1714" y2="646" stroke="#FFFFFF" stroke-opacity="0.15"/>
+      <text x="1444" y="670" class="menuMuted">Относительный вес</text>
+
+      <g transform="translate(1310,744)">
+        <rect width="520" height="90" rx="16" fill="#D7B663" fill-opacity="0.10" stroke="#D7B663" stroke-opacity="0.26"/>
+        <text x="22" y="35" class="menuMuted">После выбора</text>
+        <text x="22" y="68" class="menuPrimary">Состав объектов</text>
+        <text x="414" y="68" class="menuStrong ratio">2:2:0</text>
+      </g>
+
+      <text x="1310" y="884" class="caption">Системный picker: стрелки, Return и VoiceOver</text>
+      <text x="1310" y="910" class="caption">работают без отдельной кастомной навигации.</text>
+    </g>
+
+    <text x="960" y="1055" text-anchor="middle" class="menuMuted">Концепт для согласования · production UI не изменён</text>
+  </g>
+</svg>

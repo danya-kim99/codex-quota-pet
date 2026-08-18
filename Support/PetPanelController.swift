@@ -177,8 +177,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func updateVisibility(appState: AppState) {
-        let isSuppressedByFullScreen = appState.hidesInFullScreenApps
-            && isFrontmostApplicationFullScreen()
+        let isFullScreen = isFrontmostApplicationFullScreen()
+        let isSuppressedByFullScreen = appState.hidesInFullScreenApps && isFullScreen
+        appState.setQuotaConsumptionFullScreenSuppressed(isSuppressedByFullScreen)
 
         if appState.isPetVisible && !isSuppressedByFullScreen {
             show(appState: appState)
@@ -196,6 +197,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             applyInputPolicy()
             updateHoverRearmForPanelShow()
             panel.orderFrontRegardless()
+            appState.setQuotaConsumptionPanelPresented(true)
             return
         }
 
@@ -245,6 +247,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         panel.orderFrontRegardless()
+        appState.setQuotaConsumptionPanelPresented(true)
     }
 
     func hide() {
@@ -253,11 +256,14 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         absorptionPointerStart = nil
         contextPointerStart = nil
         appState?.resetAbsorptionScene()
+        appState?.setQuotaConsumptionPanelPresented(false)
         hideTooltip()
         panel?.orderOut(nil)
     }
 
     func resize(to size: PetSize) {
+        appState?.setQuotaConsumptionResizing(true)
+        defer { appState?.setQuotaConsumptionResizing(false) }
         dismissContextMenu(animated: true)
         hideTooltip()
         guard let panel else { return }
@@ -365,6 +371,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func beginDragTracking() {
         guard !isDraggingPet else { return }
         isDraggingPet = true
+        appState?.setQuotaConsumptionDragging(true)
         restoreTooltipAfterDrag = tooltipPanel?.isVisible == true
         dragCompletionTask?.cancel()
         stopResetCountdownUpdates()
@@ -424,6 +431,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         cancelDragTracking()
+        appState.setQuotaConsumptionContextMenuPresented(true)
         absorptionPointerStart = nil
         hideTooltip()
         appState.refreshLaunchAtLoginStatus()
@@ -500,6 +508,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 }
                 appState.setPetSize(size)
                 self.resize(to: size)
+            },
+            setAbsorptionCategoryWeight: { [weak appState] categoryID, weight in
+                appState?.setAbsorptionCategoryWeight(weight, for: categoryID)
             },
             setPetPositionLocked: { [weak self, weak appState] isLocked in
                 guard let self, let appState else { return }
@@ -606,6 +617,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         contextMenuPanel?.orderOut(nil)
         contextMenuPanel = nil
         contextMenuPresentation = nil
+        appState?.setQuotaConsumptionContextMenuPresented(false)
         removeOutsidePointerMonitor()
         applyInputPolicy(applyMouseEvents: applyMouseEvents)
 
@@ -924,6 +936,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         guard isDraggingPet, let panel else { return }
 
         isDraggingPet = false
+        appState?.setQuotaConsumptionDragging(false)
         dragCompletionTask = nil
         let shouldRestore = Self.shouldRestoreTooltipAfterDrag(
             wasVisible: restoreTooltipAfterDrag,
@@ -945,6 +958,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         dragCompletionTask?.cancel()
         dragCompletionTask = nil
         isDraggingPet = false
+        appState?.setQuotaConsumptionDragging(false)
         restoreTooltipAfterDrag = false
     }
 
@@ -1142,6 +1156,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     private func displayParametersDidChange() {
+        appState?.setQuotaConsumptionResizing(true)
+        defer { appState?.setQuotaConsumptionResizing(false) }
         dismissContextMenu(animated: false)
         correctPanelFrameIfNeeded(saveIfLocked: true)
         repositionTooltip()

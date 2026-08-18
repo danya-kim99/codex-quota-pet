@@ -29,6 +29,10 @@ VoiceOver announces the exact quota, speed mode, and connection state. Standard
 mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
 pulse, and Reduce Motion freezes both effects.
 
+Confident same-window quota drops trigger short authored pixel animations in
+Small, Medium, Large, or Last Light variants without adding quota reads. Reduce
+Motion uses a bounded static-brightness treatment instead of orbital motion.
+
 The renderer uses a compact pixel-art style. Its three color layers rotate and
 animate independently around a fixed black core.
 
@@ -101,10 +105,11 @@ immediately without moving the pet or refreshing quota data.
 Secondary-click the visible black hole or accretion disk with a mouse, trackpad,
 or Control-click to open a custom pixel-art menu. It provides the current
 frequently used controls without repeating quota details: conditional retry,
-S/M/L size selection, position lock, pointer click-through, Smooth/Pixel tooltip
-style, quota dynamics, fullscreen hiding, launch at login, hiding the pet, and
-quitting the app. Setting toggles update their checkmarks without closing the
-menu; choosing a tooltip style closes it.
+S/M/L size selection, a mouse-first Object Mix matrix, position lock, pointer
+click-through, Smooth/Pixel tooltip style, quota dynamics, fullscreen hiding,
+launch at login, hiding the pet, and quitting the app. Object weights and setting
+toggles update immediately without closing the menu; choosing a tooltip style
+closes it.
 
 The menu uses the black hole's gold, orange, and purple palette with a reversible
 spaghettification animation. It stays on screen near the pointer, supports
@@ -128,9 +133,11 @@ boundary is recorded in `docs/ARCHITECTURE.md`.
 ## Optional pixel-art interaction
 
 Click the black hole to pull in a random pixel-art object. The current catalog
-contains 33 space objects, cute animals, and characters. Rapid clicks can launch
-up to three objects at once along different trajectories, with gravitational
-stretching and a pixel-breakup finish.
+contains 33 objects across space, animal, and character categories. Their saved
+relative weights can be set from 0 to 3 in the menu bar or Pixel context menu;
+zero excludes a category while at least one category always remains active.
+Rapid clicks can launch up to three objects at once along different trajectories,
+with gravitational stretching and a pixel-breakup finish.
 
 <p align="center">
   <img src="Assets/Sprites/previews/absorbable-objects-atlas.png"
