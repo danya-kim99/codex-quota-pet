@@ -17,6 +17,7 @@ CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-05-v1.png"
 FINAL_CHARACTER_PAIR_SOURCE = ROOT / "docs/concepts/absorbable-people-06-07-v2.png"
 TAUPE_LOUNGEWEAR_SOURCE = ROOT / "docs/concepts/absorbable-person-08-v5.png"
 TIED_CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-09-v4.png"
+CHARCOAL_BLAZER_SOURCE = ROOT / "docs/concepts/absorbable-person-10-v1.png"
 OUTPUT_DIR = ROOT / "Assets/Sprites/objects"
 PREVIEW = ROOT / "Assets/Sprites/previews/absorbable-objects-atlas.png"
 CANVAS_SIZE = (80, 80)
@@ -65,6 +66,7 @@ MODELS = [
     ("character-botanical-shirt", "characters"),
     ("character-taupe-loungewear", "characters"),
     ("character-tied-cream-sweater", "characters"),
+    ("character-charcoal-blazer", "characters"),
 ]
 
 OBJECT_MODELS = MODELS[:24]
@@ -553,6 +555,15 @@ def main() -> None:
         extract_sheet(
             TIED_CREAM_SWEATER_SOURCE,
             CHARACTER_MODELS[8:9],
+            columns=1,
+            rows=1,
+            inset=28,
+        )
+    )
+    sprites.update(
+        extract_sheet(
+            CHARCOAL_BLAZER_SOURCE,
+            CHARACTER_MODELS[9:10],
             columns=1,
             rows=1,
             inset=28,

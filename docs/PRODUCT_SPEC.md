@@ -933,8 +933,8 @@ V3 design and uses the bundled manifest-driven asset set.
 - Objects spawn inside an edge of the selected 400 × 220, 320 × 176, or
   240 × 132 pt pet window. The feature does not create a desktop-wide overlay
   or inspect applications, files, or other windows.
-- The bundled set contains 33 approved models: twelve space objects, twelve
-  cute animals, and nine characters. The default category selection uses
+- The bundled set contains 34 approved models: twelve space objects, twelve
+  cute animals, and ten characters. The default category selection uses
   `2 : 2 : 1`, producing 40% space objects, 40% animals, and 20% characters,
   with no immediate model repeat when an alternative is available.
 - At most three objects can be active. Their starting sides differ when
@@ -999,6 +999,13 @@ with round glasses, a vivid golden-yellow face-framing streak, a tied cream
 sweater, and wide gray trousers. Her V4 concept supersedes V3. The catalog now
 contains 33 models with nine characters. The existing `characters` category
 weight, selection behavior, animation, and interaction rules remain unchanged.
+
+On 20 August 2026, the user approved
+[`absorbable-person-10-v1.png`](concepts/absorbable-person-10-v1.png), the man
+with side-swept brown hair, a friendly smile, light stubble, a charcoal blazer,
+and a white band-collar shirt. The catalog now contains 34 models with ten
+characters. The existing `characters` category defaults, saved selection
+behavior, animation, and interaction rules remain unchanged.
 
 The V2 astronaut animation is the approved representative visual prototype.
 The slower V3 timing is approved through the three-object launch with varied
@@ -1074,7 +1081,7 @@ State matrix and accessibility:
   renderer work, dependency, permission, signing, packaging, or distribution
   change.
 
-Explicit non-goals are individual weights for the 33 models, physical mass,
+Explicit non-goals are individual weights for the 34 models, physical mass,
 weight-dependent speed, trajectory or black-hole reaction, percentages,
 presets, import/export, sync, counters, collections, achievements, a reset
 command, or a Settings window.

@@ -182,6 +182,11 @@
       "id": "character-tied-cream-sweater",
       "category": "characters",
       "asset": "absorb-character-tied-cream-sweater"
+    },
+    {
+      "id": "character-charcoal-blazer",
+      "category": "characters",
+      "asset": "absorb-character-charcoal-blazer"
     }
   ]
 }

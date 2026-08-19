@@ -133,7 +133,7 @@ boundary is recorded in `docs/ARCHITECTURE.md`.
 ## Optional pixel-art interaction
 
 Click the black hole to pull in a random pixel-art object. The current catalog
-contains 33 objects across space, animal, and character categories. Their saved
+contains 34 objects across space, animal, and character categories. Their saved
 relative weights can be set from 0 to 3 in the menu bar or Pixel context menu;
 zero excludes a category while at least one category always remains active.
 Rapid clicks can launch up to three objects at once along different trajectories,
