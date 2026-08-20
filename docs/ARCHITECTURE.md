@@ -103,4 +103,10 @@ spaghettification state are pure helpers covered by tests.
 preferences. `PetPanelController` applies their single effective `NSPanel`
 policy, keeps the menu-bar toggle as the recovery path, and uses named native
 frame restoration only for locked placement; display changes reuse the existing
-positive-intersection screen selection and visible-frame clamping.
+positive-intersection screen selection and visible-frame clamping. Routine
+ordering of an existing panel is frame-neutral. A per-quota cached alpha union
+of the six idle sprites, mapped through the renderer's aspect-fit and maximum
+pulse together with the stable absorption core, is the shared hover, context,
+drag, and dynamic transparent-padding pass-through region. Local and global
+mouse-move monitors update the one panel's native `ignoresMouseEvents` policy;
+active pointer sequences hold capture until release without adding permissions.

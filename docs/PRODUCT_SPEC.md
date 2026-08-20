@@ -811,6 +811,17 @@ Pointer behavior and transitions:
 - With click-through enabled, the underlying application receives mouse and
   trackpad down, move, and up events regardless of the stored lock state. The
   pet starts no hover, tooltip, absorption, drag, or context-menu interaction.
+- With explicit click-through disabled, the effective pointer region is the
+  union of every nontransparent pixel in the current quota bucket's six idle
+  frames at the exact aspect-fit size and maximum 1.042 visual pulse, plus the
+  stable 112 pt absorption core scaled with S/M/L. Transparent panel padding
+  passes through to the application underneath. Hover, secondary/Control-click,
+  tooltip restoration, and drag start use this same region.
+- While a left, secondary, Control-click, or native drag sequence is active,
+  the panel keeps receiving events until release even if the pointer leaves the
+  visible region. Explicit click-through remains an immediate override. Local
+  and global mouse-move monitoring supplies this behavior without Accessibility
+  or Screen Recording permission.
 - Any lock change cancels the controller's current left, secondary, and
   Control-click bookkeeping without absorption or context action. Enabling lock
   does not promise to abort a native background drag already in progress; after
@@ -818,10 +829,10 @@ Pointer behavior and transitions:
 - Enabling click-through first cancels pointer tracking, stops the tooltip
   countdown and hides the tooltip, closes the context menu and removes its
   monitor, recalculates movability, and then makes the main panel ignore mouse
-  events. Disabling it restores mouse events first, reapplies the current lock
-  and menu policy, and suppresses tooltip reentry until a real pointer exit and
-  following enter. A synthetic exit while the panel ignores events cannot clear
-  that suppression.
+  events. Disabling it reapplies the current lock, menu, and dynamic
+  visible-region mouse policy, and suppresses tooltip reentry until a real
+  pointer exit and following enter. A synthetic exit while the panel ignores
+  events cannot clear that suppression.
 - Context-menu opening keeps panel movement disabled. Every dismissal path
   recalculates the effective policy instead of unconditionally making the panel
   movable. Already-running manual absorption may finish; click-through never
@@ -841,11 +852,14 @@ Position persistence and displays:
   non-finite geometry, applies the current S/M/L scene around the restored
   center, chooses a screen only when intersection is positive and otherwise
   falls back to the main screen, then clamps to that screen's `visibleFrame`.
-- The same validation runs before every show and after display-parameter
-  changes. It supports negative coordinates, displays to the left or above the
-  main display, rotation, removal between or during launches, and Dock or menu
-  bar inset changes. No absolute-position guarantee is made across arbitrary
-  display rearrangement beyond this restore-and-clamp policy.
+- The same validation runs for initial restoration and after display-parameter
+  changes. Ordering an existing panel back in during an ordinary application,
+  Space, or window switch is frame-neutral, including a deliberately
+  partly-offscreen corner position. Validation still supports negative
+  coordinates, displays to the left or above the main display, rotation,
+  removal between or during launches, and Dock or menu bar inset changes. No
+  absolute-position guarantee is made across arbitrary display rearrangement
+  beyond this restore-and-clamp policy.
 - An ordered-out panel saves its current frame when locking. If the panel has
   not been created, a valid saved frame is used on first creation; otherwise the
   current upper-right default is used and then saved if lock is active. Hidden

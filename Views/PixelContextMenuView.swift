@@ -30,21 +30,11 @@ enum ContextMenuInteraction {
     static func acceptsClick(
         mouseDown: CGPoint,
         mouseUp: CGPoint,
-        sceneSize: CGSize
+        visibleRegion: PetVisibleRegion
     ) -> Bool {
         hypot(mouseUp.x - mouseDown.x, mouseUp.y - mouseDown.y) <= movementThreshold
-            && containsVisiblePet(mouseDown, sceneSize: sceneSize)
-            && containsVisiblePet(mouseUp, sceneSize: sceneSize)
-    }
-
-    static func containsVisiblePet(_ point: CGPoint, sceneSize: CGSize) -> Bool {
-        guard sceneSize.width > 0, sceneSize.height > 0 else { return false }
-        let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
-        let radiusX = sceneSize.width * 0.48
-        let radiusY = sceneSize.height * 0.40
-        let normalizedX = (point.x - center.x) / radiusX
-        let normalizedY = (point.y - center.y) / radiusY
-        return normalizedX * normalizedX + normalizedY * normalizedY <= 1
+            && visibleRegion.contains(mouseDown)
+            && visibleRegion.contains(mouseUp)
     }
 }
 

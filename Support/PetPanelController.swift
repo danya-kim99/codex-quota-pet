@@ -28,6 +28,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var resetCountdownTask: Task<Void, Never>?
     private var contextMenuDismissCompletion: (() -> Void)?
     private var pointerMonitor: Any?
+    private var localPointerLocationMonitor: Any?
+    private var globalPointerLocationMonitor: Any?
     private var outsidePointerMonitor: Any?
     private var absorptionPointerStart: (window: CGPoint, screen: CGPoint)?
     private var contextPointerStart: (
@@ -35,6 +37,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         screen: CGPoint,
         kind: ContextPointerKind
     )?
+    private var visibleRegion: PetVisibleRegion?
+    private var isHoveringVisibleRegion = false
     private var hoverRequiresExitBeforeReentry = false
     private weak var appState: AppState?
     private var observationTokens: [NSObjectProtocol] = []
@@ -50,6 +54,24 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             ?? Self.detectFrontmostApplicationFullScreen
         self.frameName = frameName
         super.init()
+    }
+
+    deinit {
+        dragCompletionTask?.cancel()
+        contextMenuAnimationTask?.cancel()
+        resetCountdownTask?.cancel()
+        observationTokens.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
+        }
+        if let displayObservationToken {
+            NotificationCenter.default.removeObserver(displayObservationToken)
+        }
+        [
+            pointerMonitor,
+            localPointerLocationMonitor,
+            globalPointerLocationMonitor,
+            outsidePointerMonitor
+        ].compactMap { $0 }.forEach(NSEvent.removeMonitor)
     }
 
     var isVisible: Bool {
@@ -88,6 +110,13 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         panel?.frame
     }
 
+    #if DEBUG
+    func setPetFrameForTesting(_ frame: CGRect) {
+        panel?.setFrame(frame, display: false)
+        recomputePointerInteraction(updateHover: false)
+    }
+    #endif
+
     var contextMenuFrame: CGRect? {
         contextMenuPanel?.frame
     }
@@ -104,6 +133,14 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         isDraggingPet
     }
 
+    var isPointerLocationMonitoring: Bool {
+        localPointerLocationMonitor != nil && globalPointerLocationMonitor != nil
+    }
+
+    var isCursorInsideVisibleRegion: Bool {
+        cursorIsInsideVisibleRegion()
+    }
+
     static func inputPolicy(
         isPositionLocked: Bool,
         passesPointerInputThrough: Bool,
@@ -114,6 +151,15 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             allowsPointer: allowsPointer,
             allowsDrag: allowsPointer && !isPositionLocked && !hasContextMenu
         )
+    }
+
+    static func shouldIgnoreMouseEvents(
+        passesPointerInputThrough: Bool,
+        cursorIsInsideVisibleRegion: Bool,
+        hasActivePointerSequence: Bool
+    ) -> Bool {
+        passesPointerInputThrough
+            || (!hasActivePointerSequence && !cursorIsInsideVisibleRegion)
     }
 
     static func shouldClearHoverRearm(
@@ -192,11 +238,13 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         self.appState = appState
 
         if let panel {
-            correctPanelFrameIfNeeded(saveIfLocked: true)
+            refreshVisibleRegion()
+            installPointerLocationMonitorsIfNeeded()
             repositionTooltip()
             applyInputPolicy()
             updateHoverRearmForPanelShow()
             panel.orderFrontRegardless()
+            recomputePointerInteraction()
             appState.setQuotaConsumptionPanelPresented(true)
             return
         }
@@ -217,6 +265,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = false
+        panel.acceptsMouseMovedEvents = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.delegate = self
@@ -228,6 +277,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 },
                 openContextMenu: { [weak self] in
                     self?.showContextMenuFromAccessibility()
+                },
+                visibleRegionDidChange: { [weak self] bucket in
+                    self?.visibleRegionDidChange(bucket: bucket)
+                },
+                absorptionDidStart: { [weak self] in
+                    self?.suppressTooltipUntilPointerExit()
                 }
             )
         )
@@ -235,10 +290,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         positionPanelForInitialShow(panel, size: size, isLocked: appState.isPetPositionLocked)
 
         self.panel = panel
+        refreshVisibleRegion()
         applyInputPolicy()
         let tooltipPanel = makeTooltipPanel(appState: appState, relativeTo: panel)
         self.tooltipPanel = tooltipPanel
         installPointerMonitorIfNeeded()
+        installPointerLocationMonitorsIfNeeded()
         panel.addChildWindow(tooltipPanel, ordered: .above)
         tooltipPanel.orderOut(nil)
         repositionTooltip()
@@ -247,10 +304,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         panel.orderFrontRegardless()
+        recomputePointerInteraction()
         appState.setQuotaConsumptionPanelPresented(true)
     }
 
     func hide() {
+        removePointerLocationMonitors()
         dismissContextMenu(animated: false)
         cancelDragTracking()
         absorptionPointerStart = nil
@@ -259,6 +318,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         appState?.setQuotaConsumptionPanelPresented(false)
         hideTooltip()
         panel?.orderOut(nil)
+        isHoveringVisibleRegion = false
     }
 
     func resize(to size: PetSize) {
@@ -274,10 +334,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             visibleFrame: Self.visibleFrame(for: panel.frame)
         )
         panel.setFrame(frame, display: true)
+        refreshVisibleRegion()
         if appState?.isPetPositionLocked == true {
             panel.saveFrame(usingName: frameName)
         }
         repositionTooltip()
+        recomputePointerInteraction()
     }
 
     func positionLockDidChange() {
@@ -300,9 +362,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             applyInputPolicy(applyMouseEvents: false)
             panel?.ignoresMouseEvents = true
         } else {
-            panel?.ignoresMouseEvents = false
             applyInputPolicy(applyMouseEvents: false)
-            hoverRequiresExitBeforeReentry = cursorIsInsideHoverTarget()
+            hoverRequiresExitBeforeReentry = cursorIsInsideVisibleRegion()
+            recomputePointerInteraction()
         }
     }
 
@@ -330,7 +392,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             if hoverRequiresExitBeforeReentry {
                 guard Self.shouldClearHoverRearm(
                     passesPointerInputThrough: appState?.passesPointerInputThrough == true,
-                    cursorIsInsideHoverTarget: cursorIsInsideHoverTarget()
+                    cursorIsInsideHoverTarget: cursorIsInsideVisibleRegion()
                 ) else { return }
             }
             hoverRequiresExitBeforeReentry = false
@@ -372,6 +434,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         guard !isDraggingPet else { return }
         isDraggingPet = true
         appState?.setQuotaConsumptionDragging(true)
+        recomputePointerInteraction(updateHover: false)
         restoreTooltipAfterDrag = tooltipPanel?.isVisible == true
         dragCompletionTask?.cancel()
         stopResetCountdownUpdates()
@@ -382,12 +445,14 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func windowDidMove(_ notification: Notification) {
         guard notification.object as? NSWindow === panel else { return }
         repositionTooltip()
+        recomputePointerInteraction(updateHover: false)
         waitForDragToEnd()
     }
 
     func windowDidChangeScreen(_ notification: Notification) {
         guard notification.object as? NSWindow === panel else { return }
         repositionTooltip()
+        recomputePointerInteraction(updateHover: false)
     }
 
     static func contextMenuLayout(
@@ -740,10 +805,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     static func shouldRestoreTooltipAfterDrag(
         wasVisible: Bool,
-        cursorLocation: CGPoint,
-        petFrame: CGRect
+        cursorIsInsideVisibleRegion: Bool
     ) -> Bool {
-        wasVisible && petFrame.contains(cursorLocation)
+        wasVisible && cursorIsInsideVisibleRegion
     }
 
     static func resizedPetFrame(
@@ -940,8 +1004,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         dragCompletionTask = nil
         let shouldRestore = Self.shouldRestoreTooltipAfterDrag(
             wasVisible: restoreTooltipAfterDrag,
-            cursorLocation: NSEvent.mouseLocation,
-            petFrame: panel.frame
+            cursorIsInsideVisibleRegion: cursorIsInsideVisibleRegion()
         )
         restoreTooltipAfterDrag = false
 
@@ -949,6 +1012,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             panel.saveFrame(usingName: frameName)
         }
 
+        absorptionPointerStart = nil
+        contextPointerStart = nil
+        recomputePointerInteraction()
         if shouldRestore {
             setTooltipVisible(true)
         }
@@ -960,6 +1026,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         isDraggingPet = false
         appState?.setQuotaConsumptionDragging(false)
         restoreTooltipAfterDrag = false
+        recomputePointerInteraction()
     }
 
     private var inputPolicy: PetPanelInputPolicy {
@@ -975,7 +1042,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         let policy = inputPolicy
         panel.isMovableByWindowBackground = policy.allowsDrag
         if applyMouseEvents {
-            panel.ignoresMouseEvents = !policy.allowsPointer
+            recomputePointerInteraction(updateHover: false)
         }
     }
 
@@ -985,6 +1052,37 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp]
         ) { [weak self] event in
             self?.handlePointerEvent(event) ?? event
+        }
+    }
+
+    private func installPointerLocationMonitorsIfNeeded() {
+        if localPointerLocationMonitor == nil {
+            localPointerLocationMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: .mouseMoved
+            ) { [weak self] event in
+                self?.recomputePointerInteraction()
+                return event
+            }
+        }
+        if globalPointerLocationMonitor == nil {
+            globalPointerLocationMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: .mouseMoved
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.recomputePointerInteraction()
+                }
+            }
+        }
+    }
+
+    private func removePointerLocationMonitors() {
+        if let localPointerLocationMonitor {
+            NSEvent.removeMonitor(localPointerLocationMonitor)
+            self.localPointerLocationMonitor = nil
+        }
+        if let globalPointerLocationMonitor {
+            NSEvent.removeMonitor(globalPointerLocationMonitor)
+            self.globalPointerLocationMonitor = nil
         }
     }
 
@@ -1017,6 +1115,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 dismissContextMenu(animated: true)
                 absorptionPointerStart = nil
                 contextPointerStart = nil
+                recomputePointerInteraction()
             }
 
             return event.window === panel ? nil : event
@@ -1029,19 +1128,21 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 contextPointerStart = nil
                 return event
             }
+            guard visibleRegion?.contains(event.locationInWindow) == true else {
+                absorptionPointerStart = nil
+                contextPointerStart = nil
+                recomputePointerInteraction()
+                return nil
+            }
 
             if event.modifierFlags.contains(.control) {
                 absorptionPointerStart = nil
-                if ContextMenuInteraction.containsVisiblePet(
-                    event.locationInWindow,
-                    sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
-                ) {
-                    contextPointerStart = (
-                        window: event.locationInWindow,
-                        screen: NSEvent.mouseLocation,
-                        kind: .controlClick
-                    )
-                }
+                contextPointerStart = (
+                    window: event.locationInWindow,
+                    screen: NSEvent.mouseLocation,
+                    kind: .controlClick
+                )
+                recomputePointerInteraction(updateHover: false)
                 return nil
             }
 
@@ -1050,14 +1151,19 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 window: event.locationInWindow,
                 screen: NSEvent.mouseLocation
             )
+            recomputePointerInteraction(updateHover: false)
         case .leftMouseUp:
             if let start = contextPointerStart, start.kind == .controlClick {
                 contextPointerStart = nil
                 showContextMenuIfAccepted(start: start)
+                recomputePointerInteraction()
                 return nil
             }
 
-            guard let start = absorptionPointerStart else { return event }
+            guard let start = absorptionPointerStart else {
+                recomputePointerInteraction()
+                return event
+            }
             absorptionPointerStart = nil
             let screenEnd = NSEvent.mouseLocation
             let virtualWindowEnd = CGPoint(
@@ -1071,12 +1177,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             ) {
                 appState?.requestAbsorption()
             }
+            recomputePointerInteraction()
         case .rightMouseDown:
             guard event.window === panel,
-                  ContextMenuInteraction.containsVisiblePet(
-                    event.locationInWindow,
-                    sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
-                  ) else {
+                  visibleRegion?.contains(event.locationInWindow) == true else {
                 contextPointerStart = nil
                 return event
             }
@@ -1086,13 +1190,16 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 screen: NSEvent.mouseLocation,
                 kind: .rightClick
             )
+            recomputePointerInteraction(updateHover: false)
             return nil
         case .rightMouseUp:
             guard let start = contextPointerStart, start.kind == .rightClick else {
+                recomputePointerInteraction()
                 return event
             }
             contextPointerStart = nil
             showContextMenuIfAccepted(start: start)
+            recomputePointerInteraction()
             return nil
         default:
             break
@@ -1109,10 +1216,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             x: start.window.x + screenEnd.x - start.screen.x,
             y: start.window.y + screenEnd.y - start.screen.y
         )
-        guard ContextMenuInteraction.acceptsClick(
+        guard let visibleRegion,
+              ContextMenuInteraction.acceptsClick(
             mouseDown: start.window,
             mouseUp: virtualWindowEnd,
-            sceneSize: appState?.petSize.sceneSize ?? BlackHoleView.size
+            visibleRegion: visibleRegion
         ) else {
             return
         }
@@ -1160,24 +1268,80 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         defer { appState?.setQuotaConsumptionResizing(false) }
         dismissContextMenu(animated: false)
         correctPanelFrameIfNeeded(saveIfLocked: true)
+        refreshVisibleRegion()
         repositionTooltip()
         applyInputPolicy()
+        recomputePointerInteraction()
     }
 
-    private func cursorIsInsideHoverTarget() -> Bool {
-        guard let panel, let appState else { return false }
-        let radius = BlackHoleView.hoverDiameter * appState.petSize.scale / 2
+    private func visibleRegionDidChange(bucket: Int) {
+        refreshVisibleRegion(bucket: bucket)
+        recomputePointerInteraction()
+    }
+
+    private func refreshVisibleRegion(bucket: Int? = nil) {
+        guard let appState else { return }
+        visibleRegion = PetVisibleRegion(
+            bucket: bucket ?? PetVisualState(
+                remainingPercent: appState.quota?.primary?.remainingPercent ?? 100
+            ).spriteStatePercent,
+            sceneSize: appState.petSize.sceneSize
+        )
+    }
+
+    private var hasActivePointerSequence: Bool {
+        absorptionPointerStart != nil || contextPointerStart != nil || isDraggingPet
+    }
+
+    private func recomputePointerInteraction(updateHover: Bool = true) {
+        guard let panel else { return }
+        if visibleRegion?.sceneSize != panel.frame.size {
+            refreshVisibleRegion()
+        }
+        let cursorIsInside = cursorIsInsideVisibleRegion()
+        let passesThrough = appState?.passesPointerInputThrough == true
+        let hasActiveSequence = hasActivePointerSequence
+        let shouldIgnoreMouseEvents = Self.shouldIgnoreMouseEvents(
+            passesPointerInputThrough: passesThrough,
+            cursorIsInsideVisibleRegion: cursorIsInside,
+            hasActivePointerSequence: hasActiveSequence
+        )
+        if panel.ignoresMouseEvents != shouldIgnoreMouseEvents {
+            panel.ignoresMouseEvents = shouldIgnoreMouseEvents
+        }
+
+        guard updateHover, panel.isVisible, !passesThrough, !hasActiveSequence,
+              isHoveringVisibleRegion != cursorIsInside else { return }
+        isHoveringVisibleRegion = cursorIsInside
+        if cursorIsInside {
+            appState?.refreshQuotaIfStale()
+            handleTooltipVisibilityRequest(true)
+        } else {
+            handleTooltipVisibilityRequest(false)
+        }
+    }
+
+    private func cursorIsInsideVisibleRegion() -> Bool {
+        guard let panel, let visibleRegion else { return false }
         let cursor = NSEvent.mouseLocation
-        let deltaX = cursor.x - panel.frame.midX
-        let deltaY = cursor.y - panel.frame.midY
-        return hypot(deltaX, deltaY) <= radius
+        return visibleRegion.contains(
+            CGPoint(
+                x: cursor.x - panel.frame.minX,
+                y: cursor.y - panel.frame.minY
+            )
+        )
+    }
+
+    private func suppressTooltipUntilPointerExit() {
+        hoverRequiresExitBeforeReentry = true
+        hideTooltip()
     }
 
     private func updateHoverRearmForPanelShow() {
         hoverRequiresExitBeforeReentry = Self.hoverRearmRequired(
             currentlyRequired: hoverRequiresExitBeforeReentry,
             passesPointerInputThrough: appState?.passesPointerInputThrough == true,
-            cursorIsInsideHoverTarget: cursorIsInsideHoverTarget()
+            cursorIsInsideHoverTarget: cursorIsInsideVisibleRegion()
         )
     }
 

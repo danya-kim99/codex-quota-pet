@@ -271,55 +271,117 @@ final class RateLimitDecodingTests: XCTestCase {
 
     @MainActor
     func testTooltipRestoresAfterDragOnlyWhileCursorRemainsOverPet() {
-        let petFrame = CGRect(x: 500, y: 300, width: 400, height: 220)
-
         XCTAssertTrue(
             PetPanelController.shouldRestoreTooltipAfterDrag(
                 wasVisible: true,
-                cursorLocation: CGPoint(x: petFrame.midX, y: petFrame.midY),
-                petFrame: petFrame
+                cursorIsInsideVisibleRegion: true
             )
         )
         XCTAssertFalse(
             PetPanelController.shouldRestoreTooltipAfterDrag(
                 wasVisible: true,
-                cursorLocation: CGPoint(x: petFrame.maxX + 1, y: petFrame.midY),
-                petFrame: petFrame
+                cursorIsInsideVisibleRegion: false
             )
         )
         XCTAssertFalse(
             PetPanelController.shouldRestoreTooltipAfterDrag(
                 wasVisible: false,
-                cursorLocation: CGPoint(x: petFrame.midX, y: petFrame.midY),
-                petFrame: petFrame
+                cursorIsInsideVisibleRegion: true
             )
         )
     }
 
     func testContextMenuClickUsesVisiblePetAndMovementThreshold() {
+        let bundle = Bundle(for: AppDelegate.self)
         for size in PetSize.allCases.map(\.sceneSize) {
+            let visibleRegion = PetVisibleRegion(
+                bucket: 100,
+                sceneSize: size,
+                bundle: bundle
+            )
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             XCTAssertTrue(
                 ContextMenuInteraction.acceptsClick(
                     mouseDown: center,
                     mouseUp: CGPoint(x: center.x + 6, y: center.y),
-                    sceneSize: size
+                    visibleRegion: visibleRegion
                 )
             )
             XCTAssertFalse(
                 ContextMenuInteraction.acceptsClick(
                     mouseDown: center,
                     mouseUp: CGPoint(x: center.x + 7, y: center.y),
-                    sceneSize: size
+                    visibleRegion: visibleRegion
                 )
             )
             XCTAssertFalse(
                 ContextMenuInteraction.acceptsClick(
                     mouseDown: CGPoint(x: 1, y: 1),
                     mouseUp: CGPoint(x: 1, y: 1),
-                    sceneSize: size
+                    visibleRegion: visibleRegion
                 )
             )
+        }
+    }
+
+    func testVisibleRegionKeepsCoreAndOpaqueTipsButRejectsTransparentCorners() {
+        let bundle = Bundle(for: AppDelegate.self)
+        let representativeTips: [(bucket: Int, leftX: Int, rightX: Int, y: Int)] = [
+            (100, 59, 324, 136),
+            (50, 58, 326, 136),
+            (0, 46, 348, 137)
+        ]
+
+        for size in PetSize.allCases.map(\.sceneSize) {
+            let petScale = size.width / PetSize.large.sceneSize.width
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            for tip in representativeTips {
+                let region = PetVisibleRegion(
+                    bucket: tip.bucket,
+                    sceneSize: size,
+                    bundle: bundle
+                )
+                XCTAssertTrue(
+                    region.contains(
+                        CGPoint(
+                            x: center.x + (AbsorptionInteraction.coreDiameter / 2 - 0.1)
+                                * petScale,
+                            y: center.y
+                        )
+                    ),
+                    "Core S/M/L bucket \(tip.bucket)"
+                )
+
+                let sourceScale = min(size.width / 384, size.height / 272)
+                    * PetVisibleRegion.maximumVisualScale
+                let sourceOrigin = CGPoint(
+                    x: (size.width - 384 * sourceScale) / 2,
+                    y: (size.height - 272 * sourceScale) / 2
+                )
+                for sourceX in [tip.leftX, tip.rightX] {
+                    XCTAssertTrue(
+                        region.contains(
+                            CGPoint(
+                                x: sourceOrigin.x + (CGFloat(sourceX) + 0.5) * sourceScale,
+                                y: sourceOrigin.y + (CGFloat(tip.y) + 0.5) * sourceScale
+                            )
+                        ),
+                        "Opaque tip S/M/L bucket \(tip.bucket) x=\(sourceX)"
+                    )
+                }
+
+                for corner in [
+                    CGPoint(x: 1, y: 1),
+                    CGPoint(x: size.width - 1, y: 1),
+                    CGPoint(x: 1, y: size.height - 1),
+                    CGPoint(x: size.width - 1, y: size.height - 1)
+                ] {
+                    XCTAssertFalse(
+                        region.contains(corner),
+                        "Transparent corner S/M/L bucket \(tip.bucket)"
+                    )
+                }
+            }
         }
     }
 
@@ -3045,6 +3107,35 @@ final class PositionLockClickThroughTests: XCTestCase {
                 cursorIsInsideHoverTarget: false
             )
         )
+
+        XCTAssertTrue(
+            PetPanelController.shouldIgnoreMouseEvents(
+                passesPointerInputThrough: true,
+                cursorIsInsideVisibleRegion: true,
+                hasActivePointerSequence: true
+            )
+        )
+        XCTAssertFalse(
+            PetPanelController.shouldIgnoreMouseEvents(
+                passesPointerInputThrough: false,
+                cursorIsInsideVisibleRegion: true,
+                hasActivePointerSequence: false
+            )
+        )
+        XCTAssertTrue(
+            PetPanelController.shouldIgnoreMouseEvents(
+                passesPointerInputThrough: false,
+                cursorIsInsideVisibleRegion: false,
+                hasActivePointerSequence: false
+            )
+        )
+        XCTAssertFalse(
+            PetPanelController.shouldIgnoreMouseEvents(
+                passesPointerInputThrough: false,
+                cursorIsInsideVisibleRegion: false,
+                hasActivePointerSequence: true
+            )
+        )
     }
 
     @MainActor
@@ -3060,7 +3151,10 @@ final class PositionLockClickThroughTests: XCTestCase {
         let controller = PetPanelController(frameName: frameName)
         controller.show(appState: appState)
         XCTAssertTrue(controller.isPanelMovableByWindowBackground)
-        XCTAssertFalse(controller.isPanelIgnoringMouseEvents)
+        XCTAssertEqual(
+            controller.isPanelIgnoringMouseEvents,
+            !controller.isCursorInsideVisibleRegion
+        )
 
         appState.setPetPositionLocked(true)
         controller.positionLockDidChange()
@@ -3081,8 +3175,54 @@ final class PositionLockClickThroughTests: XCTestCase {
 
         appState.setPassesPointerInputThrough(false)
         controller.pointerClickThroughDidChange()
-        XCTAssertFalse(controller.isPanelIgnoringMouseEvents)
+        XCTAssertEqual(
+            controller.isPanelIgnoringMouseEvents,
+            !controller.isCursorInsideVisibleRegion
+        )
         XCTAssertTrue(controller.isPanelMovableByWindowBackground)
+        controller.hide()
+    }
+
+    @MainActor
+    func testExistingPanelVisibilityUpdatePreservesPartlyOffscreenFrameExactly() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController(isFrontmostApplicationFullScreen: { false })
+        controller.show(appState: appState)
+
+        let visibleFrame = try XCTUnwrap(NSScreen.main?.visibleFrame)
+        let partlyOffscreenFrame = CGRect(
+            x: visibleFrame.maxX - 72,
+            y: visibleFrame.midY - PetSize.large.sceneSize.height / 2,
+            width: PetSize.large.sceneSize.width,
+            height: PetSize.large.sceneSize.height
+        )
+        controller.setPetFrameForTesting(partlyOffscreenFrame)
+        XCTAssertEqual(controller.petFrame, partlyOffscreenFrame)
+
+        controller.updateVisibility(appState: appState)
+        XCTAssertEqual(controller.petFrame, partlyOffscreenFrame)
+        controller.hide()
+    }
+
+    @MainActor
+    func testPointerLocationMonitorsFollowPanelVisibilityIdempotently() throws {
+        let suiteName = "PositionLockClickThroughTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(defaults: defaults)
+        let controller = PetPanelController()
+
+        controller.show(appState: appState)
+        XCTAssertTrue(controller.isPointerLocationMonitoring)
+        controller.show(appState: appState)
+        XCTAssertTrue(controller.isPointerLocationMonitoring)
+        controller.hide()
+        XCTAssertFalse(controller.isPointerLocationMonitoring)
+        controller.show(appState: appState)
+        XCTAssertTrue(controller.isPointerLocationMonitoring)
         controller.hide()
     }
 
@@ -3277,19 +3417,24 @@ final class PositionLockClickThroughTests: XCTestCase {
 
     func testPointerThresholdAndPixelMenuGeometryMatchFreeze() {
         let size = PetSize.large.sceneSize
+        let visibleRegion = PetVisibleRegion(
+            bucket: 100,
+            sceneSize: size,
+            bundle: Bundle(for: AppDelegate.self)
+        )
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         XCTAssertTrue(
             ContextMenuInteraction.acceptsClick(
                 mouseDown: center,
                 mouseUp: CGPoint(x: center.x + 6, y: center.y),
-                sceneSize: size
+                visibleRegion: visibleRegion
             )
         )
         XCTAssertFalse(
             ContextMenuInteraction.acceptsClick(
                 mouseDown: center,
                 mouseUp: CGPoint(x: center.x + 6.01, y: center.y),
-                sceneSize: size
+                visibleRegion: visibleRegion
             )
         )
         XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 462, height: 474))

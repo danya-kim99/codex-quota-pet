@@ -4,19 +4,19 @@ import SwiftUI
 
 struct BlackHoleView: View {
     static let size = PetSize.large.sceneSize
-    static let hoverDiameter: CGFloat = 128
     static let reactionBrightness: Double = 0.16
 
     let appState: AppState
     let setTooltipVisible: (Bool) -> Void
     let openContextMenu: () -> Void
+    let visibleRegionDidChange: (Int) -> Void
+    let absorptionDidStart: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animationStart = Date()
     @State private var activePlans: [AbsorptionPlan] = []
     @State private var lastObjectID: String?
     @State private var reactionStart: Date?
-    @State private var isTooltipSuppressed = false
     @State private var quotaReactionAnimation: QuotaConsumptionPreviewAnimation?
     @State private var quotaReactionStart: Date?
     @State private var quotaReactionEventID: UInt64?
@@ -41,11 +41,15 @@ struct BlackHoleView: View {
     init(
         appState: AppState,
         setTooltipVisible: @escaping (Bool) -> Void = { _ in },
-        openContextMenu: @escaping () -> Void = {}
+        openContextMenu: @escaping () -> Void = {},
+        visibleRegionDidChange: @escaping (Int) -> Void = { _ in },
+        absorptionDidStart: @escaping () -> Void = {}
     ) {
         self.appState = appState
         self.setTooltipVisible = setTooltipVisible
         self.openContextMenu = openContextMenu
+        self.visibleRegionDidChange = visibleRegionDidChange
+        self.absorptionDidStart = absorptionDidStart
     }
 
     private var remainingPercent: Int {
@@ -68,20 +72,11 @@ struct BlackHoleView: View {
     }
 
     var body: some View {
-        ZStack {
-            scene
-
-            Color.clear
-                .frame(
-                    width: Self.hoverDiameter * appState.petSize.scale,
-                    height: Self.hoverDiameter * appState.petSize.scale
-                )
-                .contentShape(Circle())
-                .onHover(perform: updateHover)
-        }
+        scene
         .frame(width: sceneSize.width, height: sceneSize.height)
         .opacity(appState.connectionState == .connected ? 1 : 0.35)
         .onAppear {
+            visibleRegionDidChange(visualState.spriteStatePercent)
             appState.setQuotaConsumptionReduceMotion(reduceMotion)
             appState.setQuotaConsumptionPanelPresented(true)
             startProductionQuotaReactionPreviewIfNeeded()
@@ -93,6 +88,12 @@ struct BlackHoleView: View {
         }
         .onChange(of: appState.pendingQuotaConsumptionReaction?.id) { _, _ in
             prefetchPendingQuotaReaction()
+        }
+        .onChange(of: visualState.spriteStatePercent) { _, bucket in
+            visibleRegionDidChange(bucket)
+        }
+        .onChange(of: appState.petSize) { _, _ in
+            visibleRegionDidChange(visualState.spriteStatePercent)
         }
         .onChange(of: reduceMotion) { _, value in
             stopQuotaReaction()
@@ -215,18 +216,6 @@ struct BlackHoleView: View {
         guard !reduceMotion, let reactionStart else { return 0 }
         let progress = min(1, max(0, date.timeIntervalSince(reactionStart) / 0.15))
         return CGFloat(sin(progress * .pi))
-    }
-
-    private func updateHover(_ isHovering: Bool) {
-        if isHovering {
-            appState.refreshQuotaIfStale()
-            if !isTooltipSuppressed {
-                setTooltipVisible(true)
-            }
-        } else {
-            isTooltipSuppressed = false
-            setTooltipVisible(false)
-        }
     }
 
     @ViewBuilder
@@ -520,7 +509,7 @@ struct BlackHoleView: View {
         activePlans.append(plan)
         appState.quotaConsumptionAbsorptionDidStart()
         lastObjectID = object.id
-        isTooltipSuppressed = true
+        absorptionDidStart()
         setTooltipVisible(false)
 
         Task { @MainActor in
@@ -547,7 +536,6 @@ struct BlackHoleView: View {
         activePlans.removeAll()
         appState.resetQuotaConsumptionAbsorptions()
         reactionStart = nil
-        isTooltipSuppressed = false
     }
 }
 
@@ -785,16 +773,116 @@ private enum AbsorbableSprites {
     }
 }
 
+struct PetVisibleRegion {
+    static let maximumVisualScale: CGFloat = 1.042
+
+    let bucket: Int
+    let sceneSize: CGSize
+    private let alphaUnion: SpriteAlphaUnion?
+    private let spriteFrame: CGRect
+    private let coreRadius: CGFloat
+    private let bounds: CGRect
+
+    init(bucket: Int, sceneSize: CGSize, bundle: Bundle = .main) {
+        self.bucket = bucket
+        self.sceneSize = sceneSize
+        let union = SpriteFrames.alphaUnion(bucket: bucket, bundle: bundle)
+        alphaUnion = union
+
+        let sourceSize = union.map {
+            CGSize(width: $0.width, height: $0.height)
+        } ?? CGSize(width: 384, height: 272)
+        let fitScale = min(
+            sceneSize.width / sourceSize.width,
+            sceneSize.height / sourceSize.height
+        )
+        let renderedScale = fitScale * Self.maximumVisualScale
+        let renderedSize = CGSize(
+            width: sourceSize.width * renderedScale,
+            height: sourceSize.height * renderedScale
+        )
+        let frame = CGRect(
+            x: (sceneSize.width - renderedSize.width) / 2,
+            y: (sceneSize.height - renderedSize.height) / 2,
+            width: renderedSize.width,
+            height: renderedSize.height
+        )
+        spriteFrame = frame
+        let radius = AbsorptionInteraction.coreDiameter
+            * sceneSize.width / PetSize.large.sceneSize.width / 2
+        coreRadius = radius
+
+        let coreBounds = CGRect(
+            x: sceneSize.width / 2 - radius,
+            y: sceneSize.height / 2 - radius,
+            width: radius * 2,
+            height: radius * 2
+        )
+        let opaqueBounds = union.map { union in
+            CGRect(
+                x: frame.minX
+                    + union.opaqueBounds.minX / CGFloat(union.width) * frame.width,
+                y: frame.minY
+                    + union.opaqueBounds.minY / CGFloat(union.height) * frame.height,
+                width: union.opaqueBounds.width / CGFloat(union.width) * frame.width,
+                height: union.opaqueBounds.height / CGFloat(union.height) * frame.height
+            )
+        } ?? .null
+        bounds = coreBounds.union(opaqueBounds)
+            .intersection(CGRect(origin: .zero, size: sceneSize))
+    }
+
+    func contains(_ point: CGPoint) -> Bool {
+        guard bounds.contains(point) else { return false }
+
+        let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
+        if hypot(point.x - center.x, point.y - center.y) <= coreRadius {
+            return true
+        }
+
+        guard let alphaUnion, spriteFrame.contains(point) else { return false }
+        let x = Int(
+            (point.x - spriteFrame.minX) / spriteFrame.width
+                * CGFloat(alphaUnion.width)
+        )
+        let y = Int(
+            (point.y - spriteFrame.minY) / spriteFrame.height
+                * CGFloat(alphaUnion.height)
+        )
+        return alphaUnion.contains(x: x, y: y)
+    }
+}
+
+private final class SpriteAlphaUnion: NSObject {
+    let width: Int
+    let height: Int
+    let pixels: [UInt8]
+    let opaqueBounds: CGRect
+
+    init(width: Int, height: Int, pixels: [UInt8], opaqueBounds: CGRect) {
+        self.width = width
+        self.height = height
+        self.pixels = pixels
+        self.opaqueBounds = opaqueBounds
+    }
+
+    func contains(x: Int, y: Int) -> Bool {
+        x >= 0 && x < width && y >= 0 && y < height
+            && pixels[y * width + x] != 0
+    }
+}
+
 private enum SpriteFrames {
     private static let cache = NSCache<NSString, NSImage>()
+    private static let alphaUnionCache = NSCache<NSString, SpriteAlphaUnion>()
 
-    static func image(named name: String) -> NSImage? {
-        let key = name as NSString
+    static func image(named name: String, bundle: Bundle = .main) -> NSImage? {
+        let key = "\(bundle.bundleURL.path)|\(name)" as NSString
         if let cached = cache.object(forKey: key) {
             return cached
         }
 
-        guard let url = Bundle.main.url(
+        guard let url = bundle.url(
             forResource: name,
             withExtension: "png",
             subdirectory: "frames"
@@ -804,6 +892,85 @@ private enum SpriteFrames {
 
         cache.setObject(image, forKey: key)
         return image
+    }
+
+    static func alphaUnion(bucket: Int, bundle: Bundle) -> SpriteAlphaUnion? {
+        let key = "\(bundle.bundleURL.path)|\(bucket)" as NSString
+        if let cached = alphaUnionCache.object(forKey: key) {
+            return cached
+        }
+
+        let images = (0..<PetVisualState.spriteFrameCount).compactMap {
+            image(named: "quota-\(bucket)-frame-\($0)", bundle: bundle)
+        }
+        guard images.count == PetVisualState.spriteFrameCount,
+              let first = cgImage(from: images[0]) else { return nil }
+
+        let width = first.width
+        let height = first.height
+        var union = [UInt8](repeating: 0, count: width * height)
+        var minimumX = width
+        var minimumY = height
+        var maximumX = -1
+        var maximumY = -1
+
+        for image in images {
+            guard let cgImage = cgImage(from: image),
+                  cgImage.width == width, cgImage.height == height,
+                  let alpha = alphaPixels(in: cgImage) else { return nil }
+            for index in alpha.indices where alpha[index] > 0 {
+                union[index] = 1
+                let x = index % width
+                let y = index / width
+                minimumX = min(minimumX, x)
+                minimumY = min(minimumY, y)
+                maximumX = max(maximumX, x)
+                maximumY = max(maximumY, y)
+            }
+        }
+
+        guard maximumX >= minimumX, maximumY >= minimumY else { return nil }
+        let alphaUnion = SpriteAlphaUnion(
+            width: width,
+            height: height,
+            pixels: union,
+            opaqueBounds: CGRect(
+                x: minimumX,
+                y: minimumY,
+                width: maximumX - minimumX + 1,
+                height: maximumY - minimumY + 1
+            )
+        )
+        alphaUnionCache.setObject(alphaUnion, forKey: key)
+        return alphaUnion
+    }
+
+    private static func cgImage(from image: NSImage) -> CGImage? {
+        var rect = CGRect(origin: .zero, size: image.size)
+        return image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+    }
+
+    private static func alphaPixels(in image: CGImage) -> [UInt8]? {
+        var rgba = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let didDraw = rgba.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(
+                data: bytes.baseAddress,
+                width: image.width,
+                height: image.height,
+                bitsPerComponent: 8,
+                bytesPerRow: image.width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.interpolationQuality = .none
+            context.draw(
+                image,
+                in: CGRect(x: 0, y: 0, width: image.width, height: image.height)
+            )
+            return true
+        }
+        guard didDraw else { return nil }
+        return stride(from: 3, to: rgba.count, by: 4).map { rgba[$0] }
     }
 }
 
