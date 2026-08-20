@@ -11,7 +11,28 @@ into an animated, always-on-top pixel-art black hole. See your remaining quota
 in the accretion disk at a glance, hover for exact numbers, or open the menu for
 full control—without leaving your work.
 
-![Pixel-art black hole floating on the desktop with a bright gold accretion disk](Assets/Sprites/previews/app-running.png)
+<table>
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-100-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-100-animation.gif" width="300" alt="Animated pixel-art black hole with a compact gold accretion disk at 100 percent remaining quota">
+      </picture><br><strong>100% remaining</strong>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-50-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-50-animation.gif" width="300" alt="Animated pixel-art black hole with an expanded gold-and-orange accretion disk at 50 percent remaining quota">
+      </picture><br><strong>50% remaining</strong>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-0-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-0-animation.gif" width="300" alt="Animated pixel-art black hole with a wide orange-and-purple accretion disk at zero percent remaining quota">
+      </picture><br><strong>0% remaining</strong>
+    </td>
+  </tr>
+</table>
 
 **[Download the latest preview](https://github.com/danya-kim99/codex-quota-pet/releases/latest)** · [View all releases](https://github.com/danya-kim99/codex-quota-pet/releases) · [Report an issue](https://github.com/danya-kim99/codex-quota-pet/issues)
 
@@ -64,29 +85,6 @@ You can also ask a Codex agent to install it:
 The black hole reads the primary rate-limit window from the local Codex App
 Server. Eleven hand-built states map the remaining quota to the nearest 10%,
 while the tooltip always keeps the exact value visible.
-
-<table>
-  <tr>
-    <td align="center">
-      <picture>
-        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-100-frame-0.png">
-        <img src="Assets/Sprites/previews/quota-100-animation.gif" width="300" alt="Animated pixel-art black hole with a compact gold accretion disk at 100 percent remaining quota">
-      </picture><br><strong>100% remaining</strong>
-    </td>
-    <td align="center">
-      <picture>
-        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-50-frame-0.png">
-        <img src="Assets/Sprites/previews/quota-50-animation.gif" width="300" alt="Animated pixel-art black hole with an expanded gold-and-orange accretion disk at 50 percent remaining quota">
-      </picture><br><strong>50% remaining</strong>
-    </td>
-    <td align="center">
-      <picture>
-        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-0-frame-0.png">
-        <img src="Assets/Sprites/previews/quota-0-animation.gif" width="300" alt="Animated pixel-art black hole with a wide orange-and-purple accretion disk at zero percent remaining quota">
-      </picture><br><strong>0% remaining</strong>
-    </td>
-  </tr>
-</table>
 
 The disk slows as quota runs out. Turbo spins 1.5× faster and adds a pulse;
 Reduce Motion freezes both. When quota drops, handcrafted pixel reactions
@@ -161,6 +159,8 @@ turn a category off entirely while keeping at least one category active.
 ![Atlas of the pixel-art space objects, animals, and characters the black hole can absorb](Assets/Sprites/previews/absorbable-objects-atlas.png)
 
 ## Built for the desktop
+
+![Pixel-art black hole floating on the desktop with a bright gold accretion disk](Assets/Sprites/previews/app-running.png)
 
 - Transparent, always-on-top native macOS panel
 - Persistent S, M, and L sizes
