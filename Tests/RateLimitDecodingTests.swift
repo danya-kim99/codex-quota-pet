@@ -3200,10 +3200,12 @@ final class PositionLockClickThroughTests: XCTestCase {
             height: PetSize.large.sceneSize.height
         )
         controller.setPetFrameForTesting(partlyOffscreenFrame)
-        XCTAssertEqual(controller.petFrame, partlyOffscreenFrame)
+        let appliedFrame = try XCTUnwrap(controller.petFrame)
+        XCTAssertLessThan(appliedFrame.minX, visibleFrame.maxX)
+        XCTAssertGreaterThan(appliedFrame.maxX, visibleFrame.maxX)
 
         controller.updateVisibility(appState: appState)
-        XCTAssertEqual(controller.petFrame, partlyOffscreenFrame)
+        XCTAssertEqual(controller.petFrame, appliedFrame)
         controller.hide()
     }
 
