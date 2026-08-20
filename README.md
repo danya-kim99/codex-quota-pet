@@ -1,218 +1,188 @@
 # Black Hole Codex Quota Indicator
 
-A native macOS floating pet that represents the remaining Codex quota as an
-animated black-hole accretion disk.
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![Apple silicon](https://img.shields.io/badge/Apple_silicon-required-333333?logo=apple&logoColor=white)
+[![Latest preview](https://img.shields.io/github/v/release/danya-kim99/codex-quota-pet?display_name=tag&label=preview)](https://github.com/danya-kim99/codex-quota-pet/releases/latest)
 
-The app reads the main Codex rate-limit bucket from the locally installed Codex
-App Server. It renders the live value as a transparent, always-on-top black hole
-whose accretion disk grows and accumulates gold, orange, and purple color layers.
-Hovering the pet shows a localized quota card with the exact percentage, reset
-time, a dynamic day countdown, a mode-neutral quota indicator, and a separate
-Standard or Turbo badge; detailed status remains available from the menu bar.
-The app also reads the effective Codex
-service tier: Fast/Turbo rotates 1.5 times faster and adds a pulse, while Reduce
-Motion freezes both effects. The menu can hide or restore the pet and optionally
-hide it while another application is fullscreen. If the local Codex process
-stops, the pet reconnects automatically and the menu offers an immediate retry.
-The menu also controls whether the main app launches when the user logs in.
-It also offers persistent S (240 × 132 pt), M (320 × 176 pt), and
-L (400 × 220 pt) pet sizes; the quota tooltip adapts to the pet size, while
-absorbed objects scale proportionally at 48 × 48 pt for S, 64 × 64 pt for M,
-and 80 × 80 pt for L.
-The pet position can be locked and restored between launches. An independent
-click-through mode passes pointer input to applications underneath and always
-remains reversible from the menu bar.
-The tooltip style can be switched between the original Smooth presentation and
-a code-native Pixel presentation from either the menu bar or the pet's context
-menu. The choice is saved between launches.
-VoiceOver announces the exact quota, speed mode, and connection state. Standard
-mode updates only when its pixel-art frame changes; Turbo keeps a smooth 30 fps
-pulse, and Reduce Motion freezes both effects.
+> **Your Codex quota, alive on your desktop.**
 
-Confident same-window quota drops trigger short authored pixel animations in
-Small, Medium, Large, or Last Light variants without adding quota reads. Reduce
-Motion uses a bounded static-brightness treatment instead of orbital motion.
+Black Hole is a native macOS companion that turns your remaining Codex quota
+into an animated, always-on-top pixel-art black hole. See your remaining quota
+in the accretion disk at a glance, hover for exact numbers, or open the menu for
+full control—without leaving your work.
 
-The renderer uses a compact pixel-art style. Its three color layers rotate and
-animate independently around a fixed black core.
+![Pixel-art black hole floating on the desktop with a bright gold accretion disk](Assets/Sprites/previews/app-running.png)
 
-## Quota states
+**[Download the latest preview](https://github.com/danya-kim99/codex-quota-pet/releases/latest)** · [View all releases](https://github.com/danya-kim99/codex-quota-pet/releases) · [Report an issue](https://github.com/danya-kim99/codex-quota-pet/issues)
 
-The exact remaining quota is mapped to the nearest 10% visual state. Each GIF
-previews the complete six-frame loop, while the black core stays the same size.
+## Why Black Hole?
 
-<table>
-  <tr>
-    <td align="center"><img src="Assets/Sprites/previews/quota-100-animation.gif" alt="100% quota state" width="160"><br><strong>100%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-90-animation.gif" alt="90% quota state" width="160"><br><strong>90%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-80-animation.gif" alt="80% quota state" width="160"><br><strong>80%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-70-animation.gif" alt="70% quota state" width="160"><br><strong>70%</strong></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="Assets/Sprites/previews/quota-60-animation.gif" alt="60% quota state" width="160"><br><strong>60%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-50-animation.gif" alt="50% quota state" width="160"><br><strong>50%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-40-animation.gif?v=0.4.1" alt="40% quota state" width="160"><br><strong>40%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-30-animation.gif" alt="30% quota state" width="160"><br><strong>30%</strong></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="Assets/Sprites/previews/quota-20-animation.gif" alt="20% quota state" width="160"><br><strong>20%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-10-animation.gif?v=0.4.1" alt="10% quota state" width="160"><br><strong>10%</strong></td>
-    <td align="center"><img src="Assets/Sprites/previews/quota-0-animation.gif" alt="0% quota state" width="160"><br><strong>0%</strong></td>
-  </tr>
-</table>
+Quota should be ambient information, not another dashboard you have to remember
+to open. Black Hole makes it visible, useful, and a little delightful:
+
+- **See quota instantly.** The disk changes color and shape as your available
+  quota falls, while hovering reveals the exact percentage and reset time.
+- **Understand the trend.** An optional local 24-hour chart shows the quota
+  movement your Mac actually observed, with honest gaps and reset markers.
+- **Stay in flow.** Use the native menu bar or secondary-click the pet for a
+  custom pixel menu with the controls you need most.
+- **Make it yours.** Pick a size, choose a Smooth or Pixel tooltip style, tune
+  the absorbable Object Mix, lock the pet, or pass clicks through it.
+- **Keep it local.** The app uses your installed Codex process and adds no
+  separate account, backend, analytics, cloud sync, or telemetry of its own.
+- **Enjoy the details.** Turbo motion, authored quota reactions, playful object
+  absorption, English and Russian localization, VoiceOver, and Reduce Motion
+  are built in.
+
+## Download and install
+
+You need:
+
+- macOS 14 or newer
+- An Apple silicon Mac
+- A locally installed and authenticated Codex CLI
+
+Install the preview:
+
+1. Download the latest app archive from [GitHub Releases](https://github.com/danya-kim99/codex-quota-pet/releases/latest).
+2. Unzip it and move `Black Hole Codex Quota Indicator.app` to `/Applications`.
+3. Open the app.
+
+Once installed in `/Applications`, the app can enable **Launch at Login** from
+its menu.
+
+You can also ask a Codex agent to install it:
+
+> Install the latest release of Black Hole Codex Quota Indicator from
+> https://github.com/danya-kim99/codex-quota-pet. Download the app archive and
+> matching `.sha256` file, verify the checksum, install the app in
+> `/Applications`, and launch it. Ask before replacing an existing installation,
+> then report the installed version and path.
+
+## A quota you can see
+
+The black hole reads the primary rate-limit window from the local Codex App
+Server. Eleven hand-built states map the remaining quota to the nearest 10%,
+while the tooltip always keeps the exact value visible.
+
+[![Static pixel-art black hole showing a mid-quota accretion disk; open the image to play the animation](Assets/Sprites/frames/quota-50-frame-0.png)](Assets/Sprites/previews/quota-50-animation.gif)
+
+[Play the complete six-frame quota animation](Assets/Sprites/previews/quota-50-animation.gif).
 
 | Remaining quota | Accretion disk |
 | --- | --- |
-| 100–60% | The gold layer grows as quota is consumed. |
-| 50–30% | An orange layer appears and becomes more prominent. |
-| 20–0% | A purple outer layer progressively opens around the disk. |
+| 100–60% | Gold expands as quota is consumed. |
+| 50–30% | Orange emerges and becomes more prominent. |
+| 20–0% | Purple opens around the outer disk. |
 
-Standard mode advances the six-frame loop at the normal rate. Turbo mode uses
-the same quota state, rotates 1.5 times faster, and adds a pulse. Hovering the
-pet always shows the exact percentage, so values between the 10% art states are
-not lost.
+The disk slows as quota runs out. Turbo spins 1.5× faster and adds a pulse;
+Reduce Motion freezes both. When quota drops, handcrafted pixel reactions
+play—including the **Last Light** sequence at 0%—without adding quota reads.
 
-## Quota tooltip
+## Local quota dynamics
 
-The tooltip follows the pet, chooses a visible side of the screen automatically,
-and stays hidden while the pet is being dragged.
+Enable **Show Quota Dynamics** to add a truthful view of recent quota movement
+to either tooltip style:
 
-Choose **Tooltip Style → Smooth / Pixel** from the menu bar, or the corresponding
-**Стиль подсказки → Обычный / Стилизованный** control in Russian. Smooth keeps
-the original quota card. Pixel uses the black hole's stepped gold, orange, and
-purple visual language, with dedicated layouts for L/M and the compact S size.
-Both styles show the same quota, Standard/Turbo mode, reset information, stale
-state, localization, and VoiceOver summary. Switching an open tooltip updates it
-immediately without moving the pet or refreshing quota data.
+- Medium and large pets show the latest 24 hours as an adaptive chart.
+- Small pets show the same trend as a compact text summary.
+- Smooth uses an antialiased line; Pixel uses a stepped arcade-style line.
+- Resets are marked explicitly, and missing continuity stays visible as a gap.
+- Relaunching, reconnecting, or waking the Mac never invents activity between
+  observations.
 
-<p align="center">
-  <img src="docs/images/quota-tooltip-en.png"
-       alt="English Turbo-mode quota tooltip showing 89% available and five days until reset"
-       width="560">
-</p>
+![Pixel tooltip showing exact Codex quota, reset details, and a stepped 24-hour local-history chart](docs/images/quota-tooltip-pixel-dynamics-en.png)
 
-1. **Available quota** — the live percentage from the primary Codex rate-limit
-   bucket. The value and bar use gold at 30% and above, orange from 10–29%, and
-   purple below 10%.
-2. **Separate mode badge** — Standard and Turbo use identical quota progress.
-   Turbo is identified by a highlighted lightning badge outside the bar or arc;
-   its highlight pulses twice when an eligible tooltip appears.
-3. **Reset window** — segmented marks show the remaining days within the real
-   quota window, followed by a localized countdown and reset date/time.
+*Pixel tooltip: exact quota, reset timing, and a locally observed trend in one
+hover.*
 
-## Pixel context menu
+History contains only locally observed integer percentages, timestamps, and the
+minimum window metadata needed to compare samples. It does not claim exact token
+usage or complete account activity. The app retains up to 30 days or 2,000
+snapshots in its own Application Support directory, never uploads them, and
+offers **Clear Local History…** with confirmation from the menu bar.
 
-Secondary-click the visible black hole or accretion disk with a mouse, trackpad,
-or Control-click to open a custom pixel-art menu. It provides the current
-frequently used controls without repeating quota details: conditional retry,
-S/M/L size selection, a mouse-first Object Mix matrix, position lock, pointer
-click-through, Smooth/Pixel tooltip style, quota dynamics, fullscreen hiding,
-launch at login, hiding the pet, and quitting the app. Object weights and setting
-toggles update immediately without closing the menu; choosing a tooltip style
-closes it.
+Hiding the chart changes presentation only; local collection continues so the
+trend is ready when you show it again.
 
-The menu uses the black hole's gold, orange, and purple palette with a reversible
-spaghettification animation. It stays on screen near the pointer, supports
-keyboard navigation and VoiceOver, respects Reduce Motion, and is localized in
-English and Russian.
+## Smooth information, pixel personality
 
-## Languages
+Hover the pet for the exact remaining quota, Standard or Turbo mode, reset
+countdown, reset date, stale-state treatment, and optional local dynamics. The
+card automatically chooses a visible side of the screen and stays out of the
+way while you drag the pet.
 
-| Language | Tooltip | Menu bar | Context menu | Dates and plurals |
-| --- | --- | --- | --- | --- |
-| English | Yes | Yes | Yes | Localized |
-| Russian / Русский | Yes | Yes | Yes | Localized |
+Choose **Tooltip Style → Smooth** for the native rounded card or **Tooltip Style
+→ Pixel** for an arcade-style pixel card in the black hole's gold, orange, and
+purple palette. The choice is saved and can be changed from either menu.
 
-The app follows the preferred macOS application language automatically, with
-English as the fallback. Quota details, menu commands, day counts, date/time
-formatting, and VoiceOver labels use the selected locale.
+## Two menus, zero detours
 
-Product decisions are recorded in `docs/PRODUCT_SPEC.md`, and the technical
-boundary is recorded in `docs/ARCHITECTURE.md`.
+| Surface | What it gives you |
+| --- | --- |
+| Menu bar | Exact primary quota, secondary quota when available, reset details, mode, connection status, retry, every preference, and local-history controls. |
+| Pixel context menu | Secondary-click or Control-click the visible black hole for a screen-aware animated menu with the most-used controls. |
 
-## Optional pixel-art interaction
+![Pixel context menu with Object Mix controls for Space, Animals, and Characters](docs/images/pixel-context-menu-object-mix-en.png)
 
-Click the black hole to pull in a random pixel-art object. The current catalog
-contains 34 objects across space, animal, and character categories. Their saved
-relative weights can be set from 0 to 3 in the menu bar or Pixel context menu;
-zero excludes a category while at least one category always remains active.
-Rapid clicks can launch up to three objects at once along different trajectories,
-with gravitational stretching and a pixel-breakup finish.
+*Object Mix lives directly in the Pixel menu—no separate settings window
+required.*
 
-<p align="center">
-  <img src="Assets/Sprites/previews/absorbable-objects-atlas.png"
-       alt="Pixel-art catalog of absorbable space objects, animals, and characters"
-       width="700">
-</p>
+The menu bar can show or hide the pet; the pixel menu can hide it. Both let you
+choose S/M/L, configure Object Mix, lock the position, enable click-through,
+switch tooltip style, toggle quota dynamics, hide in full screen, manage Launch
+at Login, and quit. The pixel menu supports arrow keys, Return, Space, Escape,
+VoiceOver, and a stepped alternative to its reversible spaghettification
+animation when Reduce Motion is enabled.
 
-## Copyright
+## A tiny black hole with an appetite
 
-Copyright © 2026 Daniil Kim. All rights reserved.
+Click the black-hole core to pull in a random pixel-art object. The catalog
+contains 33 space objects, cute animals, and characters. Rapid clicks can launch
+up to three at once along different curved paths, ending in gravitational
+stretching and a pixel-breakup finish.
 
-The source code, documentation, and visual assets are proprietary. See
-[`LICENSE`](LICENSE) for the terms of use.
+Use **Object Mix** to change how often Space, Animals, and Characters appear—or
+turn a category off entirely while keeping at least one category active.
 
-## Requirements
+![Atlas of the pixel-art space objects, animals, and characters the black hole can absorb](Assets/Sprites/previews/absorbable-objects-atlas.png)
 
-- macOS 14 or newer
-- Apple silicon for the current preview build
-- A locally installed and authenticated Codex CLI
+## Built for the desktop
 
-## Install the preview
+- Transparent, always-on-top native macOS panel
+- Persistent S, M, and L sizes
+- Position lock and multi-display position restoration
+- Optional click-through for working underneath the pet
+- Optional automatic hiding while another app is full screen
+- Automatic Codex reconnection with an immediate manual retry
+- Standard and Turbo presentation with system Reduce Motion support
+- English and Russian localization with localized dates and plurals
+- VoiceOver summaries for quota, mode, history, and connection state
 
-### Manually
+## Privacy
 
-1. Download and unzip the release archive.
-2. Move `Black Hole Codex Quota Indicator.app` to `/Applications`.
-3. Open the app.
+Black Hole talks to the locally installed `codex app-server` process over
+standard input/output. It does not scrape the Codex interface, prompts,
+conversations, credentials, or private files. It adds no project backend,
+analytics, telemetry, cloud sync, or third-party dependency for quota history.
 
-The app can enable Launch at Login from its menu after it is installed in
-`/Applications`.
+## Update
 
-### With a Codex agent
+Updating keeps saved settings and local quota history:
 
-Start a local Codex task and paste this prompt:
+1. Download and unzip the latest archive from [GitHub Releases](https://github.com/danya-kim99/codex-quota-pet/releases/latest).
+2. Quit the running app from its menu.
+3. Replace the existing app in `/Applications` and open the new copy.
 
-> Install the latest release of Black Hole Codex Quota Indicator from
-> https://github.com/danya-kim99/codex-quota-pet. Download the
-> app archive and matching `.sha256` file, verify the checksum, install the app
-> in `/Applications`, and launch it. Ask before replacing an existing
-> installation. Report the installed version and path.
+## Development
 
-## Update the preview
-
-Updating the application does not remove its saved settings.
-
-### Manually
-
-1. Download the latest `.zip` archive from the
-   [GitHub releases page](https://github.com/danya-kim99/codex-quota-pet/releases/latest).
-2. Unzip the archive.
-3. Quit the currently running app from its menu bar menu.
-4. Replace `/Applications/Black Hole Codex Quota Indicator.app` with the newly
-   unzipped app.
-5. Open the updated app and confirm its version in Finder with **Get Info**.
-
-### With a Codex agent
-
-Start a local Codex task and paste this prompt:
-
-> Update Black Hole Codex Quota Indicator to the latest release from
-> https://github.com/danya-kim99/codex-quota-pet. Check and report the currently
-> installed version first. Download the latest Apple-silicon app archive and
-> matching `.sha256` file, verify the checksum, and inspect the extracted app
-> version. Ask before quitting or replacing the existing app in `/Applications`.
-> After approval, replace it, launch the updated app, verify that its process is
-> running, and report the installed version and path. Do not delete the saved
-> application preferences.
-
-## Local verification
+Build, launch, and verify the local Debug app:
 
 ```sh
 ./script/build_and_run.sh --verify
 ```
 
-Run the unit tests with:
+Run the unit tests:
 
 ```sh
 xcodebuild -project 'Black Hole Codex Quota Indicator.xcodeproj' \
@@ -224,39 +194,30 @@ xcodebuild -project 'Black Hole Codex Quota Indicator.xcodeproj' \
   test
 ```
 
-## Automated CI and preview releases
+Product behavior is documented in [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md),
+and technical boundaries live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-GitHub Actions runs the unit tests on every pull request and every push to
-`main`. Preview packaging and publishing are also handled by the same
-`CI and Release` workflow on an Apple-silicon macOS runner.
+## Feedback and contact
 
-To publish a stable preview:
+I'm always happy to hear feedback, ideas, and feature requests. [Open a GitHub
+issue](https://github.com/danya-kim99/codex-quota-pet/issues) or message me on
+Telegram: [@dkim99](https://t.me/dkim99).
 
-1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the Xcode project.
-2. Add `docs/releases/vX.Y.Z.md` with a user-facing summary, the changes in the
-   release, install/update instructions, and completed verification results.
-3. Commit and push the release changes to `main`, then wait for CI to pass.
-4. Open **Actions → CI and Release → Run workflow**, keep the `main` branch, and
-   enter the version without the `v` prefix, for example `0.4.0`.
-5. Wait for the workflow to test, build, ad-hoc sign, validate, package, checksum,
-   tag, and publish the GitHub Release.
+Created and maintained by [Daniil Kim](https://github.com/danya-kim99).
 
-The workflow rejects releases from another branch, invalid or existing versions,
-a version that differs from the app bundle, and non-arm64 output. GitHub receives
-write permission only for the manual release job. Developer ID signing and Apple
-notarization remain outside the current preview flow.
+## License
 
-For a Codex agent, use this prompt:
+Copyright © 2026 Daniil Kim. All rights reserved.
 
-> Prepare a new stable preview release of Black Hole Codex Quota Indicator.
-> Determine the SemVer version, update `MARKETING_VERSION` and increment
-> `CURRENT_PROJECT_VERSION`, and write complete user-facing release notes to
-> `docs/releases/vX.Y.Z.md` in the same format as the latest detailed release.
-> Derive the changes from the diff since the previous tag and include only
-> verification that actually ran. Then commit and push the release changes to `main`.
-> Do not build, sign, package, checksum, tag, or publish locally. Wait for the
-> `CI and Release` workflow on `main` to pass, then dispatch that workflow from
-> `main` with the version number without a `v` prefix. Wait for completion and
-> report the GitHub Release URL, version, build number, two uploaded assets, and
-> published ZIP digest. If CI or publishing fails, inspect the Actions logs and
-> fix the root cause instead of creating a local release.
+The source code, documentation, and visual assets are proprietary. Official
+compiled releases may be used unmodified for personal, non-commercial use. See
+[`LICENSE`](LICENSE) for the complete terms.
+
+## Windows
+
+[![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?logo=windows11&logoColor=white)](https://github.com/Demian87/codex-quota-pet-win)
+
+**On Windows?** My good friend [Demian87](https://github.com/Demian87) created
+[Quota Wisp for Windows](https://github.com/Demian87/codex-quota-pet-win), an
+original Windows version inspired by this project—with quota-aware moon phases,
+a hover dashboard, local history, and an optional pixel look.
