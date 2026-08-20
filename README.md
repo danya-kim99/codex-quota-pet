@@ -216,6 +216,12 @@ I'm always happy to hear feedback, ideas, and feature requests. [Open a GitHub
 issue](https://github.com/danya-kim99/codex-quota-pet/issues) or message me on
 Telegram: [@dkim99](https://t.me/dkim99).
 
+**Installed Black Hole?** You're invited to join its tiny universe. This is an
+exclusive perk for app users: after installing the app, send me a photo of
+yourself on Telegram or through another contact channel listed here, and I'll
+be happy to turn you into a new pixel-art character for a future update. For
+private photos, Telegram is best because GitHub issues are public.
+
 Created and maintained by [Daniil Kim](https://github.com/danya-kim99).
 
 ## License
