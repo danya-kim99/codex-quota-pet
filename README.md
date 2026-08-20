@@ -65,15 +65,28 @@ The black hole reads the primary rate-limit window from the local Codex App
 Server. Eleven hand-built states map the remaining quota to the nearest 10%,
 while the tooltip always keeps the exact value visible.
 
-[![Static pixel-art black hole showing a mid-quota accretion disk; open the image to play the animation](Assets/Sprites/frames/quota-50-frame-0.png)](Assets/Sprites/previews/quota-50-animation.gif)
-
-[Play the complete six-frame quota animation](Assets/Sprites/previews/quota-50-animation.gif).
-
-| Remaining quota | Accretion disk |
-| --- | --- |
-| 100–60% | Gold expands as quota is consumed. |
-| 50–30% | Orange emerges and becomes more prominent. |
-| 20–0% | Purple opens around the outer disk. |
+<table>
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-100-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-100-animation.gif" width="300" alt="Animated pixel-art black hole with a compact gold accretion disk at 100 percent remaining quota">
+      </picture><br><strong>100% remaining</strong>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-50-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-50-animation.gif" width="300" alt="Animated pixel-art black hole with an expanded gold-and-orange accretion disk at 50 percent remaining quota">
+      </picture><br><strong>50% remaining</strong>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="Assets/Sprites/frames/quota-0-frame-0.png">
+        <img src="Assets/Sprites/previews/quota-0-animation.gif" width="300" alt="Animated pixel-art black hole with a wide orange-and-purple accretion disk at zero percent remaining quota">
+      </picture><br><strong>0% remaining</strong>
+    </td>
+  </tr>
+</table>
 
 The disk slows as quota runs out. Turbo spins 1.5× faster and adds a pulse;
 Reduce Motion freezes both. When quota drops, handcrafted pixel reactions
