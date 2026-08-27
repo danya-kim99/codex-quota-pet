@@ -140,6 +140,7 @@ final class AppState {
     private let now: () -> Date
     private let historyStore: QuotaHistoryStore
     private var hasStarted = false
+    private var connectionGeneration: UInt64 = 0
     private var quotaUpdatedAt: Date?
     private var reconnectAttempt = 0
     private var reconnectTask: Task<Void, Never>?
@@ -255,6 +256,7 @@ final class AppState {
     }
 
     func stop() {
+        connectionGeneration &+= 1
         hasStarted = false
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -277,6 +279,8 @@ final class AppState {
     }
 
     private func connect(isRetry: Bool) {
+        connectionGeneration &+= 1
+        let generation = connectionGeneration
         connectionState = isRetry ? .reconnecting : .connecting
         errorMessage = nil
 
@@ -284,17 +288,20 @@ final class AppState {
             try appServer.start(
                 onSnapshot: { [weak self] snapshot in
                     Task { @MainActor [weak self] in
-                        self?.didReceive(snapshot)
+                        guard let self, self.connectionGeneration == generation else { return }
+                        self.didReceive(snapshot)
                     }
                 },
                 onSpeedMode: { [weak self] speedMode in
                     Task { @MainActor [weak self] in
-                        self?.speedMode = speedMode
+                        guard let self, self.connectionGeneration == generation else { return }
+                        self.speedMode = speedMode
                     }
                 },
                 onFailure: { [weak self] message in
                     Task { @MainActor [weak self] in
-                        self?.didFail(message)
+                        guard let self, self.connectionGeneration == generation else { return }
+                        self.didFail(message)
                     }
                 }
             )

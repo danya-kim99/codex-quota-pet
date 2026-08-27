@@ -2395,6 +2395,60 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testQueuedCallbacksBeforeStopAreIgnored() async {
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+
+        appState.start()
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 80))
+        appServer.send(speedMode: .turbo)
+        appServer.fail(with: "Old connection failed")
+        appState.stop()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        XCTAssertNil(appState.quota)
+        XCTAssertEqual(appState.speedMode, .standard)
+        XCTAssertNil(appState.errorMessage)
+        XCTAssertEqual(appState.connectionState, .disconnected)
+    }
+
+    @MainActor
+    func testQueuedCallbacksBeforeRetryNowCannotMutateNewAttempt() async {
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+
+        appState.start()
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 20))
+        appServer.send(speedMode: .turbo)
+        appServer.fail(with: "Old connection failed")
+        appState.retryNow()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(appServer.startCount, 2)
+        XCTAssertNil(appState.quota)
+        XCTAssertEqual(appState.speedMode, .standard)
+        XCTAssertNil(appState.errorMessage)
+        XCTAssertEqual(appState.connectionState, .connecting)
+
+        appServer.send(snapshot: Self.snapshot(remainingPercent: 80))
+        await Self.waitUntil { appState.connectionState == .connected }
+        XCTAssertEqual(appState.quota?.primary?.remainingPercent, 80)
+        appState.stop()
+    }
+
+    @MainActor
     func testQuotaConsumptionLifecycleSignalsCancelAndSuppressPresentation() async throws {
         let server = FakeAppServer()
         var now = Date(timeIntervalSince1970: 80_000)
