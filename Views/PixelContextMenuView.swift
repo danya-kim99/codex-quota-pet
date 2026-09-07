@@ -143,6 +143,7 @@ struct PixelContextMenuActions {
     let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
+    let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
     let setLaunchesAtLogin: (Bool) -> Void
     let openLoginItems: () -> Void
@@ -150,9 +151,94 @@ struct PixelContextMenuActions {
     let quit: () -> Void
 }
 
+enum PixelContextMenuItem: Hashable {
+    case retry, appearance, objectMix, behavior, hidePet, quit
+    case size(PetSize), tooltipStyle(TooltipStyle), quotaDynamics
+    case positionLock, pointerClickThrough, onlyWhenCodexActive, hideFullScreen
+    case launchAtLogin, openLoginItems
+    case objectWeight(categoryID: String, weight: Int)
+
+    var isGroup: Bool {
+        self == .appearance || self == .objectMix || self == .behavior
+    }
+}
+
+struct PixelContextMenuNavigation: Equatable {
+    private(set) var selectedRoot: PixelContextMenuItem = .appearance
+    private(set) var selectedChild: PixelContextMenuItem?
+    private(set) var isSubmenuOpen = false
+
+    static func rootItems(requiresRetry: Bool) -> [PixelContextMenuItem] {
+        (requiresRetry ? [.retry] : []) + [.appearance, .objectMix, .behavior, .hidePet, .quit]
+    }
+
+    static func childItems(
+        for group: PixelContextMenuItem,
+        requiresLoginApproval: Bool,
+        objectWeights: [PixelContextMenuItem] = []
+    ) -> [PixelContextMenuItem] {
+        switch group {
+        case .appearance:
+            PetSize.allCases.map(PixelContextMenuItem.size)
+                + TooltipStyle.allCases.map(PixelContextMenuItem.tooltipStyle) + [.quotaDynamics]
+        case .behavior:
+            [.positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin]
+                + (requiresLoginApproval ? [.openLoginItems] : [])
+        case .objectMix:
+            objectWeights
+        default:
+            []
+        }
+    }
+
+    mutating func selectRoot(_ item: PixelContextMenuItem, opensSubmenu: Bool = true) {
+        selectedRoot = item
+        selectedChild = nil
+        isSubmenuOpen = opensSubmenu && item.isGroup
+    }
+
+    mutating func selectChild(_ item: PixelContextMenuItem) {
+        selectedChild = item
+        isSubmenuOpen = true
+    }
+
+    mutating func enterSubmenu(children: [PixelContextMenuItem]) {
+        guard selectedRoot.isGroup else { return }
+        isSubmenuOpen = true
+        selectedChild = selectedChild ?? children.first
+    }
+
+    mutating func leaveSubmenu() {
+        selectedChild = nil
+        isSubmenuOpen = false
+    }
+
+    mutating func normalize(roots: [PixelContextMenuItem], children: [PixelContextMenuItem]) {
+        if !roots.contains(selectedRoot) {
+            selectRoot(.appearance, opensSubmenu: false)
+        } else if let selectedChild, !children.contains(selectedChild) {
+            self.selectedChild = children.first
+        }
+    }
+
+    mutating func move(by offset: Int, roots: [PixelContextMenuItem], children: [PixelContextMenuItem]) {
+        normalize(roots: roots, children: children)
+        let items = selectedChild == nil ? roots : children
+        guard !items.isEmpty else { return }
+        let current = selectedChild ?? selectedRoot
+        let index = items.firstIndex(of: current) ?? 0
+        let next = items[((index + offset) % items.count + items.count) % items.count]
+        if selectedChild != nil {
+            selectChild(next)
+        } else {
+            selectRoot(next)
+        }
+    }
+}
+
 struct PixelContextMenuView: View {
     nonisolated static let mainWidth: CGFloat = 232
-    nonisolated static let compactSubmenuWidth: CGFloat = 146
+    nonisolated static let groupedSubmenuWidth: CGFloat = 232
     nonisolated static let submenuWidth: CGFloat = 214
     nonisolated static let matrixCategoryWidth: CGFloat = 76
     nonisolated static let matrixCellSize: CGFloat = 31
@@ -170,8 +256,8 @@ struct PixelContextMenuView: View {
         blackShadowOffset.width
     )
     nonisolated static let panelSize = CGSize(
-        width: mainWidth + menuGap + submenuWidth + shadowTrailingInset,
-        height: 474
+        width: mainWidth + menuGap + groupedSubmenuWidth + shadowTrailingInset,
+        height: 505
     )
 
     let appState: AppState
@@ -180,12 +266,7 @@ struct PixelContextMenuView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var hasKeyboardFocus: Bool
-    @State private var selectedItem: ItemID = .size
-    @State private var selectedSize: PetSize?
-    @State private var selectedTooltipStyle: TooltipStyle?
-    @State private var showsSizeSubmenu = true
-    @State private var showsObjectMixSubmenu = false
-    @State private var showsTooltipStyleSubmenu = false
+    @State private var navigation = PixelContextMenuNavigation()
 
     var body: some View {
         TimelineView(
@@ -239,8 +320,7 @@ struct PixelContextMenuView: View {
             return .handled
         }
         .onKeyPress(.leftArrow) {
-            selectedSize = nil
-            selectedTooltipStyle = nil
+            navigation.leaveSubmenu()
             return .handled
         }
         .onKeyPress(.return) {
@@ -255,31 +335,60 @@ struct PixelContextMenuView: View {
             actions.dismiss()
             return .handled
         }
+        .onChange(of: rootItems) { _, _ in normalizeSelection() }
+        .onChange(of: childItems) { _, _ in normalizeSelection() }
         .accessibilityElement(children: .contain)
     }
 
+    static func menuFrames(
+        placement: ContextMenuPlacement,
+        requiresRetry: Bool,
+        openGroup: PixelContextMenuItem?,
+        requiresLoginApproval: Bool,
+        hasLoginError: Bool
+    ) -> (root: CGRect, submenu: CGRect?) {
+        let roots = PixelContextMenuNavigation.rootItems(requiresRetry: requiresRetry)
+        let rootHeight = CGFloat(roots.count) * 31 + 10 + 14
+        let root = CGRect(
+            x: placement.opensRight ? 0 : groupedSubmenuWidth + menuGap,
+            y: placement.opensBelow ? shadowTopInset : panelSize.height - rootHeight,
+            width: mainWidth,
+            height: rootHeight
+        )
+        guard let group = openGroup, group.isGroup, let row = roots.firstIndex(of: group) else {
+            return (root, nil)
+        }
+        let submenuHeight: CGFloat = switch group {
+        case .appearance: 256
+        case .objectMix: 171
+        default: 189 + (requiresLoginApproval ? 62 : 0) + (hasLoginError ? 31 : 0)
+        }
+        let width = group == .objectMix ? submenuWidth : groupedSubmenuWidth
+        return (
+            root,
+            CGRect(
+                x: placement.opensRight ? mainWidth + menuGap : groupedSubmenuWidth - width,
+                y: min(panelSize.height - submenuHeight, root.minY + 7 + CGFloat(row) * 31),
+                width: width,
+                height: submenuHeight
+            )
+        )
+    }
+
     private var menuLayout: some View {
-        VStack(spacing: 0) {
-            if !presentation.placement.opensBelow {
-                Spacer(minLength: 0)
-            }
-
-            HStack(alignment: .top, spacing: Self.menuGap) {
-                if !presentation.placement.opensRight {
-                    submenuSlot
-                }
-
-                mainMenu
-
-                if presentation.placement.opensRight {
-                    submenuSlot
-                }
-            }
-            .padding(.top, Self.shadowTopInset)
-            .padding(.trailing, Self.shadowTrailingInset)
-
-            if presentation.placement.opensBelow {
-                Spacer(minLength: 0)
+        let frames = Self.menuFrames(
+            placement: presentation.placement,
+            requiresRetry: appState.connectionState != .connected,
+            openGroup: navigation.isSubmenuOpen ? navigation.selectedRoot : nil,
+            requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
+            hasLoginError: appState.launchAtLoginError != nil
+        )
+        return ZStack(alignment: .topLeading) {
+            mainMenu
+                .position(x: frames.root.midX, y: frames.root.midY)
+            if let submenu = frames.submenu {
+                submenuContent
+                    .position(x: submenu.midX, y: submenu.midY)
             }
         }
         .frame(width: Self.panelSize.width, height: Self.panelSize.height)
@@ -288,20 +397,14 @@ struct PixelContextMenuView: View {
     private var mainMenu: some View {
         VStack(spacing: 0) {
             if appState.connectionState != .connected {
-                row(
-                    .retry,
-                    title: localized("menu.retry"),
-                    icon: .retry
-                )
+                row(.retry, title: localized("menu.retry"), icon: .retry)
             }
-
             row(
-                .size,
-                title: localized("menu.size"),
-                icon: .size,
+                .appearance,
+                title: localized("context_menu.appearance"),
+                icon: .style,
                 showsDisclosure: true
             )
-
             row(
                 .objectMix,
                 title: String.localizedStringWithFormat(
@@ -313,7 +416,69 @@ struct PixelContextMenuView: View {
                 accessibilityValue: appState.absorptionCategoryWeightsSummary,
                 accessibilityHelp: localized("menu.object_mix.hint")
             )
+            row(
+                .behavior,
+                title: localized("context_menu.behavior"),
+                icon: .sliders,
+                showsDisclosure: true
+            )
+            PixelDivider()
+            row(.hidePet, title: localized("menu.hide_pet"), icon: .hide)
+            row(.quit, title: localized("context_menu.quit"), icon: .power, isDestructive: true)
+        }
+        .padding(7)
+        .frame(width: Self.mainWidth)
+        .background(PixelMenuBackground())
+    }
 
+    @ViewBuilder
+    private var submenuContent: some View {
+        switch navigation.selectedRoot {
+        case .appearance: appearanceSubmenu
+        case .objectMix: objectMixMatrix
+        case .behavior: behaviorSubmenu
+        default: EmptyView()
+        }
+    }
+
+    private var appearanceSubmenu: some View {
+        VStack(spacing: 0) {
+            sectionTitle("menu.size")
+            ForEach(PetSize.allCases, id: \.self) { size in
+                row(
+                    .size(size),
+                    title: size.label,
+                    icon: size == .small ? .small : size == .medium ? .medium : .large,
+                    isChecked: appState.petSize == size
+                )
+            }
+            PixelDivider()
+            sectionTitle("menu.tooltip_style")
+            ForEach(TooltipStyle.allCases, id: \.self) { style in
+                row(
+                    .tooltipStyle(style),
+                    title: style.title,
+                    icon: style == .smooth ? .smooth : .pixel,
+                    isChecked: appState.tooltipStyle == style
+                )
+            }
+            PixelDivider()
+            row(
+                .quotaDynamics,
+                title: localized("menu.show_quota_dynamics"),
+                icon: .history,
+                isChecked: appState.showsQuotaDynamics
+            )
+        }
+        .padding(7)
+        .frame(width: Self.groupedSubmenuWidth)
+        .background(PixelMenuBackground())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(localized("context_menu.appearance"))
+    }
+
+    private var behaviorSubmenu: some View {
+        VStack(spacing: 0) {
             row(
                 .positionLock,
                 title: localized("menu.lock_position"),
@@ -322,7 +487,6 @@ struct PixelContextMenuView: View {
                 accessibilityValue: toggleValue(appState.isPetPositionLocked),
                 accessibilityHelp: localized("menu.lock_position.help")
             )
-
             row(
                 .pointerClickThrough,
                 title: localized("menu.pass_pointer_input_through"),
@@ -331,141 +495,50 @@ struct PixelContextMenuView: View {
                 accessibilityValue: toggleValue(appState.passesPointerInputThrough),
                 accessibilityHelp: localized("menu.pass_pointer_input_through.help")
             )
-
+            PixelDivider()
             row(
-                .tooltipStyle,
-                title: localized("menu.tooltip_style"),
-                icon: .style,
-                showsDisclosure: true
+                .onlyWhenCodexActive,
+                title: localized("menu.only_when_codex_active"),
+                icon: .fullscreen,
+                isChecked: appState.showsOnlyWhenCodexIsActive,
+                accessibilityValue: toggleValue(appState.showsOnlyWhenCodexIsActive),
+                accessibilityHelp: localized("menu.only_when_codex_active.help")
             )
-
-            row(
-                .quotaDynamics,
-                title: localized("menu.show_quota_dynamics"),
-                icon: .history,
-                isChecked: appState.showsQuotaDynamics
-            )
-
             row(
                 .hideFullScreen,
                 title: localized("menu.hide_full_screen"),
                 icon: .fullscreen,
                 isChecked: appState.hidesInFullScreenApps
             )
-
+            PixelDivider()
             row(
                 .launchAtLogin,
                 title: localized("menu.launch_at_login"),
                 icon: .login,
                 isChecked: appState.launchesAtLogin
             )
-
             if appState.launchAtLoginStatus == .requiresApproval {
-                disabledRow(
-                    title: localized("menu.approval_required"),
-                    icon: .lock
-                )
-                row(
-                    .openLoginItems,
-                    title: localized("menu.open_login_items"),
-                    icon: .sliders
-                )
+                disabledRow(title: localized("menu.approval_required"), icon: .lock)
+                row(.openLoginItems, title: localized("menu.open_login_items"), icon: .sliders)
             }
-
             if let error = appState.launchAtLoginError {
                 disabledRow(title: shortTitle(error), icon: .warning)
             }
-
-            PixelDivider()
-
-            row(
-                .hidePet,
-                title: localized("menu.hide_pet"),
-                icon: .hide
-            )
-            row(
-                .quit,
-                title: localized("context_menu.quit"),
-                icon: .power,
-                isDestructive: true
-            )
         }
         .padding(7)
-        .frame(width: Self.mainWidth)
+        .frame(width: Self.groupedSubmenuWidth)
         .background(PixelMenuBackground())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(localized("context_menu.behavior"))
     }
 
-    @ViewBuilder
-    private var submenuSlot: some View {
-        if showsSizeSubmenu {
-            compactSubmenu {
-                VStack(spacing: 0) {
-                    ForEach(PetSize.allCases, id: \.self) { size in
-                        PixelMenuRow(
-                            title: size.label,
-                            icon: size == .small ? .small : size == .medium ? .medium : .large,
-                            isSelected: selectedSize == size,
-                            isChecked: appState.petSize == size,
-                            showsDisclosure: false,
-                            isEnabled: true,
-                            isDestructive: false
-                        ) {
-                            actions.setPetSize(size)
-                        } onHover: { isHovering in
-                            guard isHovering else { return }
-                            selectedItem = .size
-                            selectedSize = size
-                        }
-                    }
-                }
-                .padding(7)
-                .frame(width: Self.compactSubmenuWidth)
-                .background(PixelMenuBackground())
-            }
-        } else if showsObjectMixSubmenu {
-            objectMixMatrix
-                .padding(.top, submenuTopPadding)
-        } else if showsTooltipStyleSubmenu {
-            compactSubmenu {
-                VStack(spacing: 0) {
-                    ForEach(TooltipStyle.allCases, id: \.self) { style in
-                        PixelMenuRow(
-                            title: style.title,
-                            icon: style == .smooth ? .smooth : .pixel,
-                            isSelected: selectedTooltipStyle == style,
-                            isChecked: appState.tooltipStyle == style,
-                            showsDisclosure: false,
-                            isEnabled: true,
-                            isDestructive: false
-                        ) {
-                            actions.setTooltipStyle(style)
-                        } onHover: { isHovering in
-                            guard isHovering else { return }
-                            selectedItem = .tooltipStyle
-                            selectedTooltipStyle = style
-                        }
-                    }
-                }
-                .padding(7)
-                .frame(width: Self.compactSubmenuWidth)
-                .background(PixelMenuBackground())
-            }
-        } else {
-            Color.clear
-                .frame(width: Self.submenuWidth, height: 1)
-                .allowsHitTesting(false)
-        }
-    }
-
-    private func compactSubmenu<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
-            .frame(
-                width: Self.submenuWidth,
-                alignment: presentation.placement.opensRight ? .leading : .trailing
-            )
-            .padding(.top, submenuTopPadding)
+    private func sectionTitle(_ key: String) -> some View {
+        Text(localized(key))
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(PixelPalette.mutedGold)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 18)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private var objectMixMatrix: some View {
@@ -516,6 +589,10 @@ struct PixelContextMenuView: View {
                         PixelObjectMixWeightCell(
                             weight: weight,
                             presentation: presentation,
+                            isKeyboardSelected: navigation.selectedChild == .objectWeight(
+                                categoryID: category.id,
+                                weight: weight
+                            ),
                             accessibilityLabel: objectMixCellAccessibilityLabel(
                                 categoryName: categoryName,
                                 weight: weight
@@ -526,7 +603,12 @@ struct PixelContextMenuView: View {
                                     : "menu.object_mix.matrix.last_active.help"
                             )
                         ) {
+                            navigation.selectChild(.objectWeight(categoryID: category.id, weight: weight))
                             actions.setAbsorptionCategoryWeight(category.id, weight)
+                        }
+                        .onHover { isHovering in
+                            guard isHovering, isEnabled else { return }
+                            navigation.selectChild(.objectWeight(categoryID: category.id, weight: weight))
                         }
                     }
                 }
@@ -567,7 +649,7 @@ struct PixelContextMenuView: View {
     }
 
     private func row(
-        _ item: ItemID,
+        _ item: PixelContextMenuItem,
         title: String,
         icon: PixelMenuIcon,
         isChecked: Bool = false,
@@ -579,9 +661,7 @@ struct PixelContextMenuView: View {
         PixelMenuRow(
             title: title,
             icon: icon,
-            isSelected: selectedSize == nil
-                && selectedTooltipStyle == nil
-                && selectedItem == item,
+            isSelected: item == (navigation.selectedChild ?? navigation.selectedRoot),
             isChecked: isChecked,
             showsDisclosure: showsDisclosure,
             isEnabled: true,
@@ -589,15 +669,19 @@ struct PixelContextMenuView: View {
             accessibilityValue: accessibilityValue,
             accessibilityHelp: accessibilityHelp
         ) {
+            if rootItems.contains(item) {
+                navigation.selectRoot(item)
+            } else {
+                navigation.selectChild(item)
+            }
             activate(item)
         } onHover: { isHovering in
             guard isHovering else { return }
-            selectedSize = nil
-            selectedTooltipStyle = nil
-            selectedItem = item
-            showsSizeSubmenu = item == .size
-            showsObjectMixSubmenu = item == .objectMix
-            showsTooltipStyleSubmenu = item == .tooltipStyle
+            if rootItems.contains(item) {
+                navigation.selectRoot(item)
+            } else {
+                navigation.selectChild(item)
+            }
         }
     }
 
@@ -615,124 +699,67 @@ struct PixelContextMenuView: View {
         )
     }
 
-    private var interactiveItems: [ItemID] {
-        var items: [ItemID] = []
-        if appState.connectionState != .connected {
-            items.append(.retry)
-        }
-        items += [
-            .size,
-            .objectMix,
-            .positionLock,
-            .pointerClickThrough,
-            .tooltipStyle,
-            .quotaDynamics,
-            .hideFullScreen,
-            .launchAtLogin
-        ]
-        if appState.launchAtLoginStatus == .requiresApproval {
-            items.append(.openLoginItems)
-        }
-        items += [.hidePet, .quit]
-        return items
+    private var rootItems: [PixelContextMenuItem] {
+        PixelContextMenuNavigation.rootItems(requiresRetry: appState.connectionState != .connected)
+    }
+
+    private var childItems: [PixelContextMenuItem] {
+        PixelContextMenuNavigation.childItems(
+            for: navigation.selectedRoot,
+            requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
+            objectWeights: appState.absorptionCategories.prefix(Self.matrixCategoryCount).flatMap { category in
+                Self.matrixWeights.compactMap { weight in
+                    appState.canSetAbsorptionCategoryWeight(weight, for: category.id)
+                        ? .objectWeight(categoryID: category.id, weight: weight) : nil
+                }
+            }
+        )
+    }
+
+    private func normalizeSelection() {
+        navigation.normalize(roots: rootItems, children: childItems)
     }
 
     private func moveSelection(by offset: Int) {
         guard presentation.phase == .open else { return }
-        if let selectedSize,
-           let index = PetSize.allCases.firstIndex(of: selectedSize) {
-            let sizes = PetSize.allCases
-            self.selectedSize = sizes[(index + offset + sizes.count) % sizes.count]
-            return
-        }
-        if let selectedTooltipStyle,
-           let index = TooltipStyle.allCases.firstIndex(of: selectedTooltipStyle) {
-            let styles = TooltipStyle.allCases
-            self.selectedTooltipStyle = styles[
-                (index + offset + styles.count) % styles.count
-            ]
-            return
-        }
-
-        let items = interactiveItems
-        guard !items.isEmpty else { return }
-        let index = items.firstIndex(of: selectedItem) ?? 0
-        selectedItem = items[(index + offset + items.count) % items.count]
-        showsSizeSubmenu = selectedItem == .size
-        showsObjectMixSubmenu = selectedItem == .objectMix
-        showsTooltipStyleSubmenu = selectedItem == .tooltipStyle
-    }
-
-    private func enterSizeSubmenu() {
-        guard presentation.phase == .open, selectedItem == .size else { return }
-        showsSizeSubmenu = true
-        showsObjectMixSubmenu = false
-        showsTooltipStyleSubmenu = false
-        selectedTooltipStyle = nil
-        selectedSize = appState.petSize
-    }
-
-    private func enterTooltipStyleSubmenu() {
-        guard presentation.phase == .open, selectedItem == .tooltipStyle else { return }
-        showsSizeSubmenu = false
-        showsObjectMixSubmenu = false
-        showsTooltipStyleSubmenu = true
-        selectedSize = nil
-        selectedTooltipStyle = appState.tooltipStyle
+        navigation.move(by: offset, roots: rootItems, children: childItems)
     }
 
     private func enterSelectedSubmenu() {
-        if selectedItem == .size {
-            enterSizeSubmenu()
-        } else if selectedItem == .objectMix {
-            showsSizeSubmenu = false
-            showsObjectMixSubmenu = true
-            showsTooltipStyleSubmenu = false
-        } else if selectedItem == .tooltipStyle {
-            enterTooltipStyleSubmenu()
-        }
+        guard presentation.phase == .open else { return }
+        navigation.enterSubmenu(children: childItems)
     }
 
     private func activateSelection() {
-        guard presentation.phase == .open else { return }
-        if let selectedSize {
-            actions.setPetSize(selectedSize)
-        } else if let selectedTooltipStyle {
-            actions.setTooltipStyle(selectedTooltipStyle)
-        } else {
-            activate(selectedItem)
-        }
+        normalizeSelection()
+        activate(navigation.selectedChild ?? navigation.selectedRoot)
     }
 
-    private func activate(_ item: ItemID) {
+    private func activate(_ item: PixelContextMenuItem) {
         guard presentation.phase == .open else { return }
         switch item {
-        case .retry:
-            actions.retry()
-        case .size:
-            enterSizeSubmenu()
-        case .objectMix:
-            showsSizeSubmenu = false
-            showsObjectMixSubmenu = true
-            showsTooltipStyleSubmenu = false
+        case .retry: actions.retry()
+        case .appearance, .objectMix, .behavior: enterSelectedSubmenu()
+        case .size(let size): actions.setPetSize(size)
+        case .tooltipStyle(let style): actions.setTooltipStyle(style)
+        case .objectWeight(let categoryID, let weight):
+            guard appState.canSetAbsorptionCategoryWeight(weight, for: categoryID) else { return }
+            actions.setAbsorptionCategoryWeight(categoryID, weight)
         case .positionLock:
             actions.setPetPositionLocked(!appState.isPetPositionLocked)
         case .pointerClickThrough:
             actions.setPassesPointerInputThrough(!appState.passesPointerInputThrough)
-        case .tooltipStyle:
-            enterTooltipStyleSubmenu()
         case .quotaDynamics:
             actions.setShowsQuotaDynamics(!appState.showsQuotaDynamics)
+        case .onlyWhenCodexActive:
+            actions.setShowsOnlyWhenCodexIsActive(!appState.showsOnlyWhenCodexIsActive)
         case .hideFullScreen:
             actions.setHidesInFullScreenApps(!appState.hidesInFullScreenApps)
         case .launchAtLogin:
             actions.setLaunchesAtLogin(!appState.launchesAtLogin)
-        case .openLoginItems:
-            actions.openLoginItems()
-        case .hidePet:
-            actions.hidePet()
-        case .quit:
-            actions.quit()
+        case .openLoginItems: actions.openLoginItems()
+        case .hidePet: actions.hidePet()
+        case .quit: actions.quit()
         }
     }
 
@@ -781,28 +808,7 @@ struct PixelContextMenuView: View {
         localized(isOn ? "accessibility.toggle.on" : "accessibility.toggle.off")
     }
 
-    private var submenuTopPadding: CGFloat {
-        let firstRowOffset: CGFloat = appState.connectionState == .connected ? 7 : 38
-        if showsObjectMixSubmenu {
-            return firstRowOffset + 31
-        }
-        return firstRowOffset + (showsTooltipStyleSubmenu ? 124 : 0)
-    }
 
-    private enum ItemID: Equatable {
-        case retry
-        case size
-        case objectMix
-        case positionLock
-        case pointerClickThrough
-        case tooltipStyle
-        case quotaDynamics
-        case hideFullScreen
-        case launchAtLogin
-        case openLoginItems
-        case hidePet
-        case quit
-    }
 }
 
 struct PixelObjectMixCellPresentation: Equatable {
@@ -822,6 +828,7 @@ struct PixelObjectMixCellPresentation: Equatable {
 private struct PixelObjectMixWeightCell: View {
     let weight: Int
     let presentation: PixelObjectMixCellPresentation
+    let isKeyboardSelected: Bool
     let accessibilityLabel: String
     let accessibilityHelp: String
     let action: () -> Void
@@ -838,7 +845,7 @@ private struct PixelObjectMixWeightCell: View {
         .buttonStyle(
             PixelObjectMixCellButtonStyle(
                 isSelected: presentation.isSelected,
-                isHovering: isHovering,
+                isHovering: isHovering || isKeyboardSelected,
                 isEnabled: presentation.isEnabled
             )
         )

@@ -54,11 +54,15 @@
 "tooltip_style.smooth" = "Smooth";
 "tooltip_style.pixel" = "Pixel";
 "menu.hide_full_screen" = "Hide in Full Screen";
+"menu.only_when_codex_active" = "Only When Codex Is Active";
+"menu.only_when_codex_active.help" = "Hides the pet when you switch to another app. The menu bar icon remains available.";
 "menu.launch_at_login" = "Launch at Login";
 "menu.approval_required" = "Approval Required";
 "menu.open_login_items" = "Open Login Items";
 "menu.quit" = "Quit %@";
 "context_menu.quit" = "Quit";
+"context_menu.appearance" = "Appearance";
+"context_menu.behavior" = "Behavior";
 "pixel.quota.title" = "CODEX QUOTA";
 "pixel.reset.window" = "RESET WINDOW";
 "history.title" = "Last 24 h";

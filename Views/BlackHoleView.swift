@@ -78,7 +78,6 @@ struct BlackHoleView: View {
         .onAppear {
             visibleRegionDidChange(visualState.spriteStatePercent)
             appState.setQuotaConsumptionReduceMotion(reduceMotion)
-            appState.setQuotaConsumptionPanelPresented(true)
             startProductionQuotaReactionPreviewIfNeeded()
             startQuotaReactionIfNeeded()
             startQuotaReactionPreviewIfNeeded()
@@ -108,7 +107,6 @@ struct BlackHoleView: View {
         .onDisappear {
             stopQuotaReaction()
             appState.cancelQuotaConsumptionPresentation()
-            appState.setQuotaConsumptionPanelPresented(false)
             stopQuotaReactionPreview()
             resetAbsorptionScene()
             setTooltipVisible(false)

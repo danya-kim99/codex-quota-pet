@@ -54,11 +54,15 @@
 "tooltip_style.smooth" = "Обычный";
 "tooltip_style.pixel" = "Стилизованный";
 "menu.hide_full_screen" = "Скрывать в полноэкранном режиме";
+"menu.only_when_codex_active" = "Только при активном Codex";
+"menu.only_when_codex_active.help" = "Скрывает питомца при переключении в другое приложение. Значок в строке меню остаётся доступен.";
 "menu.launch_at_login" = "Запускать при входе";
 "menu.approval_required" = "Требуется разрешение";
 "menu.open_login_items" = "Открыть объекты входа";
 "menu.quit" = "Завершить %@";
 "context_menu.quit" = "Выход";
+"context_menu.appearance" = "Внешний вид";
+"context_menu.behavior" = "Поведение";
 "pixel.quota.title" = "КВОТА CODEX";
 "pixel.reset.window" = "ОКНО СБРОСА";
 "history.title" = "Последние 24 ч";

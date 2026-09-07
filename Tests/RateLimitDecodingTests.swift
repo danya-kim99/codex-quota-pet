@@ -205,7 +205,7 @@ final class RateLimitDecodingTests: XCTestCase {
     func testPixelContextMenuHardShadowsStayWithinPanel() {
         let contentWidth = PixelContextMenuView.mainWidth
             + PixelContextMenuView.menuGap
-            + PixelContextMenuView.submenuWidth
+            + PixelContextMenuView.groupedSubmenuWidth
         let requiredTrailingInset = max(
             PixelContextMenuView.purpleShadowOffset.width,
             PixelContextMenuView.blackShadowOffset.width
@@ -228,13 +228,135 @@ final class RateLimitDecodingTests: XCTestCase {
             requiredTopInset
         )
         XCTAssertEqual(PixelContextMenuView.mainWidth, 232)
-        XCTAssertEqual(PixelContextMenuView.compactSubmenuWidth, 146)
+        XCTAssertEqual(PixelContextMenuView.groupedSubmenuWidth, 232)
         XCTAssertEqual(PixelContextMenuView.submenuWidth, 214)
         XCTAssertEqual(PixelContextMenuView.matrixCategoryWidth, 76)
         XCTAssertEqual(PixelContextMenuView.matrixCellSize, 31)
         XCTAssertEqual(PixelContextMenuView.matrixCategoryCount, 3)
         XCTAssertEqual(PixelContextMenuView.matrixWeights, [0, 1, 2, 3])
-        XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 462, height: 474))
+        XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 480, height: 505))
+    }
+
+    func testGroupedContextMenuHasFiveRootActionsAndSingleLevelChildren() {
+        typealias Item = PixelContextMenuItem
+        let roots: [Item] = [.appearance, .objectMix, .behavior, .hidePet, .quit]
+        XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: false), roots)
+        XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: true), [.retry] + roots)
+        XCTAssertEqual(
+            PixelContextMenuNavigation.childItems(for: .appearance, requiresLoginApproval: false),
+            [.size(.small), .size(.medium), .size(.large),
+             .tooltipStyle(.smooth), .tooltipStyle(.pixel), .quotaDynamics]
+        )
+        let behavior: [Item] = [
+            .positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin
+        ]
+        XCTAssertEqual(
+            PixelContextMenuNavigation.childItems(for: .behavior, requiresLoginApproval: false),
+            behavior
+        )
+        XCTAssertEqual(
+            PixelContextMenuNavigation.childItems(for: .behavior, requiresLoginApproval: true),
+            behavior + [.openLoginItems]
+        )
+        let weights: [Item] = ["space", "animals", "characters"].flatMap { category in
+            (0...3).map { .objectWeight(categoryID: category, weight: $0) }
+        }
+        let matrix = PixelContextMenuNavigation.childItems(
+            for: .objectMix, requiresLoginApproval: false, objectWeights: weights
+        )
+        XCTAssertEqual(matrix, weights)
+        XCTAssertEqual(matrix.count, 12)
+        for root in roots {
+            let children = PixelContextMenuNavigation.childItems(
+                for: root, requiresLoginApproval: true, objectWeights: weights
+            )
+            XCTAssertFalse(children.contains(where: \.isGroup))
+        }
+    }
+
+    func testGroupedContextMenuNavigationEntersReturnsAndNormalizesConditionalActions() {
+        let roots = PixelContextMenuNavigation.rootItems(requiresRetry: false)
+        let appearance = PixelContextMenuNavigation.childItems(
+            for: .appearance, requiresLoginApproval: false
+        )
+        var navigation = PixelContextMenuNavigation()
+        XCTAssertEqual(navigation.selectedRoot, .appearance)
+        XCTAssertNil(navigation.selectedChild)
+        XCTAssertFalse(navigation.isSubmenuOpen)
+        navigation.enterSubmenu(children: appearance)
+        XCTAssertEqual(navigation.selectedChild, .size(.small))
+        XCTAssertTrue(navigation.isSubmenuOpen)
+        navigation.move(by: -1, roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedChild, .quotaDynamics)
+        navigation.move(by: 1, roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedChild, .size(.small))
+        navigation.leaveSubmenu()
+        XCTAssertEqual(navigation.selectedRoot, .appearance)
+        XCTAssertNil(navigation.selectedChild)
+        XCTAssertFalse(navigation.isSubmenuOpen)
+        navigation.move(by: 1, roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedRoot, .objectMix)
+        XCTAssertTrue(navigation.isSubmenuOpen)
+
+        let matrix: [PixelContextMenuItem] = [.objectWeight(categoryID: "space", weight: 1)]
+        navigation.enterSubmenu(children: matrix)
+        XCTAssertEqual(navigation.selectedChild, matrix.first)
+        navigation.selectRoot(.behavior)
+        XCTAssertNil(navigation.selectedChild)
+        let behavior = PixelContextMenuNavigation.childItems(for: .behavior, requiresLoginApproval: false)
+        navigation.selectChild(.openLoginItems)
+        navigation.normalize(roots: roots, children: behavior)
+        XCTAssertEqual(navigation.selectedChild, .positionLock)
+        XCTAssertEqual(navigation.selectedRoot, .behavior)
+        navigation.selectRoot(.retry)
+        navigation.normalize(roots: roots, children: [])
+        XCTAssertEqual(navigation.selectedRoot, .appearance)
+        XCTAssertFalse(navigation.isSubmenuOpen)
+        navigation.move(by: -1, roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedRoot, .quit)
+        navigation.enterSubmenu(children: [])
+        XCTAssertFalse(navigation.isSubmenuOpen)
+    }
+
+    @MainActor
+    func testGroupedMenuFramesKeepRootFixedAndSubmenusInsidePanel() throws {
+        let panel = CGRect(origin: .zero, size: PixelContextMenuView.panelSize)
+        for placement: ContextMenuPlacement in [.aboveLeft, .aboveRight, .belowLeft, .belowRight] {
+            for requiresRetry in [false, true] {
+                let closed = PixelContextMenuView.menuFrames(
+                    placement: placement, requiresRetry: requiresRetry, openGroup: nil,
+                    requiresLoginApproval: false, hasLoginError: false
+                )
+                XCTAssertNil(closed.submenu)
+                XCTAssertEqual(closed.root.height, requiresRetry ? 210 : 179)
+                XCTAssertTrue(panel.contains(closed.root))
+                XCTAssertEqual(closed.root.minY, placement.opensBelow ? 8 : 505 - closed.root.height)
+                for group: PixelContextMenuItem in [.appearance, .objectMix, .behavior] {
+                    for requiresApproval in [false, true] {
+                        for hasError in [false, true] {
+                            let layout = PixelContextMenuView.menuFrames(
+                                placement: placement, requiresRetry: requiresRetry, openGroup: group,
+                                requiresLoginApproval: requiresApproval, hasLoginError: hasError
+                            )
+                            let submenu = try XCTUnwrap(layout.submenu)
+                            XCTAssertEqual(layout.root, closed.root)
+                            XCTAssertTrue(panel.contains(submenu))
+                            XCTAssertEqual(submenu.width, group == .objectMix ? 214 : 232)
+                            XCTAssertGreaterThanOrEqual(submenu.minY, PixelContextMenuView.shadowTopInset)
+                            XCTAssertLessThanOrEqual(submenu.maxX + PixelContextMenuView.shadowTrailingInset, panel.maxX)
+                            XCTAssertFalse(submenu.intersects(layout.root))
+                            let row = try XCTUnwrap(
+                                PixelContextMenuNavigation.rootItems(requiresRetry: requiresRetry).firstIndex(of: group)
+                            )
+                            XCTAssertEqual(
+                                submenu.minY,
+                                min(panel.height - submenu.height, layout.root.minY + 7 + CGFloat(row) * 31)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     func testPetSizeOptionsUseApprovedDimensions() {
@@ -408,7 +530,7 @@ final class RateLimitDecodingTests: XCTestCase {
 
     @MainActor
     func testContextMenuClampsApprovedMatrixGeometryOnNegativeDisplay() {
-        let screen = CGRect(x: -1_600, y: -474, width: 462, height: 474)
+        let screen = CGRect(x: -1_600, y: -505, width: 480, height: 505)
         let cases: [(CGPoint, ContextMenuPlacement)] = [
             (CGPoint(x: screen.minX + 1, y: screen.minY + 1), .aboveRight),
             (CGPoint(x: screen.maxX - 1, y: screen.minY + 1), .aboveLeft),
@@ -582,7 +704,9 @@ final class RateLimitDecodingTests: XCTestCase {
             "menu.launch_at_login": ("Launch at Login", "Запускать при входе"),
             "menu.approval_required": ("Approval Required", "Требуется разрешение"),
             "menu.open_login_items": ("Open Login Items", "Открыть объекты входа"),
-            "context_menu.quit": ("Quit", "Выход")
+            "context_menu.quit": ("Quit", "Выход"),
+            "context_menu.appearance": ("Appearance", "Внешний вид"),
+            "context_menu.behavior": ("Behavior", "Поведение")
         ]
         for (key, translation) in menuTranslations {
             XCTAssertEqual(
@@ -2256,6 +2380,232 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testContextMenuCodexActiveActionPersistsAndReevaluatesVisibilityWithoutOverridingManualHide() throws {
+        let suiteName = "CodexActiveContextMenuTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        func makeState() -> AppState {
+            AppState(
+                defaults: defaults,
+                launchAtLoginStatusProvider: { .notRegistered },
+                historyStore: QuotaHistoryStore(fileURL: nil),
+                absorptionCatalog: nil
+            )
+        }
+        let appState = makeState()
+        appState.togglePetVisibility()
+        var visibilityChecks = 0
+        let controller = PetPanelController(
+            isFrontmostApplicationFullScreen: { false },
+            frontmostApplication: {
+                visibilityChecks += 1
+                return ("com.apple.finder", false)
+            }
+        )
+        let actions = controller.contextMenuActions(appState: appState)
+
+        for (index, isEnabled) in [true, false].enumerated() {
+            actions.setShowsOnlyWhenCodexIsActive(isEnabled)
+            XCTAssertEqual(appState.showsOnlyWhenCodexIsActive, isEnabled)
+            XCTAssertEqual(makeState().showsOnlyWhenCodexIsActive, isEnabled)
+            XCTAssertEqual(visibilityChecks, index + 1)
+            XCTAssertFalse(appState.isPetVisible)
+            XCTAssertFalse(controller.isVisible)
+            XCTAssertNil(controller.petFrame)
+        }
+    }
+
+    @MainActor
+    func testCodexActivePreferenceDefaultsOffPersistsAndRejectsMalformedValues() throws {
+        let suiteName = "CodexActivePreferenceTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        func makeState() -> AppState {
+            AppState(
+                defaults: defaults,
+                launchAtLoginStatusProvider: { .notRegistered },
+                historyStore: QuotaHistoryStore(fileURL: nil),
+                absorptionCatalog: nil
+            )
+        }
+        let appState = makeState()
+        XCTAssertFalse(appState.showsOnlyWhenCodexIsActive)
+        appState.setShowsOnlyWhenCodexIsActive(true)
+        XCTAssertTrue(appState.showsOnlyWhenCodexIsActive)
+        XCTAssertTrue(makeState().showsOnlyWhenCodexIsActive)
+        appState.setShowsOnlyWhenCodexIsActive(false)
+        XCTAssertFalse(appState.showsOnlyWhenCodexIsActive)
+        XCTAssertFalse(makeState().showsOnlyWhenCodexIsActive)
+
+        for value: Any in [0, 1, 2, "true", ["true"], Data([1])] {
+            defaults.set(value, forKey: AppConstants.showOnlyWhenCodexIsActiveKey)
+            XCTAssertFalse(makeState().showsOnlyWhenCodexIsActive, "Accepted invalid \(value)")
+        }
+    }
+
+    @MainActor
+    func testCodexActivePolicyComposesForegroundManualAndFullScreenPreferences() throws {
+        let suiteName = "CodexActivePolicyTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(
+            defaults: defaults,
+            launchAtLoginStatusProvider: { .notRegistered },
+            historyStore: QuotaHistoryStore(fileURL: nil),
+            absorptionCatalog: nil
+        )
+        var bundleIdentifier: String?
+        var isFullScreen = false
+        let controller = PetPanelController(
+            isFrontmostApplicationFullScreen: { isFullScreen },
+            frontmostApplication: { (bundleIdentifier, false) }
+        )
+
+        for onlyCodex in [false, true] {
+            appState.setShowsOnlyWhenCodexIsActive(onlyCodex)
+            for hideFullScreen in [false, true] {
+                appState.setHidesInFullScreenApps(hideFullScreen)
+                for fullScreen in [false, true] {
+                    isFullScreen = fullScreen
+                    for identifier: String? in [nil, "com.apple.finder", "com.openai.codex", "com.openai.codex.other"] {
+                        bundleIdentifier = identifier
+                        for manuallyVisible in [true, false] {
+                            if appState.isPetVisible != manuallyVisible {
+                                appState.togglePetVisibility()
+                            }
+                            let policy = controller.visibilityPolicy(appState: appState)
+                            XCTAssertEqual(policy.isFullScreenSuppressed, hideFullScreen && fullScreen)
+                            XCTAssertEqual(
+                                policy.shouldShow,
+                                manuallyVisible && !(hideFullScreen && fullScreen)
+                                    && (!onlyCodex || identifier == "com.openai.codex")
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertNil(controller.petFrame)
+    }
+
+    @MainActor
+    func testCodexActiveOwnApplicationPreservesLastExternalContextWithoutRevealingPet() throws {
+        let suiteName = "CodexActiveOwnMenuTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(
+            defaults: defaults,
+            launchAtLoginStatusProvider: { .notRegistered },
+            historyStore: QuotaHistoryStore(fileURL: nil),
+            absorptionCatalog: nil
+        )
+        appState.setShowsOnlyWhenCodexIsActive(true)
+        var application: (bundleIdentifier: String?, isCurrentApplication: Bool) = ("pet", true)
+        var isFullScreen = false
+        let controller = PetPanelController(
+            isFrontmostApplicationFullScreen: { isFullScreen },
+            frontmostApplication: { application }
+        )
+        XCTAssertFalse(controller.visibilityPolicy(appState: appState).shouldShow)
+
+        for externalIdentifier: String? in ["com.openai.codex", "com.apple.finder", nil] {
+            application = (externalIdentifier, false)
+            let beforeMenu = controller.visibilityPolicy(appState: appState).shouldShow
+            application = ("pet", true)
+            XCTAssertEqual(controller.visibilityPolicy(appState: appState).shouldShow, beforeMenu)
+        }
+
+        application = ("com.openai.codex", false)
+        isFullScreen = true
+        appState.setHidesInFullScreenApps(true)
+        XCTAssertFalse(controller.visibilityPolicy(appState: appState).shouldShow)
+        application = ("pet", true)
+        isFullScreen = false
+        XCTAssertTrue(controller.visibilityPolicy(appState: appState).isFullScreenSuppressed)
+        XCTAssertFalse(controller.visibilityPolicy(appState: appState).shouldShow)
+        appState.setHidesInFullScreenApps(false)
+        XCTAssertTrue(controller.visibilityPolicy(appState: appState).shouldShow)
+        appState.togglePetVisibility()
+        XCTAssertFalse(controller.visibilityPolicy(appState: appState).shouldShow)
+        XCTAssertNil(controller.petFrame)
+    }
+
+    @MainActor
+    func testCodexActiveSuppressionClearsTransientsAndRestoresExistingPanel() async throws {
+        let suiteName = "CodexActivePanelTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let server = FakeAppServer()
+        var now = Date(timeIntervalSince1970: 80_000)
+        let appState = AppState(
+            defaults: defaults,
+            appServer: server,
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        var bundleIdentifier: String? = "com.openai.codex"
+        let controller = PetPanelController(
+            isFrontmostApplicationFullScreen: { false },
+            frontmostApplication: { (bundleIdentifier, false) }
+        )
+        defer {
+            controller.hide()
+            appState.stop()
+        }
+        appState.start()
+        server.send(snapshot: Self.snapshot(remainingPercent: 80, resetsAt: 90_000))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 80 }
+        controller.updateVisibility(appState: appState)
+        let frame = try XCTUnwrap(controller.petFrame)
+        let tooltipIdentity = try XCTUnwrap(controller.tooltipHostingViewIdentity)
+        controller.setTooltipVisible(true)
+        controller.beginDragTracking()
+        appState.previewQuotaConsumptionReaction(kind: .small, remainingPercent: 50)
+        let refreshCount = server.rateLimitRefreshCount
+        now.addTimeInterval(60)
+        appState.setShowsOnlyWhenCodexIsActive(true)
+        bundleIdentifier = "com.apple.finder"
+        let resetID = appState.absorptionResetID
+        controller.updateVisibility(appState: appState)
+        XCTAssertFalse(controller.isVisible)
+        XCTAssertFalse(controller.isTooltipVisible)
+        XCTAssertFalse(controller.isTooltipPresentationActive)
+        XCTAssertFalse(controller.isResetCountdownUpdateActive)
+        XCTAssertFalse(controller.isDragTrackingActive)
+        XCTAssertFalse(controller.isPointerLocationMonitoring)
+        XCTAssertNil(appState.activeQuotaConsumptionReaction)
+        XCTAssertNil(appState.pendingQuotaConsumptionReaction)
+        XCTAssertGreaterThan(appState.absorptionResetID, resetID)
+        server.send(snapshot: Self.snapshot(remainingPercent: 79, resetsAt: 90_000))
+        await Self.waitUntil { appState.quota?.primary?.remainingPercent == 79 }
+        XCTAssertEqual(appState.connectionState, .connected)
+        XCTAssertNil(appState.activeQuotaConsumptionReaction)
+        now.addTimeInterval(60)
+
+        bundleIdentifier = "com.openai.codex"
+        controller.updateVisibility(appState: appState)
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(controller.petFrame, frame)
+        XCTAssertEqual(controller.tooltipHostingViewIdentity, tooltipIdentity)
+        XCTAssertFalse(controller.isTooltipVisible)
+        XCTAssertNil(appState.activeQuotaConsumptionReaction)
+        controller.setTooltipVisible(true)
+        XCTAssertEqual(controller.isTooltipVisible, !controller.isCursorInsideVisibleRegion)
+
+        controller.showContextMenu(at: CGPoint(x: frame.midX, y: frame.midY))
+        XCTAssertTrue(controller.isContextMenuVisible)
+        bundleIdentifier = nil
+        controller.updateVisibility(appState: appState)
+        XCTAssertFalse(controller.isContextMenuVisible)
+        bundleIdentifier = "com.openai.codex"
+        controller.updateVisibility(appState: appState)
+        XCTAssertFalse(controller.isContextMenuVisible)
+        XCTAssertFalse(controller.isTooltipVisible)
+        XCTAssertEqual(controller.petFrame, frame)
+        XCTAssertEqual(server.rateLimitRefreshCount, refreshCount)
+    }
+
+    @MainActor
     func testFullScreenPreferencePersists() throws {
         let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -3493,7 +3843,7 @@ final class PositionLockClickThroughTests: XCTestCase {
                 visibleRegion: visibleRegion
             )
         )
-        XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 462, height: 474))
+        XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 480, height: 505))
     }
 
     func testEnglishAndRussianToggleLocalizationsAreBundled() throws {

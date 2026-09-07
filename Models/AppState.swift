@@ -125,6 +125,7 @@ final class AppState {
     private(set) var quotaHistory: QuotaHistoryPresentation
     private(set) var quotaHistoryIssue: QuotaHistoryIssue?
     private(set) var hidesInFullScreenApps: Bool
+    private(set) var showsOnlyWhenCodexIsActive: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
     private(set) var absorptionRequestID = 0
@@ -211,6 +212,10 @@ final class AppState {
             forKey: AppConstants.passesPointerInputThroughKey
         )
         hidesInFullScreenApps = defaults.bool(forKey: AppConstants.hideInFullScreenAppsKey)
+        showsOnlyWhenCodexIsActive = Self.storedBoolean(
+            in: defaults,
+            forKey: AppConstants.showOnlyWhenCodexIsActiveKey
+        )
     }
 
     var launchesAtLogin: Bool {
@@ -527,6 +532,12 @@ final class AppState {
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         hidesInFullScreenApps = isEnabled
         defaults.set(isEnabled, forKey: AppConstants.hideInFullScreenAppsKey)
+    }
+
+    func setShowsOnlyWhenCodexIsActive(_ isEnabled: Bool) {
+        guard isEnabled != showsOnlyWhenCodexIsActive else { return }
+        showsOnlyWhenCodexIsActive = isEnabled
+        defaults.set(isEnabled, forKey: AppConstants.showOnlyWhenCodexIsActiveKey)
     }
 
     func setLaunchesAtLogin(_ isEnabled: Bool) {

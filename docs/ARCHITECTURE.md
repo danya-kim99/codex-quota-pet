@@ -57,6 +57,17 @@ in or out instead of recreating it. An optional `UserDefaults` preference hides
 the panel when the frontmost layer-zero window matches a screen frame. The
 controller reevaluates that condition when the active Space or application
 changes, without requiring Accessibility or Screen Recording access.
+The optional persisted `showsOnlyWhenCodexIsActive` preference adds foreground
+application eligibility to this same visibility decision. It matches
+`com.openai.codex` for the whole host application, independently of quota and
+the manual visibility flag. The native menu-bar and Pixel context-menu toggles
+update the same preference and immediately reevaluate visibility; wake also
+reevaluates it. Transient
+activation of the pet itself retains the last external foreground/fullscreen
+context instead of treating its own menus as a different eligible application.
+Foreground suppression reuses `hide()` to clear transient presentation, and
+restoration requires fresh hover before showing the tooltip or refreshing on
+hover. Quota collection continues through the existing AppState lifecycle.
 `AppState` also owns the persisted S/M/L pet-size preference. The renderer reads
 the selected scene dimensions directly, while `PetPanelController` resizes the
 native panel around its current center and clamps it to the visible screen.
@@ -98,6 +109,12 @@ the menu after clicks in other applications. SwiftUI reads live settings from
 `AppState`; menu actions call the same state methods as the menu bar and do not
 refresh quota. Hit testing, screen-quadrant placement, and the reversible
 spaghettification state are pure helpers covered by tests.
+The grouped right-click menu keeps five normal root actions. Appearance and
+Behavior flatten their settings into one submenu level; Object Mix retains its
+existing matrix. Group expansion and keyboard selection are view-local and do
+not create new persisted preferences. The short root is anchored independently
+of the submenu height inside the shared panel reserve; the controller keeps its
+existing screen-quadrant placement and dismissal responsibilities.
 
 `AppState` owns the independent persisted position-lock and pointer-click-through
 preferences. `PetPanelController` applies their single effective `NSPanel`

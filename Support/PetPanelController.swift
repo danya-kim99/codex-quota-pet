@@ -44,14 +44,26 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var observationTokens: [NSObjectProtocol] = []
     private var displayObservationToken: NSObjectProtocol?
     private let isFrontmostApplicationFullScreen: () -> Bool
+    private let frontmostApplication: () -> (bundleIdentifier: String?, isCurrentApplication: Bool)
+    private var lastExternalApplication: (bundleIdentifier: String?, isFullScreen: Bool) = (nil, false)
     private let frameName: String
 
     init(
         isFrontmostApplicationFullScreen: (() -> Bool)? = nil,
+        frontmostApplication: @escaping () -> (
+            bundleIdentifier: String?, isCurrentApplication: Bool
+        ) = {
+            let application = NSWorkspace.shared.frontmostApplication
+            return (
+                application?.bundleIdentifier,
+                application?.processIdentifier == ProcessInfo.processInfo.processIdentifier
+            )
+        },
         frameName: String = AppConstants.petPanelFrameName
     ) {
         self.isFrontmostApplicationFullScreen = isFrontmostApplicationFullScreen
             ?? Self.detectFrontmostApplicationFullScreen
+        self.frontmostApplication = frontmostApplication
         self.frameName = frameName
         super.init()
     }
@@ -187,7 +199,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             let notificationCenter = NSWorkspace.shared.notificationCenter
             let names: [Notification.Name] = [
                 NSWorkspace.activeSpaceDidChangeNotification,
-                NSWorkspace.didActivateApplicationNotification
+                NSWorkspace.didActivateApplicationNotification,
+                NSWorkspace.didTerminateApplicationNotification,
+                NSWorkspace.didWakeNotification
             ]
 
             observationTokens = names.map { name in
@@ -195,10 +209,18 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                     forName: name,
                     object: nil,
                     queue: .main
-                ) { [weak self] _ in
+                ) { [weak self] notification in
+                    let terminatedBundleIdentifier = name == NSWorkspace.didTerminateApplicationNotification
+                        ? (notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                            as? NSRunningApplication)?.bundleIdentifier
+                        : nil
                     Task { @MainActor [weak self] in
                         guard let self, let appState = self.appState else {
                             return
+                        }
+                        if let terminatedBundleIdentifier,
+                           terminatedBundleIdentifier == self.lastExternalApplication.bundleIdentifier {
+                            self.lastExternalApplication = (nil, false)
                         }
 
                         self.updateVisibility(appState: appState)
@@ -223,19 +245,47 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func updateVisibility(appState: AppState) {
-        let isFullScreen = isFrontmostApplicationFullScreen()
-        let isSuppressedByFullScreen = appState.hidesInFullScreenApps && isFullScreen
-        appState.setQuotaConsumptionFullScreenSuppressed(isSuppressedByFullScreen)
+        self.appState = appState
+        let policy = visibilityPolicy(appState: appState)
+        appState.setQuotaConsumptionFullScreenSuppressed(policy.isFullScreenSuppressed)
 
-        if appState.isPetVisible && !isSuppressedByFullScreen {
+        if policy.shouldShow {
             show(appState: appState)
         } else {
+            if appState.showsOnlyWhenCodexIsActive {
+                hoverRequiresExitBeforeReentry = true
+            }
             hide()
         }
     }
 
+    func visibilityPolicy(appState: AppState) -> (
+        shouldShow: Bool, isFullScreenSuppressed: Bool
+    ) {
+        let application = frontmostApplication()
+        let isFullScreen = isFrontmostApplicationFullScreen()
+        if !application.isCurrentApplication {
+            lastExternalApplication = (application.bundleIdentifier, isFullScreen)
+        }
+        let effectiveApplication: (bundleIdentifier: String?, isFullScreen: Bool) = application.isCurrentApplication
+            && appState.showsOnlyWhenCodexIsActive
+            ? lastExternalApplication
+            : (application.bundleIdentifier, isFullScreen)
+        let isFullScreenSuppressed = appState.hidesInFullScreenApps
+            && effectiveApplication.isFullScreen
+        return (
+            appState.isPetVisible && !isFullScreenSuppressed
+                && (!appState.showsOnlyWhenCodexIsActive
+                    || effectiveApplication.bundleIdentifier == "com.openai.codex"),
+            isFullScreenSuppressed
+        )
+    }
+
     func show(appState: AppState) {
         self.appState = appState
+        if appState.showsOnlyWhenCodexIsActive && !isVisible {
+            hoverRequiresExitBeforeReentry = true
+        }
 
         if let panel {
             refreshVisibleRegion()
@@ -304,6 +354,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         panel.orderFrontRegardless()
+        updateHoverRearmForPanelShow()
         recomputePointerInteraction()
         appState.setQuotaConsumptionPanelPresented(true)
     }
@@ -599,6 +650,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 guard let self, let appState else { return }
                 appState.setShowsQuotaDynamics(isEnabled)
                 self.updateTooltipLayout()
+            },
+            setShowsOnlyWhenCodexIsActive: { [weak self, weak appState] isEnabled in
+                guard let self, let appState else { return }
+                appState.setShowsOnlyWhenCodexIsActive(isEnabled)
+                self.updateVisibility(appState: appState)
             },
             setHidesInFullScreenApps: { [weak self, weak appState] isEnabled in
                 guard let self, let appState else { return }
@@ -1314,6 +1370,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
               isHoveringVisibleRegion != cursorIsInside else { return }
         isHoveringVisibleRegion = cursorIsInside
         if cursorIsInside {
+            guard !hoverRequiresExitBeforeReentry else { return }
             appState?.refreshQuotaIfStale()
             handleTooltipVisibilityRequest(true)
         } else {

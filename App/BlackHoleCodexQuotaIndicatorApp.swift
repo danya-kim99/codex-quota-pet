@@ -16,6 +16,7 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 setTooltipStyle: appDelegate.setTooltipStyle,
                 setShowsQuotaDynamics: appDelegate.setShowsQuotaDynamics,
                 clearQuotaHistory: appDelegate.clearQuotaHistory,
+                setShowsOnlyWhenCodexIsActive: appDelegate.setShowsOnlyWhenCodexIsActive,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps
             )
         } label: {
@@ -84,6 +85,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func setHidesInFullScreenApps(_ isEnabled: Bool) {
         appState.setHidesInFullScreenApps(isEnabled)
+        petPanel.updateVisibility(appState: appState)
+    }
+
+    func setShowsOnlyWhenCodexIsActive(_ isEnabled: Bool) {
+        appState.setShowsOnlyWhenCodexIsActive(isEnabled)
         petPanel.updateVisibility(appState: appState)
     }
 

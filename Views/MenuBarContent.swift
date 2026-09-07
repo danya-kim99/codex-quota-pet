@@ -10,6 +10,7 @@ struct MenuBarContent: View {
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
     let clearQuotaHistory: () -> Void
+    let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
 
     var body: some View {
@@ -185,6 +186,16 @@ struct MenuBarContent: View {
             if let issue = appState.quotaHistoryIssue {
                 Text(localized(issue.localizationKey))
             }
+
+            Toggle(
+                localized("menu.only_when_codex_active"),
+                isOn: Binding(
+                    get: { appState.showsOnlyWhenCodexIsActive },
+                    set: setShowsOnlyWhenCodexIsActive
+                )
+            )
+            .help(localized("menu.only_when_codex_active.help"))
+            .accessibilityHint(localized("menu.only_when_codex_active.help"))
 
             Toggle(
                 localized("menu.hide_full_screen"),

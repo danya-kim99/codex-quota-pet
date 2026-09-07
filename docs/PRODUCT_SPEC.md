@@ -1318,6 +1318,269 @@ Acceptance criteria for this update:
 - focused automated tests pass, and `./script/build_and_run.sh --verify` builds
   and launches the app for real-flow review.
 
+## Approved update: show only while Codex is active
+
+The user approved this complete feature slice for implementation on 7 September
+2026. This approval covers the local feature and its checks, not distribution
+or GUI interaction by the agent.
+
+- Add one native menu-bar toggle, immediately before fullscreen hiding:
+  `Only When Codex Is Active` / `Только при активном Codex`. It is off by default,
+  applies immediately, and persists across relaunches. Missing or invalid stored
+  values mean off. The initially native-only placement is extended by the
+  approved context-menu amendment below.
+- Active Codex means the foreground application identified by
+  `com.openai.codex`, including any of its internal windows or tabs. A browser
+  tab or terminal running Codex CLI does not qualify. This does not distinguish
+  Codex content from other surfaces hosted by the same application.
+- With the mode enabled, switching to another application, closing Codex, or
+  having no known foreground application hides the pet, tooltip, and context
+  menu. Returning to Codex restores the pet at its existing position and size,
+  without taking focus, adding a transition animation, reopening old menus, or
+  replaying missed effects. Tooltip restoration follows a fresh hover.
+- Manual visibility and fullscreen hiding remain independent and take
+  precedence. Manual Hide prevents automatic restoration. Show removes manual
+  hiding but still waits for an eligible foreground application. When fullscreen
+  hiding is enabled, it also suppresses fullscreen Codex.
+- Opening the pet's own menus over Codex must not make it disappear. Opening
+  the menu-bar control over another application must not make the pet appear.
+  The menu-bar control remains available while the pet is hidden.
+- Reuse the existing hide lifecycle to cancel pointer/drag interactions,
+  tooltip presentation, and active effects. Preserve position, position lock,
+  pointer pass-through, and existing screen/Space placement behavior.
+- Quota collection, history, freshness, retry, and error handling continue in
+  the background. This visibility policy applies equally to all quota levels,
+  zero/missing/stale data, Standard/Turbo, Smooth/Pixel, S/M/L, and Reduce Motion.
+  Existing presentation and connection semantics remain in effect when shown.
+- Use the native toggle's keyboard and VoiceOver behavior, localized label and
+  help: `Hides the pet when you switch to another app. The menu bar icon remains
+  available.` / `Скрывает питомца при переключении в другое приложение. Значок
+  в строке меню остаётся доступен.` No new permission, dependency, polling timer,
+  visual asset, or protocol change is needed.
+
+Acceptance checklist:
+
+- [x] Default-off, invalid-value fallback, and persisted on/off values verified.
+- [ ] Codex to another application and back, unknown foreground, startup, wake,
+      and Space changes use the same visibility decision.
+- [x] Manual Hide/Show and both fullscreen combinations preserve their priority
+      in the headless production-policy check.
+- [ ] Own menus do not flicker or reveal the pet over another application.
+- [ ] Hiding clears transient interactions/effects; restoring preserves position
+      and size without replaying effects or changing quota refresh behavior.
+- [ ] English/Russian toggle and help are present; keyboard and VoiceOver are
+      verified or explicitly reported as awaiting interactive verification.
+- [x] Focused logic checks and build pass; GUI-dependent checks are reported
+      separately and require the user's specific GUI authorization.
+
+Verification on 7 September 2026: `xcodebuild ... build-for-testing` succeeded
+with the existing Debug configuration and `CODE_SIGNING_ALLOWED=NO`; the app
+and all XCTest sources compiled. A headless executable compiled from the actual
+Models/Services/Support/Views sources passed 112 assertions covering preference
+storage and the foreground/manual/fullscreen policy, including own-application
+context and unknown foreground. The four added XCTests include one GUI lifecycle
+test; the app-hosted XCTest suite was not executed because it launches the GUI.
+Both compiled EN/RU label/help resources were checked. Initial review and static
+accessibility checks were performed in the primary task because agent capacity
+was exhausted. Build and headless-check logs are in
+`build/codex-active-verification/`.
+
+After the user authorized GUI verification, the lifecycle XCTest found that a
+delayed `BlackHoleView.onAppear` could override the controller's hidden state
+and permit a quota-consumption effect while hidden. Removing the view's two
+panel-presented writes leaves `PetPanelController` as the sole production owner.
+The independent reviewer confirmed this correction and found no remaining
+actionable issue. All seven focused XCTest cases then passed: the four new
+Codex-active cases, both fullscreen cases, and the existing quota-consumption
+lifecycle case. See `build/codex-active-verification/focused-tests-fixed.log`.
+
+`./script/build_and_run.sh --verify` built and launched the corrected Debug app.
+The new preference was enabled and read back as true, and the app was restarted
+with it enabled. Computer Use refused access to Codex itself; live switching,
+menu keyboard, VoiceOver, wake, and Spaces were not fully verified. The user then
+explicitly took over all remaining manual GUI checks. No further GUI interaction
+is authorized for this verification pass. The running local build is
+`build/DerivedData/Build/Products/Debug/Black Hole Codex Quota Indicator.app`;
+release metadata and distribution were not changed.
+
+### Approved context-menu control amendment
+
+After confirming the feature worked, the user explicitly requested the same
+option in the pet's context menu on 7 September 2026. This authorizes adding the
+existing control to that surface; the foreground visibility contract above is
+unchanged.
+
+- Add `Only When Codex Is Active` / `Только при активном Codex` immediately before
+  fullscreen hiding in the Pixel context menu, using the existing localized
+  label/help and pixel toggle-row pattern, including its checked and accessible
+  on/off states. Reuse an existing window icon.
+- Both menus read and change the same persisted `AppState` preference. Apply
+  visibility immediately through the controller's existing decision. Keep the
+  context menu open when the pet remains eligible; if enabling the mode hides
+  the pet, dismiss the menu through the existing hide lifecycle.
+- Include the row in arrow-key navigation and Return/Space activation. Grow
+  the existing panel by one 31 pt row, from 462 x 474 pt to 462 x 505 pt, keeping
+  its existing layout, screen-edge placement, and other submenu offsets.
+- Quota/failure states, Standard/Turbo, Reduce Motion, Smooth/Pixel, S/M/L,
+  manual/fullscreen priority, freshness, and privacy follow the approved mode.
+  No new preference, protocol, dependency, asset, or distribution change is
+  introduced. Manual GUI verification remains with the user.
+
+Acceptance: the callback persists the same preference and immediately applies
+visibility, the row reflects shared state with localized accessibility text,
+keyboard order matches visual order, and the enlarged panel fits the existing
+placement checks. Compile the app and tests; distinguish non-GUI checks from
+manual interaction checks without launching or focusing apps in this turn.
+
+Implementation verification on 7 September 2026: the app and test target compiled
+with `xcodebuild ... build-for-testing`. A headless executable using the actual
+production sources passed 155 assertions, including callback state/persistence,
+immediate visibility reevaluation, manual-hide priority, the existing foreground
+policy, and menu placement at 27 anchors across three display geometries. The
+new focused XCTest and both updated geometry expectations compiled; app-hosted
+XCTests were not executed in this pass. The primary task reviewed callback
+ownership, visual/keyboard order, and localized checked-state/help wiring after
+the separate reviewer could not be started due to the agent limit. Logs and the
+headless check are in `build/codex-context-verification/`. The updated Debug app
+is built at the existing path; it was not launched or restarted. Manual menu,
+keyboard, and VoiceOver checks remain with the user.
+
+### Bilingual context-menu verification — 7 September 2026
+
+The user subsequently explicitly requested testing both languages, authorizing
+the following live UI pass. The current Debug app, version 0.8.3 (21), was checked
+in its normal English launch and with temporary Russian launch arguments
+(`-AppleLanguages '(ru)' -AppleLocale ru_RU`). System language was not changed.
+
+| Check for the new context-menu option | English | Russian |
+| --- | --- | --- |
+| Visible label, fully shown without clipping | Only When Codex Is Active | Только при активном Codex |
+| Mouse toggle and checkmark, menu stays open | On → Off → On: PASS | Включено → Выключено → Включено: PASS |
+| Arrow-key selection, Return off, Space on | PASS | PASS |
+| Accessibility label, state, full help text | PASS | PASS |
+| Right-click pet to open; Escape to dismiss | PASS | PASS |
+
+Live screenshots showed the new row immediately before fullscreen hiding and
+the complete menu through Quit/Выход. Source and built `.strings` matched for
+all eight checked values (label, help, on, off in both languages); evidence is
+saved in `build/codex-context-verification/bilingual/bundled-strings.json`.
+Accessibility-tree inspection does not constitute spoken VoiceOver testing;
+VoiceOver, Spaces, wake, and live switching to Codex are outside this pass.
+
+Five focused hosted XCTest cases passed: the context-menu action and immediate
+visibility/persistence, preference validation, combined visibility policy, corner
+placement, and exact-fit placement on a display with negative coordinates. The
+first test-without-building attempt lacked the test bundle after the normal app
+build; rebuilding restored it. The first actual run passed four tests and exposed
+one obsolete fixture: the exact-fit screen still used the previous 474 pt height.
+Only that fixture was changed to 505 pt (with y = -505), and its focused rerun
+passed. The logs and `.xcresult` bundles are in
+`build/codex-context-verification/bilingual/`; `git diff --check` passed.
+
+The normal build/run script then passed and restored English with no language
+override. The new preference remained enabled, as before testing; right-click
+showed its checked On state after relaunch, then Escape closed the menu. No
+production source or release metadata changed during this bilingual pass.
+
+### Approved grouped context menu — 7 September 2026
+
+The user approved implementation of the proposed five-item root menu after
+reviewing the grouping and the extra navigation step for settings. This amends
+only the pet's right-click menu; all existing preference values and actions
+remain shared with the native menu bar.
+
+- Normal root order: Appearance / Внешний вид, Object Mix / Состав объектов,
+  Behavior / Поведение, divider, Hide Pet / Скрыть питомца, Quit / Выход.
+  Keep Retry at the top only when connection is not established.
+- Appearance contains Size with S/M/L choices, Tooltip Style with Smooth/Pixel
+  choices, and Show Quota Dynamics. Show these as sections in the same submenu;
+  there is no third navigation level.
+- Object Mix retains the current category/weight matrix and safeguards.
+- Behavior contains position lock and pointer pass-through, divider, Codex-active
+  visibility and fullscreen hiding, divider, launch at login. Approval/error
+  status and Open Login Items stay next to the login setting in this submenu.
+- Initially show only the root menu, with no submenu expanded. Pointer
+  hover/click opens the chosen group. Up/Down navigates within the
+  current level, Right or Return/Space enters a group, Left returns to its root
+  row, Return/Space activates the selected setting, and Escape dismisses. Keep
+  the matrix's existing accessible controls. Toggle changes keep the menu open
+  unless the existing visibility/pointer lifecycle requires dismissal; existing
+  size/style action dismissal remains unchanged.
+- Reuse the pixel rows, icons, checked state, full accessibility labels/help,
+  AppState callbacks, and animation. Group names are localized in RU/EN. Keep
+  one submenu slot beside the shorter main menu, aligned with its owning row;
+  reserve enough panel area for the largest conditional submenu and both
+  opening directions without clipping on supported displays. Anchor the short
+  root independently so opening a taller submenu does not shift it. Group
+  submenus retain the 232 pt setting-row width; the object matrix keeps its
+  existing 214 pt width inside the shared reserved slot.
+- Preserve Standard/Turbo, Reduce Motion, Smooth/Pixel, S/M/L, all quota and
+  freshness/failure states, manual/fullscreen/foreground priority, hover/drag,
+  screen-edge and multi-display placement, and menu-bar recovery from pointer
+  pass-through. No changes to persistence, protocol, data collection, privacy,
+  dependencies, assets, signing, release metadata, or distribution.
+
+Acceptance: five normal root actions, every existing control reachable with one
+submenu level, visual and keyboard ordering agree, conditional actions remain
+reachable, RU/EN strings and accessible states are present, and placement fits
+the revised geometry. Build the app/tests and run focused checks without GUI
+interaction; the current implementation request does not explicitly authorize
+launching/focusing apps or clicking the redesigned menu.
+
+Implementation verification: `xcodebuild ... build-for-testing` succeeded for
+the app and test target. Three focused XCTest cases cover root/child membership,
+keyboard normalization, and group geometry; these compiled but were not executed
+in an app host. A headless executable compiled with the actual production sources
+passed 1,066 assertions across shared state/callbacks, visibility policy, root and
+child navigation, 27 screen anchors, and 96 combinations of menu direction,
+connection retry, login approval/error, and open group. Root positions and all
+submenu/shadow frames stay within the 480 x 505 pt panel reserve. The visible root
+is 179 pt high normally and 210 pt with Retry. All 41 checked menu/style/toggle
+strings in each of EN and RU match the built bundle (82 values total).
+
+Independent QA and code reviews found no actionable regressions. The separate
+reviewer could not be spawned because of the task limit; the existing architect
+performed the read-only reviewer role against the saved baseline instead. Runtime
+pointer traversal, SwiftUI focus, actual text rendering, AX tree, and VoiceOver
+remain unverified for the regrouped menu. No GUI interaction or app restart was
+performed in this implementation pass. Evidence and the runnable headless check
+are in `build/grouped-menu-verification/`; `git diff --check` passed.
+
+### Live grouped-menu verification — 7 September 2026
+
+The user explicitly approved restarting the app and testing the redesigned menu
+in both languages. Four focused hosted tests then passed with zero failures:
+root/child membership, keyboard normalization, grouped frames, and bundled
+localizations. The normal build/run script succeeded before live interaction.
+
+| Live check | English | Russian |
+| --- | --- | --- |
+| Right-click opens exactly five rows, no expanded submenu | PASS | PASS |
+| Appearance, Object Mix, Behavior open with one submenu level | PASS | PASS |
+| Complete labels, visible checkmarks, root stays in place | PASS | PASS |
+| Arrow navigation, Return/Space activation, Left return, Escape dismissal | PASS | PASS |
+| Quota Dynamics off/on, menu stays open | PASS | PASS |
+| Codex-active mode off/on, localized accessible value/help | PASS | PASS |
+| Object weights change and return to 0:0:3 | PASS by mouse | PASS by keyboard |
+| Last active category's zero weight disabled with localized help | PASS | PASS |
+
+Additionally, English Smooth/Pixel selection was changed and restored, and
+Russian size L/M selection was changed and restored. Both actions retained their
+existing menu dismissal, and their checked values persisted when reopened. All
+three submenu screenshots were inspected in each language at the current screen
+position; other screen placements remain covered by the automated geometry
+checks. Accessibility labels, help, states, and section headers were inspected
+in the live tree. Spoken VoiceOver, actual fullscreen/Spaces/wake switching, and
+live changes to login or pointer pass-through were not exercised in this pass.
+
+No defects were found and no production source changed during this verification.
+The app was returned to its normal English launch, its menu was dismissed, and
+all ten inspected preference entries exactly matched the initial snapshot:
+Codex-only on, fullscreen hiding off, L size, Pixel tooltip, dynamics on,
+position lock and pointer pass-through off, object weights 0:0:3, and no stored
+language/locale overrides. Logs, the four-test `.xcresult`, and before/after
+preference snapshots are in `build/grouped-menu-verification/live-bilingual/`.
+
 ## MVP boundary
 
 The first release includes Codex App Server connectivity, quota and reset data,
