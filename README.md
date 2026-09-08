@@ -179,13 +179,30 @@ standard input/output. It does not scrape the Codex interface, prompts,
 conversations, credentials, or private files. It adds no project backend,
 analytics, telemetry, cloud sync, or third-party dependency for quota history.
 
+Application updates use Sparkle. A manual update check contacts GitHub Releases
+over HTTPS; downloading an update can follow GitHub CDN redirects. GitHub
+receives ordinary request metadata, such as your IP address and application
+version. Black Hole does not send quota, history, prompts, projects or account
+identifiers, and Sparkle system profiling and automatic checks are disabled.
+
 ## Update
 
-Updating keeps saved settings and local quota history:
+Version 0.10.0 adds **Check for Updates…** to the menu bar.
+It checks the signed GitHub feed, offers the new version, and downloads and
+installs it after you choose Install Update. Install and Relaunch restarts
+immediately; dismissing a prepared update may leave it scheduled for normal
+Quit. Saved settings and local quota history are retained.
+
+Version 0.9.0 has no updater. Install the first updater-enabled release once
+using the existing manual process:
 
 1. Download and unzip the latest archive from [GitHub Releases](https://github.com/danya-kim99/codex-quota-pet/releases/latest).
 2. Quit the running app from its menu.
 3. Replace the existing app in `/Applications` and open the new copy.
+
+Developer ID and notarization are not used; Sparkle signatures verify update provenance,
+but macOS may still require a manual security confirmation.
+Build and publishing requirements are in [`docs/UPDATES.md`](docs/UPDATES.md).
 
 ## Development
 

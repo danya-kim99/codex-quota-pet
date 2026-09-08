@@ -17,7 +17,8 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 setShowsQuotaDynamics: appDelegate.setShowsQuotaDynamics,
                 clearQuotaHistory: appDelegate.clearQuotaHistory,
                 setShowsOnlyWhenCodexIsActive: appDelegate.setShowsOnlyWhenCodexIsActive,
-                setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps
+                setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps,
+                checkForUpdates: appDelegate.checkForUpdates
             )
         } label: {
             Label {
@@ -54,8 +55,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
     private let petPanel = PetPanelController()
     private var wakeObserver: NSObjectProtocol?
+    private let terminationGate = UpdateTerminationGate()
+    private lazy var appUpdater = AppUpdater(
+        appState: appState,
+        beforePresentation: { [weak self] in self?.petPanel.dismissTransientUI() },
+        prepareTermination: { [weak self] completion in
+            guard let self else { completion(false); return }
+            self.prepareUpdateTermination(completion: completion)
+        },
+        didCancel: { [weak self] in self?.cancelUpdateTermination() }
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let handoff = UpdateHandoff.consume(for: currentBuild) {
+            appState.restoreUpdateVisibility(handoff.isPetVisible)
+            petPanel.restoreFrameAfterUpdate(handoff.frame)
+        }
         appState.start()
         petPanel.startMonitoring(appState: appState)
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -68,6 +83,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.appState.refreshQuotaIfStale(maxAge: 0)
             }
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard appUpdater.targetBuild != nil else { return .terminateNow }
+        if terminationGate.isPrepared { return .terminateNow }
+        prepareUpdateTermination { success in
+            sender.reply(toApplicationShouldTerminate: success)
+        }
+        return .terminateLater
+    }
+
+    private var currentBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+    }
+
+    private func prepareUpdateTermination(completion: @escaping (Bool) -> Void) {
+        appState.beginTermination()
+        terminationGate.prepare(
+            operation: { [appState] in await appState.drainHistoryForTermination() },
+            commit: { [weak self] in
+                guard let self, let target = self.appUpdater.targetBuild else { return false }
+                do {
+                    try UpdateHandoff(
+                        sourceBuild: self.currentBuild, targetBuild: target,
+                        frame: self.petPanel.petFrame, isPetVisible: self.appState.isPetVisible
+                    ).save()
+                    return true
+                } catch { return false }
+            }
+        ) { [weak self] success in
+            if !success, let self, self.appState.isPreparingToTerminate {
+                self.cancelUpdateTermination()
+                self.appUpdater.showError("update.save_failed")
+            }
+            completion(success)
+        }
+    }
+
+    private func cancelUpdateTermination() {
+        terminationGate.reset()
+        if appState.isPreparingToTerminate {
+            appState.cancelTermination()
+        }
+        do {
+            try UpdateHandoff.clear()
+        } catch {
+            appUpdater.showError("update.handoff_clear_failed", detail: error.localizedDescription)
+        }
+    }
+
+    func checkForUpdates() {
+        appUpdater.checkForUpdates()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

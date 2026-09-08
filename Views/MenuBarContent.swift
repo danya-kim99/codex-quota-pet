@@ -12,6 +12,7 @@ struct MenuBarContent: View {
     let clearQuotaHistory: () -> Void
     let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
+    var checkForUpdates: () -> Void = {}
 
     var body: some View {
         Group {
@@ -225,6 +226,9 @@ struct MenuBarContent: View {
             }
 
             Divider()
+
+            Button(localized("menu.check_for_updates"), action: checkForUpdates)
+                .disabled(!appState.canCheckForUpdates)
 
             Button(
                 String.localizedStringWithFormat(

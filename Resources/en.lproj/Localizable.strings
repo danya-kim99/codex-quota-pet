@@ -87,3 +87,11 @@
 "history.clear.confirmation.message" = "This deletes up to 30 days of locally observed percentage snapshots. The current quota is not affected.";
 "history.clear.action" = "Clear";
 "common.cancel" = "Cancel";
+
+"menu.check_for_updates" = "Check for Updates…";
+"common.ok" = "OK";
+"update.error.title" = "Unable to Update Black Hole";
+"update.unconfigured" = "A secure update channel is not configured in this build.";
+"update.start_failed" = "The updater could not start. Your installed application has not been replaced.";
+"update.save_failed" = "The update could not safely save local state. Black Hole will keep running. Try again after resolving the storage issue.";
+"update.handoff_clear_failed" = "The saved update restart state could not be removed. Black Hole will keep running; check access to its Application Support folder before trying again.";

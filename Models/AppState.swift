@@ -124,6 +124,8 @@ final class AppState {
     private(set) var passesPointerInputThrough: Bool
     private(set) var quotaHistory: QuotaHistoryPresentation
     private(set) var quotaHistoryIssue: QuotaHistoryIssue?
+    private(set) var canCheckForUpdates = true
+    private(set) var isPreparingToTerminate = false
     private(set) var hidesInFullScreenApps: Bool
     private(set) var showsOnlyWhenCodexIsActive: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
@@ -147,6 +149,7 @@ final class AppState {
     private var reconnectTask: Task<Void, Never>?
     private var requiresHistoryGap = true
     private var historyRevision = -1
+    private var historyTask: Task<Void, Never>?
     private var previousAcceptedQuotaSample: QuotaHistorySample?
     private var isQuotaConsumptionPanelPresented = false
     private var isQuotaConsumptionDragging = false
@@ -233,20 +236,20 @@ final class AppState {
     }
 
     func start() {
-        guard !hasStarted else {
+        guard !hasStarted, !isPreparingToTerminate else {
             return
         }
 
         hasStarted = true
         let loadedAt = now()
-        Task { [weak self, historyStore] in
-            let update = await historyStore.load(at: loadedAt)
-            self?.applyHistoryUpdate(update)
+        enqueueHistory { [historyStore] in
+            await historyStore.load(at: loadedAt)
         }
         connect(isRetry: false)
     }
 
     func retryNow() {
+        guard !isPreparingToTerminate else { return }
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempt = 0
@@ -343,14 +346,13 @@ final class AppState {
         quotaUpdatedAt = observedAt
         errorMessage = nil
         connectionState = .connected
-        Task { [weak self, historyStore] in
-            let update = await historyStore.record(
+        enqueueHistory { [historyStore] in
+            await historyStore.record(
                 snapshot: snapshot,
                 at: observedAt,
                 forceGap: forceHistoryGap,
                 primaryTransition: primaryTransition
             )
-            self?.applyHistoryUpdate(update)
         }
     }
 
@@ -454,9 +456,59 @@ final class AppState {
     }
 
     func clearQuotaHistory() {
+        guard !isPreparingToTerminate else { return }
         let clearedAt = now()
-        Task { [weak self, historyStore] in
-            let update = await historyStore.clear(at: clearedAt)
+        enqueueHistory { [historyStore] in
+            await historyStore.clear(at: clearedAt)
+        }
+    }
+
+    func setCanCheckForUpdates(_ value: Bool) {
+        canCheckForUpdates = value
+    }
+
+    func restoreUpdateVisibility(_ isVisible: Bool) {
+        isPetVisible = isVisible
+    }
+
+    func beginTermination() {
+        guard !isPreparingToTerminate else { return }
+        isPreparingToTerminate = true
+        stop()
+    }
+
+    func drainHistoryForTermination() async -> Bool {
+        let previous = historyTask
+        let observedAt = now()
+        let flush = Task { [historyStore] in
+            await previous?.value
+            return await historyStore.flush(at: observedAt)
+        }
+        let tail = Task { [weak self] in
+            let update = await flush.value
+            self?.applyHistoryUpdate(update)
+        }
+        historyTask = tail
+        await tail.value
+        return await flush.value.issue != .notSaved
+    }
+
+    func cancelTermination() {
+        guard isPreparingToTerminate else { return }
+        isPreparingToTerminate = false
+        quotaHistoryIssue = .notSaved
+        // Resume with a fresh baseline without reloading over pending in-memory writes.
+        hasStarted = true
+        connect(isRetry: false)
+    }
+
+    private func enqueueHistory(
+        _ operation: @escaping @Sendable () async -> QuotaHistoryStoreUpdate
+    ) {
+        let previous = historyTask
+        historyTask = Task { [weak self] in
+            await previous?.value
+            let update = await operation()
             self?.applyHistoryUpdate(update)
         }
     }

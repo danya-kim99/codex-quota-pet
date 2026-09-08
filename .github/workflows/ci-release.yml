@@ -11,6 +11,11 @@ on:
         description: Version to publish, for example 0.4.0
         required: true
         type: string
+      bootstrap_update_feed:
+        description: First updater-enabled release only (no previous signed feed)
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,7 +39,7 @@ jobs:
       - name: Show toolchain
         run: xcodebuild -version
 
-      - name: Run unit tests
+      - name: Build unit tests
         run: |
           xcodebuild \
             -project "$PROJECT" \
@@ -43,7 +48,13 @@ jobs:
             -derivedDataPath build/DerivedData \
             -destination 'platform=macOS,arch=arm64' \
             CODE_SIGNING_ALLOWED=NO \
-            test
+            build-for-testing
+
+      - name: Run unit tests
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+            -derivedDataPath build/DerivedData -destination 'platform=macOS,arch=arm64' \
+            -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO test-without-building
 
       - name: Upload failed test results
         if: failure()
@@ -64,6 +75,9 @@ jobs:
     env:
       RELEASE_VERSION: ${{ inputs.version }}
       RELEASE_DERIVED_DATA: build/ReleaseDerivedData
+      SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      BOOTSTRAP_UPDATE_FEED: ${{ inputs.bootstrap_update_feed }}
     steps:
       - name: Check out source and tags
         uses: actions/checkout@v6
@@ -75,6 +89,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          python3 - <<'PY'
+          import os, base64
+          for name in ('SPARKLE_PUBLIC_ED_KEY', 'SPARKLE_PRIVATE_KEY'):
+              try:
+                  valid = len(base64.b64decode(os.environ.get(name, ''), validate=True)) == 32
+              except ValueError:
+                  valid = False
+              if not valid:
+                  raise SystemExit(name + ' is not configured as a 32-byte base64 key; refusing release')
+          PY
 
           if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
             echo "Releases must be dispatched from main, not $GITHUB_REF" >&2
@@ -101,6 +126,27 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch the previous signed feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/previous-update
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > build/previous-update/release.json
+          previous_tag=$(python3 -c 'import json; print(json.load(open("build/previous-update/release.json"))["tag_name"])')
+          has_feed=$(python3 -c 'import json; print(str(any(a["name"] == "appcast.xml" for a in json.load(open("build/previous-update/release.json"))["assets"])).lower())')
+          if [[ "$has_feed" == true ]]; then
+            if [[ "$BOOTSTRAP_UPDATE_FEED" == true ]]; then
+              echo "A signed feed already exists; bootstrap would discard its history" >&2
+              exit 1
+            fi
+            gh release download "$previous_tag" --pattern appcast.xml --dir build/previous-update
+          elif [[ "$BOOTSTRAP_UPDATE_FEED" != true ]]; then
+            echo "No previous feed; the first updater release requires explicit bootstrap_update_feed" >&2
+            exit 1
+          fi
+
       - name: Build arm64 Release
         run: |
           xcodebuild \
@@ -110,6 +156,7 @@ jobs:
             -derivedDataPath "$RELEASE_DERIVED_DATA" \
             -destination 'platform=macOS,arch=arm64' \
             CODE_SIGNING_ALLOWED=NO \
+            SPARKLE_PUBLIC_ED_KEY="$SPARKLE_PUBLIC_ED_KEY" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=YES \
             build
@@ -124,13 +171,7 @@ jobs:
           info="$app/Contents/Info.plist"
           binary="$app/Contents/MacOS/$SCHEME"
 
-          codesign \
-            --force \
-            --sign - \
-            --options runtime \
-            --timestamp=none \
-            "$app"
-          codesign --verify --deep --strict --verbose=2 "$app"
+          script/sign_app.sh "$app"
 
           built_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info")
           build_number=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info")
@@ -166,7 +207,7 @@ jobs:
           archive="dist/$archive_name"
           checksum="$archive.sha256"
 
-          ditto -c -k --keepParent "$APP_BUNDLE" "$archive"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$archive"
           (
             cd dist
             shasum -a 256 "$archive_name" > "$archive_name.sha256"
@@ -177,7 +218,22 @@ jobs:
           echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
 
-      - name: Publish GitHub Release
+      - name: Prepare and verify signed updates
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          set -euo pipefail
+          feed_args=(--previous-feed build/previous-update/appcast.xml)
+          if [[ "$BOOTSTRAP_UPDATE_FEED" == true ]]; then feed_args=(--bootstrap); fi
+          script/prepare_appcast.py \
+            --archive "$ARCHIVE" --notes "$NOTES_FILE" --tag "$TAG" \
+            --tools "$RELEASE_DERIVED_DATA/SourcePackages/artifacts/sparkle/Sparkle/bin" \
+            --output-dir dist "${feed_args[@]}"
+
+      - name: Stage the complete GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
@@ -188,11 +244,13 @@ jobs:
           gh release create "$TAG" \
             "$ARCHIVE" \
             "$CHECKSUM" \
+            dist/appcast.xml \
+            --draft --latest=false \
             --target "$GITHUB_SHA" \
             --title "Black Hole Codex Quota Indicator $TAG" \
             --notes-file "$NOTES_FILE"
 
-      - name: Verify published release
+      - name: Verify draft assets, then publish as latest
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -208,13 +266,27 @@ jobs:
           asset_count=$(gh release view "$TAG" --json assets --jq '.assets | length')
           release_url=$(gh release view "$TAG" --json url --jq '.url')
 
-          if [[ "$asset_count" != "2" ]]; then
-            echo "Expected two release assets, got $asset_count" >&2
+          if [[ "$asset_count" != "3" ]]; then
+            echo "Expected archive, checksum, and signed appcast, got $asset_count assets" >&2
             exit 1
           fi
 
           if [[ "$actual_digest" != "$expected_digest" ]]; then
             echo "Published archive digest does not match the local artifact" >&2
+            exit 1
+          fi
+
+          expected_feed="sha256:$(shasum -a 256 dist/appcast.xml | awk '{print $1}')"
+          actual_feed=$(gh release view "$TAG" --json assets --jq '.assets[] | select(.name == "appcast.xml") | .digest')
+          if [[ "$actual_feed" != "$expected_feed" ]]; then
+            echo "Published feed digest does not match the verified signed feed" >&2
+            exit 1
+          fi
+
+          gh release edit "$TAG" --draft=false --latest
+          latest_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [[ "$latest_tag" != "$TAG" ]]; then
+            echo "Latest does not point to the completed release" >&2
             exit 1
           fi
 

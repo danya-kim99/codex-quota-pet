@@ -635,6 +635,12 @@ actor QuotaHistoryStore {
         samples
     }
 
+    func flush(at now: Date) -> QuotaHistoryStoreUpdate {
+        ensureLoaded(at: now)
+        persist()
+        return update(at: now)
+    }
+
     private func ensureLoaded(at now: Date) {
         guard !isLoaded else { return }
         isLoaded = true

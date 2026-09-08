@@ -28,6 +28,37 @@ does not own product data.
 The app consumes the documented Codex App Server protocol and does not
 scrape Codex UI or private application files.
 
+## Application updates
+
+The approved update boundary is independent of Codex quota:
+`native menu -> AppState command availability -> Sparkle adapter -> GitHub`.
+One `SPUStandardUpdaterController` owns native update UI, download, verification,
+installation and relaunch. Sparkle 2.9.6 is pinned; the application does not
+implement its own archive extractor or installer. Manual-only policy and strict
+feed/archive signing are bundle configuration. The public key is supplied at
+build time; a missing or malformed key fails closed before checking.
+
+`AppDelegate` coordinates update termination with accepted history writes.
+`AppState` serializes load, record and clear operations, stops new intake during
+preparation, and waits for the accepted queue and final persistence. A deadline
+can cancel the termination attempt without canceling a disk write or allowing a
+late completion to approve termination. Failure resumes the owned App Server
+through the existing gap/baseline logic. Normal Quit must use the same gate
+because Sparkle may have a user-authorized installation waiting for exit.
+
+A one-use, build-matched handoff retains the current manual visibility and pet
+frame only across an update. `PetPanelController` applies frame restoration
+through its existing screen selection/clamping policy, including an initially
+hidden pet. Persistent preferences and history remain outside the app bundle.
+
+Ad-hoc packaging retains Hardened Runtime and applies the approved Library
+Validation exception to the host app. Sparkle's Ed25519 trust is independent of
+Apple signing; it does not provide notarization or bypass Gatekeeper. Signing
+and feed tooling are part of the source change; production key provisioning and
+publication remain separate from implementation.
+
+## Existing quota and presentation flow
+
 The current client launches the installed Codex executable with the stable
 stdio JSONL transport, reads `account/rateLimits/read`, selects the main
 `codex` bucket, and refetches after `account/rateLimits/updated` notifications.

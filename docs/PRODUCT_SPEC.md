@@ -48,6 +48,63 @@ requiring the user to keep the Codex window open.
   seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
+## Approved application self-update
+
+Approved for implementation on 8 September 2026 after the user selected
+in-app download and installation from GitHub without Developer ID. The complete
+state matrix and acceptance checklist are in
+[`feature-workstreams/app-self-update.md`](feature-workstreams/app-self-update.md).
+
+- Add one localized `Check for Updates…` / `Проверить обновления…` command
+  immediately before Quit in the native menu bar. Use the standard Sparkle 2
+  interface and its availability state to prevent duplicate checks. The command
+  remains usable with a hidden or click-through pet and all quota/connection
+  states. The Pixel menu and noninteractive tooltip retain their content.
+- Checking is manual. Disable background checks, automatic-update opt-in,
+  unattended future downloads/installations, system profiling, and JavaScript
+  release notes. Choosing Install Update authorizes that version; Install and
+  Relaunch chooses immediate restart. Native Dismiss may defer an authorized
+  installation until normal Quit and must not be described as cancellation.
+- Sparkle owns download progress, signature verification, installation and
+  relaunch. Compare internal build numbers, exclude incompatible versions, never
+  downgrade, and preserve distinct no-update, network, invalid-feed, signature,
+  permissions, disk-space and installation failure outcomes.
+- Use one fixed GitHub Releases channel with mandatory Ed25519 signatures for
+  both feed and archive, verification before extraction, and no signed-feed
+  failure expiry. Embed only the public key. Preserve compatible appcast entries
+  and SHA-256 archives; no GitHub account or token is needed by the client.
+- Developer ID and notarization are unavailable. The approved packaging uses
+  ad-hoc signing with `com.apple.security.cs.disable-library-validation=true`
+  for this application while retaining other Hardened Runtime restrictions.
+  This does not disable Gatekeeper or guarantee warning-free installation.
+- Before update termination stop new history intake and drain all accepted
+  writes. On error or timeout cancel termination/installation, clear any handoff,
+  retain the storage warning, and resume quota collection using a new gap/baseline.
+  Stop only the App Server child owned by Black Hole.
+- Preserve stored settings/history. Save current panel frame and manual
+  visibility in a one-use update handoff with source/target build; consume it
+  only for the expected target and clamp through the existing display policy.
+  Ordinary relaunch behavior stays as defined previously. Delete a canceled
+  handoff. Restored quota history is not a fresh server response.
+- Quota values, Standard/Turbo, Reduce Motion, S/M/L, Smooth/Pixel, consumption,
+  hover/drag and fullscreen rules remain independent. Dismiss transient pet UI
+  when opening the focusable native update window; retain accessory/no-Dock
+  behavior. Verify English/Russian, keyboard and VoiceOver on native controls.
+- Network requests go to the HTTPS update channel and GitHub CDN; no quota,
+  history, project or account data is sent. Explain ordinary request metadata in
+  privacy documentation. No analytics, backend or additional permissions.
+- The existing 0.9.0 installation needs one manual bootstrap to the first
+  updater-enabled version. Updates replace only the running copy. No automatic
+  crash rollback, delta updater, extra settings, channels or custom installer.
+  Implementation approval does not publish a release or generate a production
+  key; those remain separate actions.
+
+Acceptance requires focused checks of command/state independence, history drain
+and failure recovery, build-matched one-use restoration, signed feed/archive
+validation, and a real isolated A → B update. Native cancellation, accessibility,
+Gatekeeper and interruption behavior require observed integration evidence;
+unexecuted checks must be reported as unverified.
+
 ## Approved pet size selection
 
 The size-selection design update was approved for implementation on

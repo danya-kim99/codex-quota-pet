@@ -15,6 +15,7 @@ struct PetDisplayGeometry: Equatable {
 @MainActor
 final class PetPanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
+    private var pendingUpdateFrame: CGRect?
     private var tooltipPanel: NSPanel?
     private var tooltipHostingView: NSHostingView<QuotaTooltipView>?
     private var contextMenuPanel: ContextMenuPanel?
@@ -119,7 +120,16 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     var petFrame: CGRect? {
-        panel?.frame
+        panel?.frame ?? pendingUpdateFrame
+    }
+
+    func restoreFrameAfterUpdate(_ frame: CGRect?) {
+        pendingUpdateFrame = frame
+    }
+
+    func dismissTransientUI() {
+        dismissContextMenu(animated: false)
+        suppressTooltipUntilPointerExit()
     }
 
     #if DEBUG
@@ -1292,6 +1302,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         var candidate = Self.defaultPetFrame(size: size, visibleFrame: fallbackVisibleFrame)
         if isLocked, panel.setFrameUsingName(frameName, force: true) {
             candidate = panel.frame
+        }
+        if let pendingUpdateFrame {
+            candidate = pendingUpdateFrame
+            self.pendingUpdateFrame = nil
         }
         let frame = Self.resolvedPetFrame(
             candidate: candidate,

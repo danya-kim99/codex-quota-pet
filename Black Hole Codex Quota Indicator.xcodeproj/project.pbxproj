@@ -27,6 +27,10 @@
 		A10000000000000000000014 /* QuotaHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* QuotaHistory.swift */; };
 		A10000000000000000000015 /* QuotaHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* QuotaHistoryView.swift */; };
 		A10000000000000000000016 /* QuotaHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* QuotaHistoryTests.swift */; };
+		A10000000000000000000017 /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AppUpdater.swift */; };
+		A10000000000000000000018 /* UpdateHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* UpdateHandoff.swift */; };
+		A10000000000000000000019 /* AppUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* AppUpdateTests.swift */; };
+		A10000000000000000000020 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AC0000000000000000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +67,9 @@
 		A20000000000000000000018 /* QuotaHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaHistory.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* QuotaHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaHistoryView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001A /* QuotaHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaHistoryTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* UpdateHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateHandoff.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* AppUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +77,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000020 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +143,7 @@
 		A40000000000000000000005 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000028 /* UpdateHandoff.swift */,
 				A20000000000000000000005 /* AppConstants.swift */,
 				A2000000000000000000000C /* PetPanelController.swift */,
 			);
@@ -153,6 +162,7 @@
 		A40000000000000000000007 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000027 /* AppUpdater.swift */,
 				A20000000000000000000007 /* CodexAppServer.swift */,
 			);
 			path = Services;
@@ -161,6 +171,7 @@
 		A40000000000000000000008 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000029 /* AppUpdateTests.swift */,
 				A20000000000000000000008 /* RateLimitDecodingTests.swift */,
 				A2000000000000000000001A /* QuotaHistoryTests.swift */,
 			);
@@ -202,6 +213,7 @@
 			);
 			dependencies = (
 			);
+			packageProductDependencies = (AC0000000000000000000002 /* Sparkle */,);
 			name = "Black Hole Codex Quota Indicator";
 			productName = "Black Hole Codex Quota Indicator";
 			productReference = A20000000000000000000006 /* Black Hole Codex Quota Indicator.app */;
@@ -255,6 +267,7 @@
 			);
 			mainGroup = A40000000000000000000001;
 			productRefGroup = A40000000000000000000006 /* Products */;
+			packageReferences = (AC0000000000000000000001 /* Sparkle */,);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -290,6 +303,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000018 /* UpdateHandoff.swift in Sources */,
+				A10000000000000000000017 /* AppUpdater.swift in Sources */,
 				A10000000000000000000001 /* BlackHoleCodexQuotaIndicatorApp.swift in Sources */,
 				A10000000000000000000003 /* AppState.swift in Sources */,
 				A10000000000000000000004 /* MenuBarContent.swift in Sources */,
@@ -311,6 +326,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000019 /* AppUpdateTests.swift in Sources */,
 				A10000000000000000000007 /* RateLimitDecodingTests.swift in Sources */,
 				A10000000000000000000016 /* QuotaHistoryTests.swift in Sources */,
 			);
@@ -443,9 +459,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Support/BlackHole.entitlements;
+				INFOPLIST_FILE = Support/Info.plist;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -457,7 +475,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -469,10 +487,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Support/BlackHole.entitlements;
+				INFOPLIST_FILE = Support/Info.plist;
 				CLANG_COVERAGE_MAPPING_LINKER_ARGS = NO;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -484,7 +504,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -521,6 +541,13 @@
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+        AC0000000000000000000001 /* Sparkle */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/sparkle-project/Sparkle"; requirement = {kind = exactVersion; version = 2.9.6; }; };
+/* End XCRemoteSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+        AC0000000000000000000002 /* Sparkle */ = {isa = XCSwiftPackageProductDependency; package = AC0000000000000000000001 /* Sparkle */; productName = Sparkle; };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCConfigurationList section */
 		A90000000000000000000001 /* Build configuration list for PBXProject "Black Hole Codex Quota Indicator" */ = {
