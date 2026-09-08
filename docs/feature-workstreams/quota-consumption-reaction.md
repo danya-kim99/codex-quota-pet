@@ -1,5 +1,8 @@
 # Workstream: real quota-consumption reaction
 
+> Historical design: this feature was removed in 0.10.2 with user approval on
+> 8 September 2026. Normal quota-dependent shape and rotation remain.
+
 Status: production implementation complete on 12 August 2026; automated tests,
 build/launch verification, reviewer, and accessibility QA passed. Missed GUI
 holds and a comparable idle-CPU before/after sample remain uninstrumented.

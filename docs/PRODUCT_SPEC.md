@@ -617,6 +617,8 @@ or distribution changes.
 
 ## Approved real quota-consumption reaction — Relativistic Hotspot Plunge
 
+Superseded by the approved removal below on 8 September 2026.
+
 The authored-frame redesign was approved for design freeze on 10 August 2026.
 It supersedes the withdrawn procedural SwiftUI/Canvas reaction. The four
 representative Small, Medium, Large, and Last Light motion previews are approved
@@ -1662,9 +1664,8 @@ progress.
 
 - The functional pet, all eleven quota states, mode-neutral tooltips, Turbo
   behavior, Reduce Motion, VoiceOver summaries, fullscreen preference, and
-  reconnect flow are implemented. The authored-frame quota-consumption redesign
-  has approved explicit-keyframe masters and a completed 264-sequence production
-  integration as of 12 August 2026.
+  reconnect flow are implemented. The one-shot quota-consumption reactions are
+  removed in 0.10.2; quota-dependent shapes and rotation remain unchanged.
 - Launch at login is implemented with the native `SMAppService` main-app login
   item and verified through a logout/login cycle using an Apple Development
   signed build.
@@ -1683,3 +1684,28 @@ progress.
 - GitHub preview releases ship an Apple-silicon ZIP with a matching SHA-256
   checksum. Developer ID signing, notarization, and clean-Mac validation remain
   future work for a production distribution channel.
+
+## Approved removal of quota-consumption reactions — 8 September 2026
+
+The user explicitly approved removing and releasing the one-shot Small, Medium,
+Large and Last Light quota-consumption reactions after reviewing their 274.6 MB
+bundle cost. This supersedes the reaction specification above; it remains as
+historical design evidence. No replacement reaction or asset pipeline is added.
+
+The complete approved scope is:
+- Remove the reaction event/cadence/queue, decoding/prefetch/playback and its
+  dedicated runtime APNG matrix/Reduce Motion overlay and production generators.
+- Preserve all eleven quota shapes (including 0%), all six rotation phases,
+  quota-dependent rotation speed, Standard/Turbo and existing Reduce Motion rules.
+- Preserve click/hover feedback and manual/automatic object absorption, object
+  selection and mix, hover/drag/resize/positioning, visibility and fullscreen.
+- Preserve tooltip/menu content, English/Russian localization and accessibility
+  labels, quota freshness/reconnect/error states, history and reset classification.
+- Keep the current signed GitHub/Sparkle update channel and platform requirements;
+  release 0.10.2 (25), with no signing/entitlement or distribution behavior change.
+- Acceptance: no quota-consumption reaction runtime/assets remain in the release;
+  normal sprites/object assets and unrelated behavior match 0.10.1; focused checks,
+  CI and release verification pass; measure the final published app/ZIP size.
+
+No new visual design is introduced. Local GUI checks/installation are excluded
+without specific consent; automated checks do not claim live visual approval.

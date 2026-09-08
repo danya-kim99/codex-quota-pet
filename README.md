@@ -51,8 +51,7 @@ to open. Black Hole makes it visible, useful, and a little delightful:
   the absorbable Object Mix, lock the pet, or pass clicks through it.
 - **Keep it local.** The app uses your installed Codex process and adds no
   separate account, backend, analytics, cloud sync, or telemetry of its own.
-- **Enjoy the details.** Turbo motion, authored quota reactions, playful object
-  absorption, English and Russian localization, VoiceOver, and Reduce Motion
+- **Enjoy the details.** Turbo motion, playful object absorption, English and Russian localization, VoiceOver, and Reduce Motion
   are built in.
 
 ## Download and install
@@ -87,8 +86,8 @@ Server. Eleven hand-built states map the remaining quota to the nearest 10%,
 while the tooltip always keeps the exact value visible.
 
 The disk slows as quota runs out. Turbo spins 1.5× faster and adds a pulse;
-Reduce Motion freezes both. When quota drops, handcrafted pixel reactions
-play—including the **Last Light** sequence at 0%—without adding quota reads.
+Reduce Motion freezes both. Shape changes follow the remaining quota directly;
+one-shot quota-consumption reactions were removed in 0.10.2 to reduce app size.
 
 ## Local quota dynamics
 

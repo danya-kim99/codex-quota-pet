@@ -22,7 +22,7 @@ design freeze before production Swift or final asset work begins.
 ## Workstreams
 
 1. **Implemented:** [Smooth / Pixel tooltip styles](tooltip-style-selection.md)
-2. **Implemented:** [Real quota-consumption reaction](quota-consumption-reaction.md)
+2. **Removed in 0.10.2:** [Historical quota-consumption reaction](quota-consumption-reaction.md)
 3. **Deferred:** [Secondary quota window](secondary-quota-window.md) — expected
    adoption is too low to justify the tooltip, accessibility, localization, and
    QA surface now; retain the existing menu fallback and discovery references.
@@ -59,9 +59,8 @@ Approved implementation follow-up:
   notifications, every 60 seconds, on a stale hover, and after wake. Concurrent
   reads are coalesced.
 - On disconnect the pet keeps the last snapshot, dims it, and reconnects with a
-  capped backoff. The shared history classifier distinguishes safe transitions,
-  and the authored-frame consumption reaction consumes the same transition,
-  session cadence, and lifecycle eligibility without adding another read.
+  capped backoff. The history classifier distinguishes safe transitions without
+  adding another read; quota-consumption animation was removed in 0.10.2.
 - Standard animation schedules only sprite-frame changes. Turbo uses 30 fps for
   its pulse. Reduce Motion freezes rotation and Turbo pulsing. Absorption may
   temporarily use 30 fps and has its own 150 ms photon-ring reaction.
@@ -106,14 +105,9 @@ additional App Server process.
 
 ## Shared quota-transition semantics
 
-The implemented local-history seam and consumption reaction share
-changes between successful snapshots:
-
-- quota-consumption reaction;
-- local history.
-
-They use one semantic classification so a reset is never stored as “negative
-consumption” and the visual cannot fire after lost continuity.
+Local history classifies changes between successful snapshots so a reset is
+never stored as negative consumption. The removed visual reaction no longer
+consumes this contract.
 
 A design must classify, at minimum:
 
@@ -133,19 +127,17 @@ metadata must lead to a documented conservative fallback, not confident
 guessing. Percent values are integer observations, not token counts. Product
 copy must say percentage points or quota change, never claim exact tokens.
 
-`QuotaHistoryClassifier` is the implemented shared Swift domain seam. The
-consumption reaction consumes its result rather than independently comparing
-raw percentages inside SwiftUI. Reset remains a conservative history and
-consumption-continuity boundary while its presentation is still in discovery.
+`QuotaHistoryClassifier` remains the Swift domain seam for history. Reset
+remains a conservative history boundary; reset presentation is still in discovery.
 
 ## Cross-workstream ownership
 
 | Concern | Owner |
 | --- | --- |
 | Snapshot acquisition and connection freshness | Existing `CodexAppServer` and `AppState`; features consume accepted snapshots. |
-| Shared transition classification | Used by local history and consumption; retained as the technical boundary for reset discovery. |
+| Shared transition classification | Used by local history; retained as the technical boundary for reset discovery. |
 | Durable samples, retention, corruption handling | Local-history workstream. |
-| Transient consumption visual | Implemented authored-frame design; `AppState` owns events and `BlackHoleView` owns finite playback. |
+| Transient consumption visual | Removed in 0.10.2; normal quota shapes and rotation remain. |
 | Secondary window’s product representation | Secondary-window workstream. |
 | Main panel pointer and movement policy | Position-lock/click-through workstream. |
 | Tooltip style foundation and shared content contract | Smooth/Pixel tooltip-style workstream. |
@@ -155,7 +147,7 @@ Historical implementation order used by these workstreams:
 
 1. Smooth/Pixel tooltip style selection and shared tooltip-content boundary.
 2. Shared transition contract and local-history storage seam.
-3. The authored-frame consumption reaction against that contract.
+3. The authored-frame consumption reaction was removed in 0.10.2.
 4. Secondary/history tooltip composition for both styles after a single combined
    layout review.
 5. Position lock and click-through at any time; it is data-independent.
