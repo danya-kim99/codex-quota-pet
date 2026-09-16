@@ -83,6 +83,182 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(standard.result.speedMode, .standard)
     }
 
+    func testCodexResetRadarUsesFixedPrivateGetAndScheduledPrecedence() async throws {
+        let scheduled = #"{"id":"s1","status":"scheduled","reset_type":"regular","announced_at":"2026-09-16T08:00:00Z","scheduled_for":"2026-09-16T18:00:00Z","text":"Soon","source":{"type":"x_post","author":"thsottiaux","url":"https://x.com/thsottiaux/status/1"}}"#
+        let watch = #"{"level":"strong","reset_chance_percent":60,"forecast_window":"today","observed_at":"2026-09-16T08:00:00Z","expires_at":"2026-09-17T08:00:00Z","text":"Maybe","source":{"type":"observed"}}"#
+        let recorder = RadarTransportRecorder(
+            body: Self.resetStatusJSON(scheduled: scheduled, watch: watch),
+            response: Self.radarResponse(
+                headers: [
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Cache-Control": "public, max-age=120",
+                    "ETag": "\"status-1\""
+                ]
+            )
+        )
+        let radar = CodexResetRadar { request in try await recorder.send(request) }
+
+        let result = try await radar.fetch(eTag: nil)
+
+        XCTAssertEqual(
+            result,
+            .updated(
+                signal: .scheduled(
+                    resetType: .regular,
+                    scheduledFor: ISO8601DateFormatter().date(from: "2026-09-16T18:00:00Z")
+                ),
+                eTag: "\"status-1\"",
+                maxAge: 120
+            )
+        )
+        let requests = await recorder.requests
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.url, CodexResetRadar.endpoint)
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertNil(request.url?.query)
+        XCTAssertNil(request.httpBody)
+        XCTAssertFalse(request.httpShouldHandleCookies)
+        XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "application/json")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept-Language"), "*")
+        XCTAssertEqual(request.timeoutInterval, 10)
+    }
+
+    func testCodexResetRadarRejectsRedirectsAndExactEndpointVariants() async {
+        let redirectTarget = URLRequest(url: URL(string: "https://example.com/status")!)
+        XCTAssertNil(
+            CodexResetRadar.RedirectRejectingDelegate.requestToFollow(for: redirectTarget)
+        )
+
+        do {
+            _ = try await CodexResetRadar { _ in
+                (
+                    Self.resetStatusJSON(),
+                    Self.radarResponse(
+                        url: URL(string: "https://codex-resets.com/api/v1/status/")!,
+                        headers: ["Content-Type": "application/json"]
+                    )
+                )
+            }.fetch(eTag: nil)
+            XCTFail("Expected exact endpoint rejection")
+        } catch {
+            XCTAssertEqual(error as? CodexResetRadar.FetchError, .unexpectedEndpoint)
+        }
+    }
+
+    func testCodexResetRadarHandlesETagCacheAndRetryStatuses() async throws {
+        let notModifiedRecorder = RadarTransportRecorder(
+            body: Data(),
+            response: Self.radarResponse(
+                status: 304,
+                headers: ["Cache-Control": "max-age=99999"]
+            )
+        )
+        let notModified = try await CodexResetRadar {
+            try await notModifiedRecorder.send($0)
+        }.fetch(eTag: "\"status-1\"")
+        XCTAssertEqual(notModified, .notModified(maxAge: CodexResetRadar.maximumFreshness))
+        let conditionalRequests = await notModifiedRecorder.requests
+        XCTAssertEqual(
+            conditionalRequests.first?.value(forHTTPHeaderField: "If-None-Match"),
+            "\"status-1\""
+        )
+
+        for (status, header, expectedDelay) in [(429, "12", 12.0), (503, nil, 300.0)] {
+            let recorder = RadarTransportRecorder(
+                body: Data(),
+                response: Self.radarResponse(
+                    status: status,
+                    headers: header.map { ["Retry-After": $0] } ?? [:]
+                )
+            )
+            do {
+                _ = try await CodexResetRadar {
+                    try await recorder.send($0)
+                }.fetch(eTag: nil)
+                XCTFail("Expected retry response for \(status)")
+            } catch {
+                XCTAssertEqual(
+                    error as? CodexResetRadar.FetchError,
+                    .retryAfter(expectedDelay)
+                )
+            }
+        }
+    }
+
+    func testCodexResetRadarRejectsInvalidTransportAndSchema() async {
+        let cases: [(Data, HTTPURLResponse, CodexResetRadar.FetchError)] = [
+            (
+                Self.resetStatusJSON(),
+                Self.radarResponse(
+                    url: URL(string: "https://example.com/api/v1/status")!,
+                    headers: ["Content-Type": "application/json"]
+                ),
+                .unexpectedEndpoint
+            ),
+            (
+                Self.resetStatusJSON(),
+                Self.radarResponse(headers: ["Content-Type": "text/plain"]),
+                .unexpectedContentType
+            ),
+            (
+                Data(count: CodexResetRadar.maximumBodyBytes + 1),
+                Self.radarResponse(headers: ["Content-Type": "application/json"]),
+                .bodyTooLarge
+            ),
+            (
+                Self.resetStatusJSON(watch: #"{"level":"strong","reset_chance_percent":101,"forecast_window":"today","observed_at":"2026-09-16T08:00:00Z","expires_at":"2026-09-17T08:00:00Z","text":"Maybe","source":{"type":"observed"}}"#),
+                Self.radarResponse(headers: ["Content-Type": "application/json"]),
+                .invalidSchema
+            ),
+            (
+                Self.resetStatusJSON(apiVersion: "v2"),
+                Self.radarResponse(headers: ["Content-Type": "application/json"]),
+                .invalidSchema
+            )
+        ]
+
+        for (body, response, expectedError) in cases {
+            do {
+                _ = try await CodexResetRadar { _ in (body, response) }.fetch(eTag: nil)
+                XCTFail("Expected \(expectedError)")
+            } catch {
+                XCTAssertEqual(error as? CodexResetRadar.FetchError, expectedError)
+            }
+        }
+    }
+
+    func testCodexResetWatchExpiresAndRejectsInvalidDates() async throws {
+        let watch = #"{"level":"elevated","reset_chance_percent":null,"forecast_window":"today","observed_at":"2026-09-16T08:00:00Z","expires_at":"2026-09-16T09:00:00Z","text":"Maybe","source":{"type":"observed"}}"#
+        let radar = CodexResetRadar { _ in
+            (
+                Self.resetStatusJSON(watch: watch),
+                Self.radarResponse(headers: ["Content-Type": "application/json"])
+            )
+        }
+        guard case let .updated(signal?, _, _) = try await radar.fetch(eTag: nil) else {
+            return XCTFail("Expected watch signal")
+        }
+        XCTAssertNotNil(signal.valid(at: Date(timeIntervalSince1970: 1_789_549_199)))
+        XCTAssertNil(signal.valid(at: Date(timeIntervalSince1970: 1_789_549_200)))
+
+        let invalidWatch = watch.replacingOccurrences(
+            of: "2026-09-16T09:00:00Z",
+            with: "not-a-date"
+        )
+        do {
+            _ = try await CodexResetRadar { _ in
+                (
+                    Self.resetStatusJSON(watch: invalidWatch),
+                    Self.radarResponse(headers: ["Content-Type": "application/json"])
+                )
+            }.fetch(eTag: nil)
+            XCTFail("Expected invalid schema")
+        } catch {
+            XCTAssertEqual(error as? CodexResetRadar.FetchError, .invalidSchema)
+        }
+    }
+
     @MainActor
     func testTooltipFollowsPetAndChoosesVisibleScreenSide() {
         let screen = CGRect(x: 0, y: 0, width: 1_440, height: 900)
@@ -931,6 +1107,53 @@ final class RateLimitDecodingTests: XCTestCase {
         )
         XCTAssertEqual(
             QuotaTooltipView.resetCountdownUpdateDelay(resetDate: nil, now: now),
+            60
+        )
+
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: nil,
+                codexResetSignal: .watch(
+                    chancePercent: 60,
+                    expiresAt: now.addingTimeInterval(12)
+                ),
+                now: now
+            ),
+            12.05,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: nil,
+                codexResetSignal: .scheduled(
+                    resetType: .regular,
+                    scheduledFor: now.addingTimeInterval(8)
+                ),
+                now: now
+            ),
+            8.05,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: nil,
+                codexResetSignal: .scheduled(
+                    resetType: .banked,
+                    scheduledFor: now.addingTimeInterval(8)
+                ),
+                now: now
+            ),
+            60
+        )
+        XCTAssertEqual(
+            QuotaTooltipView.resetCountdownUpdateDelay(
+                resetDate: nil,
+                codexResetSignal: .scheduled(
+                    resetType: .regular,
+                    scheduledFor: now.addingTimeInterval(-1)
+                ),
+                now: now
+            ),
             60
         )
     }
@@ -1903,6 +2126,39 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testResetCountdownReschedulesWhenAsyncResetSignalArrives() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appState = AppState(
+            defaults: defaults,
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        let controller = PetPanelController()
+        controller.show(appState: appState)
+        controller.setTooltipVisible(true)
+        XCTAssertNil(appState.codexResetSignal)
+
+        let initialRevision = controller.resetCountdownRevision
+        let signal = CodexResetSignal.watch(
+            chancePercent: 60,
+            expiresAt: Date().addingTimeInterval(5)
+        )
+        controller.codexResetSignalDidChange(from: nil, to: signal)
+
+        XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
+        XCTAssertTrue(controller.isResetCountdownUpdateActive)
+
+        controller.codexResetSignalDidChange(from: signal, to: signal)
+        XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
+
+        controller.setTooltipVisible(false)
+        controller.codexResetSignalDidChange(from: signal, to: nil)
+        XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
+        controller.hide()
+    }
+
+    @MainActor
     func testPanelUsesAndAppliesSelectedPetSize() throws {
         let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -2491,6 +2747,210 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(CodexAppServer.rateLimitRefreshInterval, 60)
     }
 
+    @MainActor
+    func testResetForecastOptInDefaultsOffPersistsStrictBooleanAndCoalesces() async throws {
+        let suiteName = "ResetForecastPreferenceTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let probe = DeferredResetFetch()
+        let server = FakeAppServer()
+        func makeState() -> AppState {
+            AppState(
+                defaults: defaults,
+                appServer: server,
+                historyStore: QuotaHistoryStore(fileURL: nil),
+                absorptionCatalog: nil,
+                fetchCodexResetStatus: { try await probe.fetch($0) }
+            )
+        }
+
+        let appState = makeState()
+        XCTAssertFalse(appState.showsCodexResetForecast)
+        appState.start()
+        await Task.yield()
+        var probeCallCount = await probe.callCount
+        XCTAssertEqual(probeCallCount, 0)
+
+        appState.setShowsCodexResetForecast(true)
+        for _ in 0..<100 {
+            if await probe.callCount > 0 { break }
+            await Task.yield()
+        }
+        appState.refreshCodexResetForecastIfStale()
+        appState.refreshCodexResetForecastIfStale()
+        probeCallCount = await probe.callCount
+        XCTAssertEqual(probeCallCount, 1)
+        XCTAssertTrue(makeState().showsCodexResetForecast)
+
+        appState.setShowsCodexResetForecast(false)
+        await probe.succeed(
+            .updated(
+                signal: .watch(
+                    chancePercent: 60,
+                    expiresAt: Date(timeIntervalSinceNow: 3_600)
+                ),
+                eTag: "\"late\"",
+                maxAge: 60
+            )
+        )
+        await Task.yield()
+        XCTAssertNil(appState.codexResetSignal)
+        XCTAssertFalse(makeState().showsCodexResetForecast)
+        appState.stop()
+
+        for value: Any in [0, 1, 2, "true", ["true"], Data([1])] {
+            defaults.set(value, forKey: AppConstants.showCodexResetForecastKey)
+            XCTAssertFalse(makeState().showsCodexResetForecast, "Accepted invalid \(value)")
+        }
+    }
+
+    @MainActor
+    func testResetForecastFreshnessFailureAndTerminationStayIndependentFromQuota() async throws {
+        let suiteName = "ResetForecastLifecycleTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(true, forKey: AppConstants.showCodexResetForecastKey)
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let signal: CodexResetSignal = .watch(
+            chancePercent: 60,
+            expiresAt: now.addingTimeInterval(3_600)
+        )
+        let probe = ScriptedResetFetch(steps: [
+            .success(.updated(signal: signal, eTag: "\"one\"", maxAge: 60)),
+            .failure,
+            .success(.updated(signal: signal, eTag: "\"two\"", maxAge: 60)),
+            .success(.updated(signal: signal, eTag: "\"two\"", maxAge: 60))
+        ])
+        let server = FakeAppServer()
+        let appState = AppState(
+            defaults: defaults,
+            appServer: server,
+            now: { now },
+            historyStore: QuotaHistoryStore(fileURL: nil),
+            absorptionCatalog: nil,
+            fetchCodexResetStatus: { try await probe.fetch($0) }
+        )
+
+        appState.start()
+        server.send(snapshot: Self.snapshot(remainingPercent: 73))
+        await Self.waitUntil {
+            appState.connectionState == .connected && appState.codexResetSignal != nil
+        }
+        var probeCallCount = await probe.callCount
+        XCTAssertEqual(probeCallCount, 1)
+        appState.refreshCodexResetForecastIfStale()
+        await Task.yield()
+        probeCallCount = await probe.callCount
+        XCTAssertEqual(probeCallCount, 1)
+
+        now.addTimeInterval(60)
+        appState.refreshCodexResetForecastIfStale()
+        for _ in 0..<100 {
+            if await probe.callCount >= 2 { break }
+            await Task.yield()
+        }
+        await Task.yield()
+        XCTAssertNil(appState.codexResetSignal)
+        XCTAssertEqual(appState.connectionState, .connected)
+        XCTAssertEqual(appState.quota?.primary?.remainingPercent, 73)
+        XCTAssertEqual(server.rateLimitRefreshCount, 0)
+
+        now.addTimeInterval(CodexResetRadar.fallbackFreshness)
+        appState.refreshCodexResetForecastIfStale()
+        for _ in 0..<100 {
+            if await probe.callCount >= 3 { break }
+            await Task.yield()
+        }
+        await Task.yield()
+        let requestedETags = await probe.requestedETags
+        XCTAssertNil(requestedETags[2])
+        XCTAssertNotNil(appState.codexResetSignal)
+
+        appState.beginTermination()
+        appState.cancelTermination()
+        for _ in 0..<100 {
+            if await probe.callCount >= 4 { break }
+            await Task.yield()
+        }
+        await Task.yield()
+        XCTAssertNotNil(appState.codexResetSignal)
+        XCTAssertEqual(server.startCount, 2)
+        appState.stop()
+    }
+
+    func testResetWatchHeadersCoverEnglishRussianStatesAndAccessibilityOrder() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let english = try XCTUnwrap(
+            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        let russian = try XCTUnwrap(
+            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(
+            ISO8601DateFormatter().date(from: "2026-09-16T12:00:00Z")
+        )
+        let future = try XCTUnwrap(
+            ISO8601DateFormatter().date(from: "2026-09-16T18:00:00Z")
+        )
+        let expiry = now.addingTimeInterval(3_600)
+        let cases: [(CodexResetSignal, String, String)] = [
+            (.watch(chancePercent: 60, expiresAt: expiry), "RESET? ≈60%", "СБРОС? ≈60%"),
+            (.watch(chancePercent: nil, expiresAt: expiry), "RESET WATCH", "ЕСТЬ СИГНАЛ"),
+            (.scheduled(resetType: .regular, scheduledFor: nil), "RESET ANNOUNCED", "СБРОС ОБЪЯВЛЕН"),
+            (.scheduled(resetType: .regular, scheduledFor: now), "AWAITING CONF.", "ЖДЁМ ПОДТВ."),
+            (.scheduled(resetType: .banked, scheduledFor: future), "BANKED RESET", "СБРОС В ЗАПАС")
+        ]
+
+        for (signal, englishText, russianText) in cases {
+            let en = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+                signal: signal, now: now, locale: Locale(identifier: "en_US"),
+                calendar: calendar, bundle: english
+            ))
+            let ru = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+                signal: signal, now: now, locale: Locale(identifier: "ru_RU"),
+                calendar: calendar, bundle: russian
+            ))
+            XCTAssertEqual(en.text, englishText)
+            XCTAssertEqual(ru.text, russianText)
+            XCTAssertTrue(en.accessibilityText.contains("codex-resets.com"))
+            XCTAssertTrue(ru.accessibilityText.contains("codex-resets.com"))
+        }
+
+        let scheduledEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: .scheduled(resetType: .regular, scheduledFor: future),
+            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
+            bundle: english
+        ))
+        let scheduledRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: .scheduled(resetType: .regular, scheduledFor: future),
+            now: now, locale: Locale(identifier: "ru_RU"), calendar: calendar,
+            bundle: russian
+        ))
+        XCTAssertTrue(scheduledEN.text.hasPrefix("RESET · "))
+        XCTAssertEqual(scheduledRU.text, "СБРОС · 18:00")
+
+        let content = QuotaTooltipContent(
+            remainingPercent: 73, speedMode: .standard, connectionState: .connected,
+            resetDate: future, windowDurationMinutes: nil, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar,
+            codexResetSignal: .watch(chancePercent: 60, expiresAt: expiry),
+            bundle: english
+        )
+        let accessibilitySummary = content.accessibilitySummary
+        let personalRange = try XCTUnwrap(accessibilitySummary.range(of: "73%"))
+        let externalRange = try XCTUnwrap(
+            accessibilitySummary.range(of: "codex-resets.com")
+        )
+        XCTAssertLessThan(personalRange.lowerBound, externalRange.lowerBound)
+        XCTAssertTrue(accessibilitySummary.contains(". Third-party forecast"))
+        XCTAssertNil(QuotaTooltipContent.resetWatchHeader(
+            signal: .watch(chancePercent: 60, expiresAt: now),
+            now: now, locale: .current, calendar: calendar, bundle: english
+        ))
+    }
+
     private static func snapshot(
         remainingPercent: Int,
         resetsAt: Int64? = nil
@@ -2506,6 +2966,45 @@ final class RateLimitDecodingTests: XCTestCase {
             ),
             secondary: nil
         )
+    }
+
+    private static func resetStatusJSON(
+        scheduled: String = "null",
+        watch: String = "null",
+        apiVersion: String = "v1"
+    ) -> Data {
+        Data(#"""
+        {
+          "data": {
+            "latest_reset": null,
+            "scheduled_reset": \#(scheduled),
+            "active_watch": \#(watch),
+            "stats": {
+              "total": 53,
+              "last_reset_at": "2026-09-12T08:09:17Z",
+              "days_since_last": 3.6,
+              "avg_interval_days": 6.9
+            }
+          },
+          "meta": {
+            "api_version": "\#(apiVersion)",
+            "generated_at": "2026-09-16T08:00:00Z"
+          }
+        }
+        """#.utf8)
+    }
+
+    private static func radarResponse(
+        url: URL = CodexResetRadar.endpoint,
+        status: Int = 200,
+        headers: [String: String] = [:]
+    ) -> HTTPURLResponse {
+        HTTPURLResponse(
+            url: url,
+            statusCode: status,
+            httpVersion: "HTTP/1.1",
+            headerFields: headers
+        )!
     }
 
     @MainActor
@@ -3302,6 +3801,10 @@ final class PositionLockClickThroughTests: XCTestCase {
                 "Pass Pointer Input Through",
                 "Пропускать ввод указателя"
             ),
+            "menu.codex_reset_forecast.provider": (
+                "Data by Codex Resets ↗",
+                "Данные: Codex Resets ↗"
+            ),
             "accessibility.toggle.on": ("On", "Включено"),
             "accessibility.toggle.off": ("Off", "Выключено")
         ]
@@ -3325,6 +3828,63 @@ final class PositionLockClickThroughTests: XCTestCase {
             ),
             "menu.pass_pointer_input_through.help"
         )
+    }
+}
+
+private actor RadarTransportRecorder {
+    let body: Data
+    let response: HTTPURLResponse
+    private(set) var requests: [URLRequest] = []
+
+    init(body: Data, response: HTTPURLResponse) {
+        self.body = body
+        self.response = response
+    }
+
+    func send(_ request: URLRequest) -> (Data, URLResponse) {
+        requests.append(request)
+        return (body, response)
+    }
+}
+
+private actor DeferredResetFetch {
+    private(set) var callCount = 0
+    private var continuations: [CheckedContinuation<CodexResetRadar.FetchResult, Error>] = []
+
+    func fetch(_ eTag: String?) async throws -> CodexResetRadar.FetchResult {
+        callCount += 1
+        return try await withCheckedThrowingContinuation { continuation in
+            continuations.append(continuation)
+        }
+    }
+
+    func succeed(_ result: CodexResetRadar.FetchResult) {
+        guard !continuations.isEmpty else { return }
+        continuations.removeFirst().resume(returning: result)
+    }
+}
+
+private actor ScriptedResetFetch {
+    enum Step: Sendable {
+        case success(CodexResetRadar.FetchResult)
+        case failure
+    }
+
+    private var steps: [Step]
+    private(set) var requestedETags: [String?] = []
+    var callCount: Int { requestedETags.count }
+
+    init(steps: [Step]) {
+        self.steps = steps
+    }
+
+    func fetch(_ eTag: String?) throws -> CodexResetRadar.FetchResult {
+        requestedETags.append(eTag)
+        guard !steps.isEmpty else { throw CodexResetRadar.FetchError.invalidResponse }
+        switch steps.removeFirst() {
+        case let .success(result): return result
+        case .failure: throw CodexResetRadar.FetchError.invalidResponse
+        }
     }
 }
 

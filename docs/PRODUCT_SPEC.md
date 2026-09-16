@@ -365,6 +365,67 @@ Acceptance criteria for this update:
   screenshot QA confirms the Smooth regression contract and approved Pixel
   system without continuous idle rendering.
 
+## Approved Codex reset watch
+
+The Codex reset-watch design freeze was approved for implementation on
+16 September 2026. The user selected tooltip option B and a persisted opt-in
+that is off by default. The supporting state notes and representative prototypes
+are in
+[`feature-workstreams/codex-reset-watch.md`](feature-workstreams/codex-reset-watch.md).
+
+- Before opt-in, the app makes no request to Codex Resets. The native menu bar
+  exposes one unchecked localized toggle, `Show Codex reset forecast` /
+  `Показывать прогноз сброса Codex`, identifying `codex-resets.com` in its help
+  text. Turning it off cancels an in-flight request, clears the in-memory
+  external state, and immediately restores the ordinary tooltip title. The
+  custom pet context menu and a Settings window are outside this first slice.
+- While the opt-in is enabled, the native menu shows a clickable provider credit,
+  `Data by Codex Resets ↗` / `Данные: Codex Resets ↗`, linking to exactly
+  `https://codex-resets.com/`. This credit is required wherever the external
+  data is displayed; individual signal and source-post links remain deferred.
+- After opt-in, use only unauthenticated
+  `GET https://codex-resets.com/api/v1/status`, with no query, request body,
+  cookies, account ID, quota, plan, history, project data, locale, or Codex
+  credentials. Ordinary request metadata is disclosed in privacy documentation.
+- An active external signal replaces only the existing generic tooltip header:
+  `СБРОС? ≈60%` / `RESET? ≈60%` for a watch with probability,
+  `ЕСТЬ СИГНАЛ` / `RESET WATCH` without one,
+  `СБРОС · 18:00` / `RESET · 6 PM` for a scheduled time,
+  `СБРОС ОБЪЯВЛЕН` / `RESET ANNOUNCED` without a time,
+  `ЖДЁМ ПОДТВ.` / `AWAITING CONF.` after an unconfirmed scheduled time, and
+  `СБРОС В ЗАПАС` / `BANKED RESET` for a banked credit. The actual probability
+  and time are localized; the examples do not prescribe fixed values.
+- The external signal is always visually and accessibly described as a
+  third-party forecast or announcement, never as the personal account reset.
+  Percentage, Standard/Turbo badge, quota progress, personal `resetsAt`
+  countdown and date, history, tooltip dimensions, pointer, and placement remain
+  unchanged in Smooth/Pixel and S/M/L.
+- `scheduled_reset` takes priority over `active_watch`. A watch disappears at
+  `expires_at`; a passed `scheduled_for` remains unconfirmed rather than being
+  treated as completed. Unknown or invalid values, an incompatible response,
+  timeout, `429`, `503`, or any other external failure fail closed to the
+  ordinary title and never affect local quota, history, connection, opacity,
+  reconnect, or `Retry Now`.
+- Respect `Cache-Control`, `ETag`/`304`, and `Retry-After`. Coalesce requests and
+  refresh only after opt-in on app start, wake, or tooltip opening when cached
+  data is stale. Keep a last-good signal only in memory and only until its own
+  expiry. Add no polling timer, backend, dependency, response persistence, or
+  forecast history.
+- VoiceOver reads personal quota and reset first, then identifies the external
+  forecast and `codex-resets.com`. Reduce Motion adds no alternate behavior
+  because the new header is static.
+- Notifications, sounds, individual signal/source-post links or post text,
+  reset statistics, custom
+  prediction, spending advice, banked-credit controls, and duplicate signal
+  surfaces remain deferred.
+
+Acceptance requires deterministic parser/state tests, proof that no external
+request occurs before opt-in, immediate disable/expiry/error fallback, localized
+Smooth/Pixel S/M/L layout checks including the 272 × 158 pt Smooth S history
+case, accessibility coverage, direct connectivity smoke-testing, the focused
+macOS test suite, and `./script/build_and_run.sh --verify`. External-service
+failure must leave all existing local behavior operational.
+
 ## Approved adaptive reset countdown
 
 The reset-countdown refinement was approved for implementation on

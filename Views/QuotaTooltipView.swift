@@ -1,6 +1,14 @@
 import SwiftUI
 
 struct QuotaTooltipContent {
+    struct ResetWatchHeader: Equatable {
+        enum Tone: Equatable { case watch, scheduled }
+
+        let text: String
+        let accessibilityText: String
+        let tone: Tone
+    }
+
     let remainingPercent: Int?
     let speedMode: SpeedMode
     let connectionState: ConnectionState
@@ -11,6 +19,8 @@ struct QuotaTooltipContent {
     let calendar: Calendar
     let history: QuotaHistoryPresentation
     let showsQuotaDynamics: Bool
+    let codexResetSignal: CodexResetSignal?
+    let bundle: Bundle
 
     init(
         remainingPercent: Int?,
@@ -22,7 +32,9 @@ struct QuotaTooltipContent {
         locale: Locale,
         calendar: Calendar,
         history: QuotaHistoryPresentation = .empty(),
-        showsQuotaDynamics: Bool = false
+        showsQuotaDynamics: Bool = false,
+        codexResetSignal: CodexResetSignal? = nil,
+        bundle: Bundle = .main
     ) {
         self.remainingPercent = remainingPercent
         self.speedMode = speedMode
@@ -34,6 +46,8 @@ struct QuotaTooltipContent {
         self.calendar = calendar
         self.history = history
         self.showsQuotaDynamics = showsQuotaDynamics
+        self.codexResetSignal = codexResetSignal
+        self.bundle = bundle
     }
 
     var progressFraction: CGFloat {
@@ -104,8 +118,91 @@ struct QuotaTooltipContent {
             resetDate: resetDate,
             history: history,
             showsQuotaDynamics: showsQuotaDynamics,
-            locale: locale
+            locale: locale,
+            resetWatchAccessibilityText: resetWatchHeader?.accessibilityText
         )
+    }
+
+    var resetWatchHeader: ResetWatchHeader? {
+        Self.resetWatchHeader(
+            signal: codexResetSignal,
+            now: now,
+            locale: locale,
+            calendar: calendar,
+            bundle: bundle
+        )
+    }
+
+    static func resetWatchHeader(
+        signal: CodexResetSignal?,
+        now: Date,
+        locale: Locale,
+        calendar: Calendar,
+        bundle: Bundle = .main
+    ) -> ResetWatchHeader? {
+        guard let signal = signal?.valid(at: now) else { return nil }
+
+        func localized(_ key: String) -> String {
+            bundle.localizedString(forKey: key, value: nil, table: nil)
+        }
+        func formatted(_ key: String, _ argument: CVarArg) -> String {
+            String(format: localized(key), locale: locale, argument)
+        }
+
+        switch signal {
+        case let .watch(chancePercent, _):
+            if let chancePercent {
+                return ResetWatchHeader(
+                    text: formatted("reset_watch.header.watch.chance", chancePercent),
+                    accessibilityText: formatted(
+                        "reset_watch.accessibility.watch.chance",
+                        chancePercent
+                    ),
+                    tone: .watch
+                )
+            }
+            return ResetWatchHeader(
+                text: localized("reset_watch.header.watch"),
+                accessibilityText: localized("reset_watch.accessibility.watch"),
+                tone: .watch
+            )
+        case let .scheduled(resetType, scheduledFor):
+            if resetType == .banked {
+                return ResetWatchHeader(
+                    text: localized("reset_watch.header.banked"),
+                    accessibilityText: localized("reset_watch.accessibility.banked"),
+                    tone: .scheduled
+                )
+            }
+            guard let scheduledFor else {
+                return ResetWatchHeader(
+                    text: localized("reset_watch.header.announced"),
+                    accessibilityText: localized("reset_watch.accessibility.announced"),
+                    tone: .scheduled
+                )
+            }
+            guard scheduledFor > now else {
+                return ResetWatchHeader(
+                    text: localized("reset_watch.header.awaiting"),
+                    accessibilityText: localized("reset_watch.accessibility.awaiting"),
+                    tone: .scheduled
+                )
+            }
+            let formatter = DateFormatter()
+            formatter.locale = locale
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.setLocalizedDateFormatFromTemplate("jm")
+            let time = formatter.string(from: scheduledFor)
+            return ResetWatchHeader(
+                text: formatted("reset_watch.header.scheduled", time),
+                accessibilityText: formatted(
+                    "reset_watch.accessibility.scheduled",
+                    time
+                ),
+                tone: .scheduled
+            )
+        }
     }
 }
 
@@ -143,6 +240,10 @@ struct QuotaTooltipView: View {
     let appState: AppState
     let placement: Placement
     let isTooltipPresented: Bool
+    let codexResetSignalDidChange: @MainActor (
+        CodexResetSignal?,
+        CodexResetSignal?
+    ) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.calendar) private var calendar
@@ -159,11 +260,16 @@ struct QuotaTooltipView: View {
     init(
         appState: AppState,
         placement: Placement = .below,
-        isTooltipPresented: Bool = false
+        isTooltipPresented: Bool = false,
+        codexResetSignalDidChange: @escaping @MainActor (
+            CodexResetSignal?,
+            CodexResetSignal?
+        ) -> Void = { _, _ in }
     ) {
         self.appState = appState
         self.placement = placement
         self.isTooltipPresented = isTooltipPresented
+        self.codexResetSignalDidChange = codexResetSignalDidChange
     }
 
     private var content: QuotaTooltipContent {
@@ -177,7 +283,8 @@ struct QuotaTooltipView: View {
             locale: locale,
             calendar: calendar,
             history: appState.quotaHistory,
-            showsQuotaDynamics: appState.showsQuotaDynamics
+            showsQuotaDynamics: appState.showsQuotaDynamics,
+            codexResetSignal: appState.codexResetSignal
         )
     }
 
@@ -250,6 +357,9 @@ struct QuotaTooltipView: View {
                 cancelBadgeHighlight()
             }
         }
+        .onChange(of: appState.codexResetSignal) { previousSignal, signal in
+            codexResetSignalDidChange(previousSignal, signal)
+        }
         .onDisappear {
             cancelBadgeHighlight()
         }
@@ -278,9 +388,14 @@ struct QuotaTooltipView: View {
 
             VStack(alignment: .leading, spacing: appState.showsQuotaDynamics ? 5 : 7) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(NSLocalizedString("quota.available", comment: "Quota card title"))
+                    Text(
+                        content.resetWatchHeader?.text
+                            ?? NSLocalizedString("quota.available", comment: "Quota card title")
+                    )
                         .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(resetWatchTitleColor)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     smoothModeBadge(compact: true)
                 }
@@ -391,8 +506,14 @@ struct QuotaTooltipView: View {
     private var tooltipContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .lastTextBaseline) {
-                Text(NSLocalizedString("quota.available", comment: "Quota card title"))
+                Text(
+                    content.resetWatchHeader?.text
+                        ?? NSLocalizedString("quota.available", comment: "Quota card title")
+                )
                     .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundStyle(resetWatchTitleColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 smoothModeBadge(compact: false)
 
@@ -615,6 +736,14 @@ struct QuotaTooltipView: View {
         content.resetAccessibilityLabel
     }
 
+    private var resetWatchTitleColor: Color {
+        switch content.resetWatchHeader?.tone {
+        case .watch: orange
+        case .scheduled: gold
+        case nil: .white
+        }
+    }
+
     nonisolated static func isTurboBadgeHighlightEligible(
         isTooltipPresented: Bool,
         speedMode: SpeedMode,
@@ -701,16 +830,37 @@ struct QuotaTooltipView: View {
 
     static func resetCountdownUpdateDelay(
         resetDate: Date?,
+        codexResetSignal: CodexResetSignal? = nil,
         now: Date
     ) -> TimeInterval {
-        guard let resetDate else { return 60 }
-        let remaining = resetDate.timeIntervalSince(now)
-        guard remaining > 0 else { return 60 }
-        guard remaining >= 3_600 else { return 1 }
+        let personalDelay: TimeInterval
+        if let resetDate {
+            let remaining = resetDate.timeIntervalSince(now)
+            if remaining > 0, remaining < 3_600 {
+                personalDelay = 1
+            } else if remaining >= 3_600 {
+                let unit: TimeInterval = remaining >= 86_400 ? 86_400 : 3_600
+                let nextBoundary = remaining.truncatingRemainder(dividingBy: unit) + 0.05
+                personalDelay = min(60, max(0.05, nextBoundary))
+            } else {
+                personalDelay = 60
+            }
+        } else {
+            personalDelay = 60
+        }
 
-        let unit: TimeInterval = remaining >= 86_400 ? 86_400 : 3_600
-        let nextBoundary = remaining.truncatingRemainder(dividingBy: unit) + 0.05
-        return min(60, max(0.05, nextBoundary))
+        let externalBoundary: Date?
+        switch codexResetSignal {
+        case let .watch(_, expiresAt) where expiresAt > now:
+            externalBoundary = expiresAt
+        case let .scheduled(.regular, scheduledFor?) where scheduledFor > now:
+            externalBoundary = scheduledFor
+        default:
+            externalBoundary = nil
+        }
+        guard let externalBoundary else { return personalDelay }
+        let externalDelay = externalBoundary.timeIntervalSince(now) + 0.05
+        return min(personalDelay, max(0.05, externalDelay))
     }
 
     static func quotaLevel(for remainingPercent: Int?) -> QuotaLevel {
@@ -751,7 +901,8 @@ struct QuotaTooltipView: View {
         resetDate: Date?,
         history: QuotaHistoryPresentation = .empty(),
         showsQuotaDynamics: Bool = false,
-        locale: Locale = .autoupdatingCurrent
+        locale: Locale = .autoupdatingCurrent,
+        resetWatchAccessibilityText: String? = nil
     ) -> String {
         var details: [String] = []
         if let remainingPercent {
@@ -786,7 +937,9 @@ struct QuotaTooltipView: View {
                 liveCurrentUnavailable: remainingPercent == nil
             ))
         }
-        return details.joined(separator: ", ")
+        let personalSummary = details.joined(separator: ", ")
+        guard let resetWatchAccessibilityText else { return personalSummary }
+        return personalSummary + ". " + resetWatchAccessibilityText
     }
 
     private var isBadgeHighlightEligible: Bool {

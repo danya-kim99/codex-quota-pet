@@ -184,6 +184,14 @@ receives ordinary request metadata, such as your IP address and application
 version. Black Hole does not send quota, history, prompts, projects or account
 identifiers, and Sparkle system profiling and automatic checks are disabled.
 
+The optional **Show Codex reset forecast** setting is off by default. When you
+turn it on, Black Hole makes an unauthenticated HTTPS request to
+`codex-resets.com` for its public third-party forecast. The request sends no
+quota, account, plan, history, project, locale, prompt, conversation, or Codex
+credential data; the service still receives ordinary network metadata such as
+your IP address and User-Agent. Responses and forecasts stay in memory and are
+not added to local quota history.
+
 ## Update
 
 Version 0.10.0 adds **Check for Updates…** to the menu bar.

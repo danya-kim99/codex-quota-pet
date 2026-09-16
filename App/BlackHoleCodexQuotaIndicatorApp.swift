@@ -15,6 +15,7 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 setPassesPointerInputThrough: appDelegate.setPassesPointerInputThrough,
                 setTooltipStyle: appDelegate.setTooltipStyle,
                 setShowsQuotaDynamics: appDelegate.setShowsQuotaDynamics,
+                setShowsCodexResetForecast: appDelegate.setShowsCodexResetForecast,
                 clearQuotaHistory: appDelegate.clearQuotaHistory,
                 setShowsOnlyWhenCodexIsActive: appDelegate.setShowsOnlyWhenCodexIsActive,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps,
@@ -81,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor [weak self] in
                 self?.appState.noteWakeForQuotaHistory()
                 self?.appState.refreshQuotaIfStale(maxAge: 0)
+                self?.appState.refreshCodexResetForecastIfStale()
             }
         }
     }
@@ -188,6 +190,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard isEnabled != appState.showsQuotaDynamics else { return }
         appState.setShowsQuotaDynamics(isEnabled)
         petPanel.updateTooltipLayout()
+    }
+
+    func setShowsCodexResetForecast(_ isEnabled: Bool) {
+        appState.setShowsCodexResetForecast(isEnabled)
     }
 
     func clearQuotaHistory() {

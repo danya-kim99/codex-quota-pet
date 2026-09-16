@@ -17,11 +17,24 @@
 `AppState` is the SwiftUI source of truth. The AppKit panel receives state but
 does not own product data.
 
+The optional Codex reset watch is a separate, fail-closed path:
+`codex-resets.com -> CodexResetRadar -> AppState -> tooltip header`. It never
+feeds the Codex App Server connection, personal quota, reset timestamp, local
+history, retry state, or menu-bar status. `CodexResetRadar` uses one fixed
+unauthenticated HTTPS GET, a 10-second timeout, a bounded response body, strict
+schema and endpoint validation, and native `URLSession` with cookies and its
+cache disabled. `AppState` owns opt-in, ETag/freshness metadata, request
+coalescing, cancellation and generation guards. Start, enable, wake and a real
+hidden-to-visible tooltip transition share the same stale gate; there is no
+polling timer or persisted response.
+
 ## Modules
 
 - `App`: application entry point and lifecycle.
 - `Models`: domain and visual state.
 - `Services`: Codex App Server integration.
+- `Services/CodexResetRadar.swift`: isolated third-party reset-watch transport
+  and validation.
 - `Views`: SwiftUI menu, sprite renderer, and localized hover card.
 - `Support`: constants and the narrow `NSPanel` adapter.
 

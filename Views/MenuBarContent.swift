@@ -9,6 +9,7 @@ struct MenuBarContent: View {
     let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
+    let setShowsCodexResetForecast: (Bool) -> Void
     let clearQuotaHistory: () -> Void
     let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
@@ -179,6 +180,24 @@ struct MenuBarContent: View {
                     set: setShowsQuotaDynamics
                 )
             )
+
+            Toggle(
+                localized("menu.show_codex_reset_forecast"),
+                isOn: Binding(
+                    get: { appState.showsCodexResetForecast },
+                    set: setShowsCodexResetForecast
+                )
+            )
+            .help(localized("menu.show_codex_reset_forecast.help"))
+            .accessibilityHint(localized("menu.show_codex_reset_forecast.help"))
+
+            if appState.showsCodexResetForecast,
+               let providerURL = URL(string: "https://codex-resets.com/") {
+                Link(
+                    localized("menu.codex_reset_forecast.provider"),
+                    destination: providerURL
+                )
+            }
 
             Button(localized("menu.clear_quota_history")) {
                 clearQuotaHistory()

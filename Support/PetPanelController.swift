@@ -27,6 +27,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var dragCompletionTask: Task<Void, Never>?
     private var contextMenuAnimationTask: Task<Void, Never>?
     private var resetCountdownTask: Task<Void, Never>?
+    private var resetCountdownScheduleRevision: UInt64 = 0
     private var contextMenuDismissCompletion: (() -> Void)?
     private var pointerMonitor: Any?
     private var localPointerLocationMonitor: Any?
@@ -105,6 +106,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     var isResetCountdownUpdateActive: Bool {
         resetCountdownTask != nil
+    }
+
+    var resetCountdownRevision: UInt64 {
+        resetCountdownScheduleRevision
     }
 
     var tooltipFrame: CGRect? {
@@ -458,6 +463,9 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private func showTooltip() {
         guard let tooltipPanel, !isDraggingPet, contextMenuPanel == nil else { return }
         let wasVisible = tooltipPanel.isVisible
+        if !wasVisible {
+            appState?.refreshCodexResetForecastIfStale()
+        }
         repositionTooltip(refreshContent: !wasVisible)
         setTooltipPresentedToSwiftUI(true)
         if !tooltipPanel.isVisible {
@@ -925,7 +933,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             rootView: QuotaTooltipView(
                 appState: appState,
                 placement: tooltipPlacement,
-                isTooltipPresented: false
+                isTooltipPresented: false,
+                codexResetSignalDidChange: { [weak self] previousSignal, signal in
+                    self?.codexResetSignalDidChange(from: previousSignal, to: signal)
+                }
             )
         )
         let layout = Self.tooltipLayout(
@@ -955,7 +966,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         hostingView.rootView = QuotaTooltipView(
             appState: appState,
             placement: layout.placement,
-            isTooltipPresented: false
+            isTooltipPresented: false,
+            codexResetSignalDidChange: { [weak self] previousSignal, signal in
+                self?.codexResetSignalDidChange(from: previousSignal, to: signal)
+            }
         )
         tooltipHostingView = hostingView
         tooltipPanel.contentView = hostingView
@@ -995,10 +1009,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     private func startResetCountdownUpdates() {
+        resetCountdownScheduleRevision &+= 1
         resetCountdownTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
                 let delay = QuotaTooltipView.resetCountdownUpdateDelay(
                     resetDate: self.appState?.quota?.primary?.resetDate,
+                    codexResetSignal: self.appState?.codexResetSignal,
                     now: Date()
                 )
                 do {
@@ -1023,6 +1039,15 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         refreshTooltipRoot()
     }
 
+    func codexResetSignalDidChange(
+        from previousSignal: CodexResetSignal?,
+        to signal: CodexResetSignal?
+    ) {
+        guard previousSignal != signal, tooltipPanel?.isVisible == true else { return }
+        stopResetCountdownUpdates()
+        startResetCountdownUpdates()
+    }
+
     private func setTooltipPresentedToSwiftUI(_ isPresented: Bool) {
         guard isTooltipPresentedToSwiftUI != isPresented else { return }
         isTooltipPresentedToSwiftUI = isPresented
@@ -1034,7 +1059,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         tooltipHostingView.rootView = QuotaTooltipView(
             appState: appState,
             placement: tooltipPlacement,
-            isTooltipPresented: isTooltipPresentedToSwiftUI
+            isTooltipPresented: isTooltipPresentedToSwiftUI,
+            codexResetSignalDidChange: { [weak self] previousSignal, signal in
+                self?.codexResetSignalDidChange(from: previousSignal, to: signal)
+            }
         )
         tooltipHostingView.invalidateIntrinsicContentSize()
         tooltipHostingView.layoutSubtreeIfNeeded()
@@ -1517,7 +1545,13 @@ private final class PetHostingView: NSHostingView<BlackHoleView> {
             connectionState: rootView.appState.connectionState,
             resetDate: rootView.appState.quota?.primary?.resetDate,
             history: rootView.appState.quotaHistory,
-            showsQuotaDynamics: rootView.appState.showsQuotaDynamics
+            showsQuotaDynamics: rootView.appState.showsQuotaDynamics,
+            resetWatchAccessibilityText: QuotaTooltipContent.resetWatchHeader(
+                signal: rootView.appState.codexResetSignal,
+                now: Date(),
+                locale: .autoupdatingCurrent,
+                calendar: .autoupdatingCurrent
+            )?.accessibilityText
         )
     }
 

@@ -5,6 +5,7 @@ enum AppConstants {
     static let petSizeKey = "petSize"
     static let tooltipStyleKey = "tooltipStyle"
     static let showQuotaDynamicsKey = "showQuotaDynamics"
+    static let showCodexResetForecastKey = "showCodexResetForecast"
     static let petPositionLockedKey = "petPositionLocked"
     static let passesPointerInputThroughKey = "passesPointerInputThrough"
     static let absorptionCategoryWeightsKey = "absorptionCategoryWeights"

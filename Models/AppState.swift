@@ -18,6 +18,7 @@ final class AppState {
     private(set) var absorptionCategoryWeights: [String: Int]
     private(set) var tooltipStyle: TooltipStyle
     private(set) var showsQuotaDynamics: Bool
+    private(set) var showsCodexResetForecast: Bool
     private(set) var isPetPositionLocked: Bool
     private(set) var passesPointerInputThrough: Bool
     private(set) var quotaHistory: QuotaHistoryPresentation
@@ -39,6 +40,7 @@ final class AppState {
     private let updateLaunchAtLogin: (Bool) throws -> Void
     private let now: () -> Date
     private let historyStore: QuotaHistoryStore
+    private let fetchCodexResetStatus: @Sendable (String?) async throws -> CodexResetRadar.FetchResult
     private var hasStarted = false
     private var connectionGeneration: UInt64 = 0
     private var quotaUpdatedAt: Date?
@@ -48,6 +50,11 @@ final class AppState {
     private var historyRevision = -1
     private var historyTask: Task<Void, Never>?
     private var previousAcceptedQuotaSample: QuotaHistorySample?
+    private var codexResetSignalStorage: CodexResetSignal?
+    private var codexResetETag: String?
+    private var codexResetFreshUntil: Date?
+    private var codexResetTask: Task<Void, Never>?
+    private var codexResetGeneration: UInt64 = 0
     init(
         defaults: UserDefaults = .standard,
         appServer: any CodexAppServerClient = CodexAppServer(),
@@ -64,7 +71,10 @@ final class AppState {
         },
         now: @escaping () -> Date = Date.init,
         historyStore: QuotaHistoryStore = QuotaHistoryStore(),
-        absorptionCatalog: AbsorbableObjectCatalog? = try? AbsorbableObjectCatalog()
+        absorptionCatalog: AbsorbableObjectCatalog? = try? AbsorbableObjectCatalog(),
+        fetchCodexResetStatus: @escaping @Sendable (String?) async throws -> CodexResetRadar.FetchResult = {
+            try await CodexResetRadar().fetch(eTag: $0)
+        }
     ) {
         self.defaults = defaults
         self.absorptionCatalog = absorptionCatalog
@@ -74,6 +84,7 @@ final class AppState {
         self.updateLaunchAtLogin = updateLaunchAtLogin
         self.now = now
         self.historyStore = historyStore
+        self.fetchCodexResetStatus = fetchCodexResetStatus
         quotaHistory = .empty(now: now())
         launchAtLoginStatus = launchAtLoginStatusProvider()
         petSize = PetSize(
@@ -87,6 +98,10 @@ final class AppState {
         ) ?? .smooth
         showsQuotaDynamics = defaults.object(forKey: AppConstants.showQuotaDynamicsKey)
             as? Bool ?? true
+        showsCodexResetForecast = Self.storedBoolean(
+            in: defaults,
+            forKey: AppConstants.showCodexResetForecastKey
+        )
         isPetPositionLocked = Self.storedBoolean(
             in: defaults,
             forKey: AppConstants.petPositionLockedKey
@@ -104,6 +119,10 @@ final class AppState {
 
     var launchesAtLogin: Bool {
         launchAtLoginStatus == .enabled || launchAtLoginStatus == .requiresApproval
+    }
+
+    var codexResetSignal: CodexResetSignal? {
+        codexResetSignalStorage?.valid(at: now())
     }
 
     var absorptionCategories: [AbsorbableObjectManifest.Category] {
@@ -127,6 +146,7 @@ final class AppState {
             await historyStore.load(at: loadedAt)
         }
         connect(isRetry: false)
+        refreshCodexResetForecastIfStale()
     }
 
     func retryNow() {
@@ -149,8 +169,93 @@ final class AppState {
         reconnectTask?.cancel()
         reconnectTask = nil
         appServer.stop()
+        cancelCodexResetForecast(clearCache: true)
         connectionState = .disconnected
         requiresHistoryGap = true
+    }
+
+    func refreshCodexResetForecastIfStale() {
+        guard hasStarted,
+              !isPreparingToTerminate,
+              showsCodexResetForecast,
+              codexResetTask == nil else {
+            return
+        }
+        let requestedAt = now()
+        if let codexResetFreshUntil, requestedAt < codexResetFreshUntil {
+            return
+        }
+
+        codexResetGeneration &+= 1
+        let generation = codexResetGeneration
+        let eTag = codexResetETag
+        codexResetTask = Task { @MainActor [weak self, fetchCodexResetStatus] in
+            do {
+                let result = try await fetchCodexResetStatus(eTag)
+                guard !Task.isCancelled,
+                      let self,
+                      self.codexResetGeneration == generation,
+                      self.hasStarted,
+                      self.showsCodexResetForecast else {
+                    return
+                }
+                self.applyCodexResetResult(result)
+            } catch {
+                guard !Task.isCancelled,
+                      let self,
+                      self.codexResetGeneration == generation,
+                      self.hasStarted,
+                      self.showsCodexResetForecast else {
+                    return
+                }
+                self.codexResetSignalStorage = nil
+                self.codexResetETag = nil
+                let delay: TimeInterval
+                if case let CodexResetRadar.FetchError.retryAfter(retryAfter) = error {
+                    delay = retryAfter
+                } else {
+                    delay = CodexResetRadar.fallbackFreshness
+                }
+                self.codexResetFreshUntil = self.now().addingTimeInterval(delay)
+                self.codexResetTask = nil
+            }
+        }
+    }
+
+    func setShowsCodexResetForecast(_ isEnabled: Bool) {
+        guard isEnabled != showsCodexResetForecast else { return }
+        showsCodexResetForecast = isEnabled
+        defaults.set(isEnabled, forKey: AppConstants.showCodexResetForecastKey)
+        if isEnabled {
+            codexResetFreshUntil = nil
+            refreshCodexResetForecastIfStale()
+        } else {
+            cancelCodexResetForecast(clearCache: true)
+        }
+    }
+
+    private func applyCodexResetResult(_ result: CodexResetRadar.FetchResult) {
+        let receivedAt = now()
+        switch result {
+        case let .updated(signal, eTag, maxAge):
+            codexResetSignalStorage = signal?.valid(at: receivedAt)
+            codexResetETag = eTag
+            codexResetFreshUntil = receivedAt.addingTimeInterval(maxAge)
+        case let .notModified(maxAge):
+            codexResetSignalStorage = codexResetSignalStorage?.valid(at: receivedAt)
+            codexResetFreshUntil = receivedAt.addingTimeInterval(maxAge)
+        }
+        codexResetTask = nil
+    }
+
+    private func cancelCodexResetForecast(clearCache: Bool) {
+        codexResetGeneration &+= 1
+        codexResetTask?.cancel()
+        codexResetTask = nil
+        codexResetSignalStorage = nil
+        guard clearCache else { return }
+        codexResetETag = nil
+        codexResetFreshUntil = nil
     }
 
     func refreshQuotaIfStale(
@@ -370,6 +475,7 @@ final class AppState {
         // Resume with a fresh baseline without reloading over pending in-memory writes.
         hasStarted = true
         connect(isRetry: false)
+        refreshCodexResetForecastIfStale()
     }
 
     private func enqueueHistory(

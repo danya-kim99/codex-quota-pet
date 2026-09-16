@@ -60,9 +60,12 @@ struct PixelQuotaTooltipView: View {
         ) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 12) {
-                    Text(localized("pixel.quota.title"))
+                    Text(content.resetWatchHeader?.text ?? localized("pixel.quota.title"))
                         .font(pixelFont(size: 15, weight: .bold))
+                        .foregroundStyle(resetWatchTitleColor)
                         .tracking(0.8)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     modeBadge
 
@@ -128,10 +131,12 @@ struct PixelQuotaTooltipView: View {
 
                 VStack(alignment: .leading, spacing: 7) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(localized("pixel.quota.title"))
+                        Text(content.resetWatchHeader?.text ?? localized("pixel.quota.title"))
                             .font(pixelFont(size: 11, weight: .bold))
+                            .foregroundStyle(resetWatchTitleColor)
                             .tracking(0.4)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         modeBadge
                     }
 
@@ -459,6 +464,14 @@ struct PixelQuotaTooltipView: View {
         case .normal: content.remainingPercent == nil ? PixelPalette.disabled : gold
         case .warning: orange
         case .critical: purple
+        }
+    }
+
+    private var resetWatchTitleColor: Color {
+        switch content.resetWatchHeader?.tone {
+        case .watch: orange
+        case .scheduled: gold
+        case nil: PixelPalette.highlightText
         }
     }
 
