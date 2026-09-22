@@ -80,6 +80,15 @@
 "reset_watch.accessibility.announced" = "Стороннее объявление codex-resets.com сообщает о дополнительном сбросе Codex без подтверждённого времени. Это не время вашего личного сброса.";
 "reset_watch.accessibility.awaiting" = "Стороннее объявление codex-resets.com ожидает подтверждения после запланированного времени. Это не время вашего личного сброса.";
 "reset_watch.accessibility.banked" = "Стороннее объявление codex-resets.com сообщает о запасном кредите сброса. Это не время вашего личного сброса.";
+"reset_credit.header.one" = "РУЧНОЙ СБРОС: 1";
+"reset_credit.header.many" = "РУЧНЫХ СБРОСОВ: %d";
+"reset_credit.header.capped" = "99+ СБРОСОВ";
+"reset_credit.header.announced.none" = "АНОНС · СБРОСА НЕТ";
+"reset_credit.header.announced.unknown" = "АНОНС · НЕИЗВЕСТНО";
+"reset_credit.accessibility.one" = "В этом аккаунте доступен один ручной сброс квоты Codex. Возможность применить его сейчас не подтверждена.";
+"reset_credit.accessibility.many" = "Доступные ручные сбросы квоты Codex в этом аккаунте: %@. Возможность применить их сейчас не подтверждена.";
+"reset_credit.accessibility.announced.none" = "Codex Resets, codex-resets.com, сообщил о ручном сбросе. В этом аккаунте доступных ручных сбросов сейчас нет.";
+"reset_credit.accessibility.announced.unknown" = "Codex Resets, codex-resets.com, сообщил о ручном сбросе. Доступность для этого аккаунта неизвестна.";
 "history.title" = "Последние 24 ч";
 "history.endpoint.format" = "%1$d%% → %2$d%%";
 "history.unchanged.format" = "%d%% без изменений";

@@ -1,8 +1,9 @@
 # Codex reset watch — design exploration
 
-Status: **implemented; headless verification passed, live service smoke pending**
+Status: **implemented; full headless test suite passed, live service smoke pending**
 Prepared: 16 September 2026
 Approved: 16 September 2026 — tooltip option B, opt-in off by default
+Refined: 21 September 2026 — personal reset-credit confirmation
 
 ## Product distinction
 
@@ -28,7 +29,7 @@ Replace only the otherwise generic left-hand title in the existing header:
 | scheduled, time known | `СБРОС · 18:00` | `RESET · 6 PM` |
 | scheduled, time unknown | `СБРОС ОБЪЯВЛЕН` | `RESET ANNOUNCED` |
 | scheduled time passed | `ЖДЁМ ПОДТВ.` | `AWAITING CONF.` |
-| scheduled banked credit | `СБРОС В ЗАПАС` | `BANKED RESET` |
+| scheduled banked credit | personal confirmation mapping below | personal confirmation mapping below |
 | no signal or external error | existing title | existing title |
 
 The percentage, Standard/Turbo badge, progress, personal reset countdown,
@@ -124,6 +125,43 @@ tooltip, pet, Pixel context menu and menu bar.
 4. Do not add the signal or its setting to the pet surface, custom context menu,
    or a Settings window in the first slice.
 
-The consolidated freeze is recorded in `PRODUCT_SPEC.md`. Production
-implementation was started only after the separate user authorization and now
-matches the approved first-slice boundary above.
+## Approved personal reset-credit refinement
+
+The App Server response already read by the app can include the authoritative
+earned-reset count at `rateLimitResetCredits.availableCount`. This personal
+account state supersedes the ambiguous visual phrase `СБРОС В ЗАПАС` while the
+third-party banked value remains only an announcement.
+
+| App Server | Public banked announcement | Header |
+| --- | --- | --- |
+| `availableCount == 1` | any/off | `РУЧНОЙ СБРОС: 1` / `MANUAL RESET: 1` |
+| `availableCount` from 2 through 99 | any/off | `РУЧНЫХ СБРОСОВ: %d` / `MANUAL RESETS: %d` |
+| `availableCount >= 100` | any/off | `99+ СБРОСОВ` / `99+ RESETS` |
+| `availableCount == 0` | active | `АНОНС · СБРОСА НЕТ` / `ANNOUNCED · NO RESET` |
+| absent, `null`, invalid, or disconnected | active | `АНОНС · НЕИЗВЕСТНО` / `ANNOUNCED · UNKNOWN` |
+| zero or unknown | absent | ordinary title |
+
+A positive count confirms an available credit, not that an eligible window can
+definitely be reset at that moment. Never call the mutating consume operation as
+a check. The count stays memory-only, requires no new request or opt-in, clears
+to unknown with the App Server connection, and never enters quota history or a
+Codex Resets request.
+
+The confirmed personal state is gold and has priority over external reset-watch
+states. Announcement-only states remain orange and explicitly textual. Panel
+geometry and all existing Smooth/Pixel, S/M/L, Standard/Turbo, history, Reduce
+Motion, and placement behavior remain unchanged. Applying the credit and all
+controls remain deferred.
+
+The compact high-count policy was approved on 22 September 2026: values through
+99 remain exact; 100 and above render as `99+ СБРОСОВ` / `99+ RESETS` so the
+smallest one-line tooltip cannot truncate. VoiceOver always reads the exact
+count.
+
+Representative prototype:
+[`confirmed-manual-reset-v1.png`](../concepts/confirmed-manual-reset-v1.png).
+
+The consolidated freeze is recorded in `PRODUCT_SPEC.md`. The original
+reset-watch implementation matches its separately authorized first-slice
+boundary. The separately authorized personal confirmation refinement is now
+implemented through the existing App Server read and shared tooltip semantics.

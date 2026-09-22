@@ -20,6 +20,7 @@ struct QuotaTooltipContent {
     let history: QuotaHistoryPresentation
     let showsQuotaDynamics: Bool
     let codexResetSignal: CodexResetSignal?
+    let resetCreditsAvailableCount: Int?
     let bundle: Bundle
 
     init(
@@ -34,6 +35,7 @@ struct QuotaTooltipContent {
         history: QuotaHistoryPresentation = .empty(),
         showsQuotaDynamics: Bool = false,
         codexResetSignal: CodexResetSignal? = nil,
+        resetCreditsAvailableCount: Int? = nil,
         bundle: Bundle = .main
     ) {
         self.remainingPercent = remainingPercent
@@ -47,6 +49,7 @@ struct QuotaTooltipContent {
         self.history = history
         self.showsQuotaDynamics = showsQuotaDynamics
         self.codexResetSignal = codexResetSignal
+        self.resetCreditsAvailableCount = resetCreditsAvailableCount
         self.bundle = bundle
     }
 
@@ -126,6 +129,9 @@ struct QuotaTooltipContent {
     var resetWatchHeader: ResetWatchHeader? {
         Self.resetWatchHeader(
             signal: codexResetSignal,
+            resetCreditsAvailableCount: connectionState == .connected
+                ? resetCreditsAvailableCount
+                : nil,
             now: now,
             locale: locale,
             calendar: calendar,
@@ -135,19 +141,39 @@ struct QuotaTooltipContent {
 
     static func resetWatchHeader(
         signal: CodexResetSignal?,
+        resetCreditsAvailableCount: Int? = nil,
         now: Date,
         locale: Locale,
         calendar: Calendar,
         bundle: Bundle = .main
     ) -> ResetWatchHeader? {
-        guard let signal = signal?.valid(at: now) else { return nil }
-
         func localized(_ key: String) -> String {
             bundle.localizedString(forKey: key, value: nil, table: nil)
         }
         func formatted(_ key: String, _ argument: CVarArg) -> String {
             String(format: localized(key), locale: locale, argument)
         }
+
+        if let resetCreditsAvailableCount, resetCreditsAvailableCount > 0 {
+            let isSingleCredit = resetCreditsAvailableCount == 1
+            let isCappedVisibleCount = resetCreditsAvailableCount >= 100
+            return ResetWatchHeader(
+                text: isSingleCredit
+                    ? localized("reset_credit.header.one")
+                    : isCappedVisibleCount
+                        ? localized("reset_credit.header.capped")
+                        : formatted("reset_credit.header.many", resetCreditsAvailableCount),
+                accessibilityText: isSingleCredit
+                    ? localized("reset_credit.accessibility.one")
+                    : formatted(
+                        "reset_credit.accessibility.many",
+                        String(resetCreditsAvailableCount)
+                    ),
+                tone: .scheduled
+            )
+        }
+
+        guard let signal = signal?.valid(at: now) else { return nil }
 
         switch signal {
         case let .watch(chancePercent, _):
@@ -168,10 +194,19 @@ struct QuotaTooltipContent {
             )
         case let .scheduled(resetType, scheduledFor):
             if resetType == .banked {
+                let isConfirmedUnavailable = resetCreditsAvailableCount == 0
                 return ResetWatchHeader(
-                    text: localized("reset_watch.header.banked"),
-                    accessibilityText: localized("reset_watch.accessibility.banked"),
-                    tone: .scheduled
+                    text: localized(
+                        isConfirmedUnavailable
+                            ? "reset_credit.header.announced.none"
+                            : "reset_credit.header.announced.unknown"
+                    ),
+                    accessibilityText: localized(
+                        isConfirmedUnavailable
+                            ? "reset_credit.accessibility.announced.none"
+                            : "reset_credit.accessibility.announced.unknown"
+                    ),
+                    tone: .watch
                 )
             }
             guard let scheduledFor else {
@@ -284,7 +319,8 @@ struct QuotaTooltipView: View {
             calendar: calendar,
             history: appState.quotaHistory,
             showsQuotaDynamics: appState.showsQuotaDynamics,
-            codexResetSignal: appState.codexResetSignal
+            codexResetSignal: appState.codexResetSignal,
+            resetCreditsAvailableCount: appState.resetCreditsAvailableCount
         )
     }
 

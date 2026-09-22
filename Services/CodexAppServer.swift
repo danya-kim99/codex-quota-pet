@@ -26,6 +26,44 @@ struct QuotaSnapshot: Decodable, Equatable, Sendable {
 struct RateLimitsResult: Decodable {
     let rateLimits: QuotaSnapshot
     let rateLimitsByLimitId: [String: QuotaSnapshot]?
+    let resetCreditsAvailableCount: Int?
+
+    private struct ResetCredits: Decodable {
+        let availableCount: Int?
+
+        private enum CodingKeys: String, CodingKey {
+            case availableCount
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            guard let value = try? container.decode(Int.self, forKey: .availableCount),
+                  value >= 0 else {
+                availableCount = nil
+                return
+            }
+            availableCount = value
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rateLimits
+        case rateLimitsByLimitId
+        case rateLimitResetCredits
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rateLimits = try container.decode(QuotaSnapshot.self, forKey: .rateLimits)
+        rateLimitsByLimitId = try container.decodeIfPresent(
+            [String: QuotaSnapshot].self,
+            forKey: .rateLimitsByLimitId
+        )
+        resetCreditsAvailableCount = (try? container.decode(
+            ResetCredits.self,
+            forKey: .rateLimitResetCredits
+        ))?.availableCount
+    }
 
     var codex: QuotaSnapshot {
         rateLimitsByLimitId?["codex"] ?? rateLimits
@@ -60,7 +98,7 @@ struct RPCResponse<Value: Decodable>: Decodable {
 
 protocol CodexAppServerClient: AnyObject {
     func start(
-        onSnapshot: @escaping (QuotaSnapshot) -> Void,
+        onSnapshot: @escaping (QuotaSnapshot, Int?) -> Void,
         onSpeedMode: @escaping (SpeedMode) -> Void,
         onFailure: @escaping (String) -> Void
     ) throws
@@ -94,14 +132,14 @@ final class CodexAppServer: CodexAppServerClient {
     private var rateLimitRequestIDs = Set<Int>()
     private var configTimer: Timer?
     private var rateLimitTimer: Timer?
-    private var onSnapshot: ((QuotaSnapshot) -> Void)?
+    private var onSnapshot: ((QuotaSnapshot, Int?) -> Void)?
     private var onSpeedMode: ((SpeedMode) -> Void)?
     private var onFailure: ((String) -> Void)?
     private var sessionID = 0
     private var hasReportedFailure = false
 
     func start(
-        onSnapshot: @escaping (QuotaSnapshot) -> Void,
+        onSnapshot: @escaping (QuotaSnapshot, Int?) -> Void,
         onSpeedMode: @escaping (SpeedMode) -> Void,
         onFailure: @escaping (String) -> Void
     ) throws {
@@ -263,7 +301,10 @@ final class CodexAppServer: CodexAppServerClient {
 
         if let response = try? decoder.decode(RPCResponse<RateLimitsResult>.self, from: line) {
             rateLimitRequestIDs.remove(response.id)
-            onSnapshot?(response.result.codex)
+            onSnapshot?(
+                response.result.codex,
+                response.result.resetCreditsAvailableCount
+            )
         } else if let response = try? decoder.decode(RPCResponse<ConfigReadResult>.self, from: line) {
             onSpeedMode?(response.result.speedMode)
         } else if let response = try? decoder.decode(RPCErrorResponse.self, from: line) {

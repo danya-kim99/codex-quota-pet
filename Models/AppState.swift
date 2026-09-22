@@ -11,6 +11,7 @@ final class AppState {
 
     private(set) var connectionState: ConnectionState = .connecting
     private(set) var quota: QuotaSnapshot?
+    private(set) var resetCreditsAvailableCount: Int?
     private(set) var speedMode: SpeedMode = .standard
     private(set) var errorMessage: String?
     private(set) var isPetVisible = true
@@ -170,6 +171,7 @@ final class AppState {
         reconnectTask = nil
         appServer.stop()
         cancelCodexResetForecast(clearCache: true)
+        resetCreditsAvailableCount = nil
         connectionState = .disconnected
         requiresHistoryGap = true
     }
@@ -273,15 +275,19 @@ final class AppState {
     private func connect(isRetry: Bool) {
         connectionGeneration &+= 1
         let generation = connectionGeneration
+        resetCreditsAvailableCount = nil
         connectionState = isRetry ? .reconnecting : .connecting
         errorMessage = nil
 
         do {
             try appServer.start(
-                onSnapshot: { [weak self] snapshot in
+                onSnapshot: { [weak self] snapshot, resetCreditsAvailableCount in
                     Task { @MainActor [weak self] in
                         guard let self, self.connectionGeneration == generation else { return }
-                        self.didReceive(snapshot)
+                        self.didReceive(
+                            snapshot,
+                            resetCreditsAvailableCount: resetCreditsAvailableCount
+                        )
                     }
                 },
                 onSpeedMode: { [weak self] speedMode in
@@ -302,7 +308,10 @@ final class AppState {
         }
     }
 
-    private func didReceive(_ snapshot: QuotaSnapshot) {
+    private func didReceive(
+        _ snapshot: QuotaSnapshot,
+        resetCreditsAvailableCount: Int?
+    ) {
         let observedAt = now()
         let forceHistoryGap = requiresHistoryGap
         let currentSample = QuotaHistorySample(snapshot: snapshot, observedAt: observedAt)
@@ -322,6 +331,7 @@ final class AppState {
         reconnectTask = nil
         reconnectAttempt = 0
         quota = snapshot
+        self.resetCreditsAvailableCount = resetCreditsAvailableCount
         quotaUpdatedAt = observedAt
         errorMessage = nil
         connectionState = .connected
@@ -341,6 +351,7 @@ final class AppState {
         }
 
         errorMessage = message
+        resetCreditsAvailableCount = nil
         connectionState = .reconnecting
         requiresHistoryGap = true
 

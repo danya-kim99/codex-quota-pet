@@ -177,11 +177,11 @@ final class AppUpdateTests: XCTestCase {
 }
 
 private final class UpdateTestAppServer: CodexAppServerClient {
-    private var onSnapshot: ((QuotaSnapshot) -> Void)?
+    private var onSnapshot: ((QuotaSnapshot, Int?) -> Void)?
     private(set) var startCount = 0
 
     func start(
-        onSnapshot: @escaping (QuotaSnapshot) -> Void,
+        onSnapshot: @escaping (QuotaSnapshot, Int?) -> Void,
         onSpeedMode: @escaping (SpeedMode) -> Void,
         onFailure: @escaping (String) -> Void
     ) throws {
@@ -191,5 +191,5 @@ private final class UpdateTestAppServer: CodexAppServerClient {
 
     func stop() { onSnapshot = nil }
     func refreshRateLimits() {}
-    func send(snapshot: QuotaSnapshot) { onSnapshot?(snapshot) }
+    func send(snapshot: QuotaSnapshot) { onSnapshot?(snapshot, nil) }
 }

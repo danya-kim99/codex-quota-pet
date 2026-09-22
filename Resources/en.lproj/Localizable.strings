@@ -80,6 +80,15 @@
 "reset_watch.accessibility.announced" = "Third-party announcement from codex-resets.com reports an extra Codex reset without a confirmed time. This is not your personal reset time.";
 "reset_watch.accessibility.awaiting" = "Third-party announcement from codex-resets.com is awaiting confirmation after its scheduled time. This is not your personal reset time.";
 "reset_watch.accessibility.banked" = "Third-party announcement from codex-resets.com reports a banked reset credit. This is not your personal reset time.";
+"reset_credit.header.one" = "MANUAL RESET: 1";
+"reset_credit.header.many" = "MANUAL RESETS: %d";
+"reset_credit.header.capped" = "99+ RESETS";
+"reset_credit.header.announced.none" = "ANNOUNCED · NO RESET";
+"reset_credit.header.announced.unknown" = "ANNOUNCED · UNKNOWN";
+"reset_credit.accessibility.one" = "The personal Codex account has 1 earned manual reset credit. This does not confirm that it can be applied now.";
+"reset_credit.accessibility.many" = "The personal Codex account has %@ earned manual reset credits. This does not confirm that they can be applied now.";
+"reset_credit.accessibility.announced.none" = "A third-party announcement from codex-resets.com reports a banked reset credit, but the personal Codex account has no available reset credit.";
+"reset_credit.accessibility.announced.unknown" = "A third-party announcement from codex-resets.com reports a banked reset credit. Availability for the personal Codex account is unknown.";
 "history.title" = "Last 24 h";
 "history.endpoint.format" = "%1$d%% → %2$d%%";
 "history.unchanged.format" = "%d%% unchanged";

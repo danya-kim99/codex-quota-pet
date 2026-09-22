@@ -393,8 +393,10 @@ are in
   `СБРОС · 18:00` / `RESET · 6 PM` for a scheduled time,
   `СБРОС ОБЪЯВЛЕН` / `RESET ANNOUNCED` without a time,
   `ЖДЁМ ПОДТВ.` / `AWAITING CONF.` after an unconfirmed scheduled time, and
-  `СБРОС В ЗАПАС` / `BANKED RESET` for a banked credit. The actual probability
-  and time are localized; the examples do not prescribe fixed values.
+  banked announcements use the personal reset-credit confirmation rules below
+  instead of the former `СБРОС В ЗАПАС` / `BANKED RESET` wording. The actual
+  probability and time are localized; the examples do not prescribe fixed
+  values.
 - The external signal is always visually and accessibly described as a
   third-party forecast or announcement, never as the personal account reset.
   Percentage, Standard/Turbo badge, quota progress, personal `resetsAt`
@@ -425,6 +427,65 @@ Smooth/Pixel S/M/L layout checks including the 272 × 158 pt Smooth S history
 case, accessibility coverage, direct connectivity smoke-testing, the focused
 macOS test suite, and `./script/build_and_run.sh --verify`. External-service
 failure must leave all existing local behavior operational.
+
+### Approved personal reset-credit confirmation
+
+This reset-watch refinement was approved on 21 September 2026. Its
+representative Smooth S prototype is
+[`concepts/confirmed-manual-reset-v1.png`](concepts/confirmed-manual-reset-v1.png).
+
+The existing `account/rateLimits/read` response is the personal source of truth
+for earned reset credits. Decode only
+`rateLimitResetCredits.availableCount`; do not depend on the optional or capped
+`credits` detail rows.
+
+| Personal App Server state | Codex Resets state | RU header | EN header |
+| --- | --- | --- | --- |
+| `availableCount == 1` | any state or forecast disabled | `РУЧНОЙ СБРОС: 1` | `MANUAL RESET: 1` |
+| `availableCount` from 2 through 99 | any state or forecast disabled | `РУЧНЫХ СБРОСОВ: %d` | `MANUAL RESETS: %d` |
+| `availableCount >= 100` | any state or forecast disabled | `99+ СБРОСОВ` | `99+ RESETS` |
+| `availableCount == 0` | active banked announcement | `АНОНС · СБРОСА НЕТ` | `ANNOUNCED · NO RESET` |
+| unknown | active banked announcement | `АНОНС · НЕИЗВЕСТНО` | `ANNOUNCED · UNKNOWN` |
+| zero or unknown | another valid external signal | existing reset-watch mapping | existing reset-watch mapping |
+| zero or unknown | no valid external signal | ordinary tooltip title | ordinary tooltip title |
+
+- A positive count confirms that an earned reset credit is available on the
+  current account. It does not promise that an eligible quota window can be
+  reset at that instant; only the mutating consume operation can return that
+  result, so the UI must not say `ready now` or equivalent.
+- Zero means no reset credit is currently available. A missing, `null`,
+  negative, malformed, incompatible, or disconnected value means unknown, not
+  zero. Invalid credit metadata must not discard an otherwise valid quota
+  snapshot.
+- A confirmed personal credit has header priority over every external signal.
+  Otherwise the existing external priority remains scheduled reset, active
+  watch, then the ordinary title.
+- Personal confirmation is independent of the Codex Resets opt-in because it
+  reuses the already-running authenticated App Server read. Add no request,
+  timer, authentication flow, or third-party disclosure. Keep the count only in
+  memory, outside quota history and persistence, and clear confirmation when
+  the App Server connection is no longer current.
+- Personal confirmation uses the existing gold treatment. Banked announcement
+  mismatch and unknown states use the existing orange external-signal
+  treatment. Text carries the distinction without relying on color. Add no
+  animation and do not change Smooth/Pixel S/M/L panel geometry, mode badges,
+  quota, personal reset countdown, history, pointer, or placement.
+- VoiceOver reads personal quota and scheduled reset first, then either the
+  exact available personal reset-credit count or a sentence identifying the
+  Codex Resets banked announcement and whether account availability is zero or
+  unknown. The compact `99+` visual cap never changes the spoken exact count.
+- Do not call `account/rateLimitResetCredit/consume` as a probe. Applying a
+  credit, buttons or controls, expiry/detail UI, notifications, and reset-credit
+  history remain outside this refinement.
+
+Acceptance requires tolerant decoding tests for positive, zero, `null`, absent,
+negative, and malformed values; combined personal/external state tests;
+connected/reconnecting lifecycle coverage; proof of no additional network or
+persistence work; localized RU/EN and VoiceOver checks; and unchanged
+Smooth/Pixel S/M/L geometry, including Smooth S with Turbo and history enabled.
+Counts 99, 100, and the maximum decoded integer must prove the exact-to-compact
+boundary without truncation while accessibility retains the exact value. The
+compact high-count policy was approved on 22 September 2026.
 
 ## Approved adaptive reset countdown
 

@@ -66,6 +66,35 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(response.result.codex.primary?.windowDurationMins, 10_080)
     }
 
+    func testResetCreditCountDecodesTolerantlyWithoutLosingQuota() throws {
+        let cases: [(metadata: String?, expected: Int?)] = [
+            (#"{"availableCount":2,"credits":[{"id":"ignored"}]}"#, 2),
+            (#"{"availableCount":0}"#, 0),
+            (#"{"availableCount":null}"#, nil),
+            (nil, nil),
+            (#"{"availableCount":-1}"#, nil),
+            (#"{"availableCount":"2"}"#, nil)
+        ]
+
+        for testCase in cases {
+            let metadata = testCase.metadata.map {
+                "\"rateLimitResetCredits\": \($0),"
+            } ?? ""
+            let json = "{\"id\":1,\"result\":{\(metadata)\"rateLimits\":{\"limitId\":\"codex\",\"primary\":{\"usedPercent\":50}}}}"
+            let response = try JSONDecoder().decode(
+                RPCResponse<RateLimitsResult>.self,
+                from: Data(json.utf8)
+            )
+
+            XCTAssertEqual(
+                response.result.resetCreditsAvailableCount,
+                testCase.expected,
+                "metadata: \(testCase.metadata ?? "absent")"
+            )
+            XCTAssertEqual(response.result.codex.primary?.remainingPercent, 50)
+        }
+    }
+
     func testDecodesTurboFromEffectiveCodexConfig() throws {
         let turboJSON = #"{"id":2,"result":{"config":{"service_tier":"priority"}}}"#
         let standardJSON = #"{"id":3,"result":{"config":{"service_tier":null}}}"#
@@ -2630,6 +2659,43 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
+    func testResetCreditConfirmationClearsWheneverAppServerIsNotCurrent() async {
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            appServer: appServer,
+            retryDelays: [60],
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+
+        appState.start()
+        XCTAssertNil(appState.resetCreditsAvailableCount)
+
+        appServer.send(
+            snapshot: Self.snapshot(remainingPercent: 80),
+            resetCreditsAvailableCount: 2
+        )
+        await Self.waitUntil { appState.resetCreditsAvailableCount == 2 }
+        XCTAssertEqual(appState.connectionState, .connected)
+
+        appServer.fail(with: "Connection lost")
+        await Self.waitUntil { appState.connectionState == .reconnecting }
+        XCTAssertNil(appState.resetCreditsAvailableCount)
+
+        appState.retryNow()
+        XCTAssertEqual(appState.connectionState, .connecting)
+        XCTAssertNil(appState.resetCreditsAvailableCount)
+        appServer.send(
+            snapshot: Self.snapshot(remainingPercent: 79),
+            resetCreditsAvailableCount: 0
+        )
+        await Self.waitUntil { appState.connectionState == .connected }
+        XCTAssertEqual(appState.resetCreditsAvailableCount, 0)
+
+        appState.stop()
+        XCTAssertNil(appState.resetCreditsAvailableCount)
+    }
+
+    @MainActor
     func testAutomaticReconnectUsesSingleActiveAttempt() async {
         let appServer = FakeAppServer()
         let appState = AppState(
@@ -2900,7 +2966,11 @@ final class RateLimitDecodingTests: XCTestCase {
             (.watch(chancePercent: nil, expiresAt: expiry), "RESET WATCH", "ЕСТЬ СИГНАЛ"),
             (.scheduled(resetType: .regular, scheduledFor: nil), "RESET ANNOUNCED", "СБРОС ОБЪЯВЛЕН"),
             (.scheduled(resetType: .regular, scheduledFor: now), "AWAITING CONF.", "ЖДЁМ ПОДТВ."),
-            (.scheduled(resetType: .banked, scheduledFor: future), "BANKED RESET", "СБРОС В ЗАПАС")
+            (
+                .scheduled(resetType: .banked, scheduledFor: future),
+                "ANNOUNCED · UNKNOWN",
+                "АНОНС · НЕИЗВЕСТНО"
+            )
         ]
 
         for (signal, englishText, russianText) in cases {
@@ -2949,6 +3019,204 @@ final class RateLimitDecodingTests: XCTestCase {
             signal: .watch(chancePercent: 60, expiresAt: now),
             now: now, locale: .current, calendar: calendar, bundle: english
         ))
+    }
+
+    func testPersonalResetCreditHeadersOverrideExternalSignalsInEnglishAndRussian() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let english = try XCTUnwrap(
+            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        let russian = try XCTUnwrap(
+            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let watch = CodexResetSignal.watch(
+            chancePercent: 60,
+            expiresAt: now.addingTimeInterval(3_600)
+        )
+        let banked = CodexResetSignal.scheduled(
+            resetType: .banked,
+            scheduledFor: nil
+        )
+
+        let oneEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: watch, resetCreditsAvailableCount: 1, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        let oneRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: nil, resetCreditsAvailableCount: 1, now: now,
+            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+        ))
+        XCTAssertEqual(oneEN.text, "MANUAL RESET: 1")
+        XCTAssertEqual(oneRU.text, "РУЧНОЙ СБРОС: 1")
+        XCTAssertEqual(
+            oneRU.accessibilityText,
+            "В этом аккаунте доступен один ручной сброс квоты Codex. Возможность применить его сейчас не подтверждена."
+        )
+        XCTAssertEqual(oneEN.tone, .scheduled)
+        XCTAssertFalse(oneEN.accessibilityText.contains("codex-resets.com"))
+
+        let manyEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: banked, resetCreditsAvailableCount: 3, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        let manyRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: watch, resetCreditsAvailableCount: 3, now: now,
+            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+        ))
+        XCTAssertEqual(manyEN.text, "MANUAL RESETS: 3")
+        XCTAssertEqual(manyRU.text, "РУЧНЫХ СБРОСОВ: 3")
+        XCTAssertEqual(
+            manyRU.accessibilityText,
+            "Доступные ручные сбросы квоты Codex в этом аккаунте: 3. Возможность применить их сейчас не подтверждена."
+        )
+        XCTAssertEqual(manyEN.tone, .scheduled)
+
+        let noneEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: banked, resetCreditsAvailableCount: 0, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        let noneRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: banked, resetCreditsAvailableCount: 0, now: now,
+            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+        ))
+        XCTAssertEqual(noneEN.text, "ANNOUNCED · NO RESET")
+        XCTAssertEqual(noneRU.text, "АНОНС · СБРОСА НЕТ")
+        XCTAssertEqual(
+            noneRU.accessibilityText,
+            "Codex Resets, codex-resets.com, сообщил о ручном сбросе. В этом аккаунте доступных ручных сбросов сейчас нет."
+        )
+        XCTAssertEqual(noneEN.tone, .watch)
+        XCTAssertTrue(noneEN.accessibilityText.contains("codex-resets.com"))
+        XCTAssertTrue(noneRU.accessibilityText.contains("codex-resets.com"))
+
+        let unknownEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: banked, resetCreditsAvailableCount: nil, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        let unknownRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: banked, resetCreditsAvailableCount: nil, now: now,
+            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+        ))
+        XCTAssertEqual(unknownEN.text, "ANNOUNCED · UNKNOWN")
+        XCTAssertEqual(unknownRU.text, "АНОНС · НЕИЗВЕСТНО")
+        XCTAssertEqual(
+            unknownRU.accessibilityText,
+            "Codex Resets, codex-resets.com, сообщил о ручном сбросе. Доступность для этого аккаунта неизвестна."
+        )
+        XCTAssertEqual(unknownEN.tone, .watch)
+        XCTAssertTrue(unknownEN.accessibilityText.contains("unknown"))
+
+        let watchWithZero = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: watch, resetCreditsAvailableCount: 0, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        XCTAssertEqual(watchWithZero.text, "RESET? ≈60%")
+        XCTAssertNil(QuotaTooltipContent.resetWatchHeader(
+            signal: nil, resetCreditsAvailableCount: 0, now: now,
+            locale: .current, calendar: calendar, bundle: english
+        ))
+    }
+
+    func testPersonalResetCreditHighCountsCapOnlyVisibleText() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let english = try XCTUnwrap(
+            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        let russian = try XCTUnwrap(
+            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let cases: [(count: Int, english: String, russian: String)] = [
+            (99, "MANUAL RESETS: 99", "РУЧНЫХ СБРОСОВ: 99"),
+            (100, "99+ RESETS", "99+ СБРОСОВ"),
+            (.max, "99+ RESETS", "99+ СБРОСОВ")
+        ]
+
+        for testCase in cases {
+            let en = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+                signal: nil, resetCreditsAvailableCount: testCase.count, now: now,
+                locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+            ))
+            let ru = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+                signal: nil, resetCreditsAvailableCount: testCase.count, now: now,
+                locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+            ))
+
+            XCTAssertEqual(en.text, testCase.english)
+            XCTAssertEqual(ru.text, testCase.russian)
+            XCTAssertEqual(en.tone, .scheduled)
+            XCTAssertEqual(ru.tone, .scheduled)
+            XCTAssertTrue(en.accessibilityText.contains(String(testCase.count)))
+            XCTAssertTrue(ru.accessibilityText.contains(String(testCase.count)))
+        }
+
+        let maximum = String(Int.max)
+        let maximumEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: nil, resetCreditsAvailableCount: .max, now: now,
+            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
+        ))
+        let maximumRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
+            signal: nil, resetCreditsAvailableCount: .max, now: now,
+            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
+        ))
+        XCTAssertEqual(
+            maximumEN.accessibilityText,
+            "The personal Codex account has \(maximum) earned manual reset credits. This does not confirm that they can be applied now."
+        )
+        XCTAssertEqual(
+            maximumRU.accessibilityText,
+            "Доступные ручные сбросы квоты Codex в этом аккаунте: \(maximum). Возможность применить их сейчас не подтверждена."
+        )
+    }
+
+    func testPersonalResetCreditAccessibilityFollowsQuotaAndDisconnectsToUnknown() throws {
+        let appBundle = Bundle(for: AppDelegate.self)
+        let english = try XCTUnwrap(
+            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+        )
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let banked = CodexResetSignal.scheduled(
+            resetType: .banked,
+            scheduledFor: nil
+        )
+        let connected = QuotaTooltipContent(
+            remainingPercent: 73, speedMode: .turbo, connectionState: .connected,
+            resetDate: now.addingTimeInterval(3_600), windowDurationMinutes: nil,
+            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
+            codexResetSignal: banked, resetCreditsAvailableCount: 2, bundle: english
+        )
+        let quotaRange = try XCTUnwrap(connected.accessibilitySummary.range(of: "73%"))
+        let creditRange = try XCTUnwrap(
+            connected.accessibilitySummary.range(of: "2 earned manual reset credits")
+        )
+        XCTAssertLessThan(quotaRange.lowerBound, creditRange.lowerBound)
+        XCTAssertTrue(connected.accessibilitySummary.contains(". The personal Codex account"))
+
+        let reconnecting = QuotaTooltipContent(
+            remainingPercent: 73, speedMode: .turbo, connectionState: .reconnecting,
+            resetDate: now.addingTimeInterval(3_600), windowDurationMinutes: nil,
+            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
+            codexResetSignal: banked, resetCreditsAvailableCount: 2, bundle: english
+        )
+        XCTAssertEqual(reconnecting.resetWatchHeader?.text, "ANNOUNCED · UNKNOWN")
+        XCTAssertTrue(
+            reconnecting.accessibilitySummary.contains(
+                "Availability for the personal Codex account is unknown."
+            )
+        )
+        XCTAssertEqual(QuotaTooltipView.historySmallPanelSize, CGSize(width: 272, height: 158))
+        XCTAssertEqual(PixelQuotaTooltipView.smallPanelSize, CGSize(width: 304, height: 148))
+        XCTAssertEqual(
+            PixelQuotaTooltipView.smallHistoryPanelSize,
+            CGSize(width: 304, height: 174)
+        )
     }
 
     private static func snapshot(
@@ -3889,14 +4157,14 @@ private actor ScriptedResetFetch {
 }
 
 private final class FakeAppServer: CodexAppServerClient {
-    private var onSnapshot: ((QuotaSnapshot) -> Void)?
+    private var onSnapshot: ((QuotaSnapshot, Int?) -> Void)?
     private var onSpeedMode: ((SpeedMode) -> Void)?
     private var onFailure: ((String) -> Void)?
     private(set) var startCount = 0
     private(set) var rateLimitRefreshCount = 0
 
     func start(
-        onSnapshot: @escaping (QuotaSnapshot) -> Void,
+        onSnapshot: @escaping (QuotaSnapshot, Int?) -> Void,
         onSpeedMode: @escaping (SpeedMode) -> Void,
         onFailure: @escaping (String) -> Void
     ) throws {
@@ -3920,8 +4188,8 @@ private final class FakeAppServer: CodexAppServerClient {
         onFailure?(message)
     }
 
-    func send(snapshot: QuotaSnapshot) {
-        onSnapshot?(snapshot)
+    func send(snapshot: QuotaSnapshot, resetCreditsAvailableCount: Int? = nil) {
+        onSnapshot?(snapshot, resetCreditsAvailableCount)
     }
 
     func send(speedMode: SpeedMode) {

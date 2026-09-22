@@ -914,10 +914,10 @@ final class QuotaHistoryTests: XCTestCase {
 }
 
 private final class HistoryFakeAppServer: CodexAppServerClient {
-    private var onSnapshot: ((QuotaSnapshot) -> Void)?
+    private var onSnapshot: ((QuotaSnapshot, Int?) -> Void)?
 
     func start(
-        onSnapshot: @escaping (QuotaSnapshot) -> Void,
+        onSnapshot: @escaping (QuotaSnapshot, Int?) -> Void,
         onSpeedMode: @escaping (SpeedMode) -> Void,
         onFailure: @escaping (String) -> Void
     ) throws {
@@ -931,6 +931,6 @@ private final class HistoryFakeAppServer: CodexAppServerClient {
     }
 
     func send(_ snapshot: QuotaSnapshot) {
-        onSnapshot?(snapshot)
+        onSnapshot?(snapshot, nil)
     }
 }

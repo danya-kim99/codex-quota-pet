@@ -28,6 +28,17 @@ coalescing, cancellation and generation guards. Start, enable, wake and a real
 hidden-to-visible tooltip transition share the same stale gate; there is no
 polling timer or persisted response.
 
+The existing `account/rateLimits/read` response also supplies the personal,
+account-level reset-credit confirmation. The decoder tolerantly accepts only a
+nonnegative `rateLimitResetCredits.availableCount`; malformed or missing credit
+metadata becomes unknown without rejecting the quota snapshot. `AppState` keeps
+the count only in memory while the matching App Server connection is current,
+outside `QuotaSnapshot`, quota history, and preferences. Shared
+`QuotaTooltipContent` gives a positive personal count priority over external
+signals and otherwise distinguishes a banked third-party announcement from a
+confirmed zero or unknown personal count. This path adds no request, timer,
+persistence, authentication flow, or consume operation.
+
 ## Modules
 
 - `App`: application entry point and lifecycle.

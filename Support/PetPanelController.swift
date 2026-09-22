@@ -1548,6 +1548,9 @@ private final class PetHostingView: NSHostingView<BlackHoleView> {
             showsQuotaDynamics: rootView.appState.showsQuotaDynamics,
             resetWatchAccessibilityText: QuotaTooltipContent.resetWatchHeader(
                 signal: rootView.appState.codexResetSignal,
+                resetCreditsAvailableCount: rootView.appState.connectionState == .connected
+                    ? rootView.appState.resetCreditsAvailableCount
+                    : nil,
                 now: Date(),
                 locale: .autoupdatingCurrent,
                 calendar: .autoupdatingCurrent
