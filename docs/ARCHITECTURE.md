@@ -61,7 +61,7 @@ scrape Codex UI or private application files.
 ## Application updates
 
 The approved update boundary is independent of Codex quota:
-`native menu -> AppState command availability -> Sparkle adapter -> GitHub`.
+`native / Pixel menu -> AppState command availability -> Sparkle adapter -> GitHub`.
 One `SPUStandardUpdaterController` owns native update UI, download, verification,
 installation and relaunch. Sparkle 2.9.6 is pinned; the application does not
 implement its own archive extractor or installer. Manual-only policy and strict
@@ -162,9 +162,13 @@ the menu after clicks in other applications. SwiftUI reads live settings from
 `AppState`; menu actions call the same state methods as the menu bar and do not
 refresh quota. Hit testing, screen-quadrant placement, and the reversible
 spaghettification state are pure helpers covered by tests.
-The grouped right-click menu keeps five normal root actions. Appearance and
-Behavior flatten their settings into one submenu level; Object Mix retains its
-existing matrix. Group expansion and keyboard selection are view-local and do
+Both menus group settings as Appearance, Object Mix, Behavior, followed by
+Hide/Show Pet, Check for Updates and Quit. The right-click menu has six normal
+root actions. Its update action routes through the same AppDelegate callback
+and AppState availability as the native menu. Appearance and Behavior flatten
+their settings into one submenu level; Object Mix retains its existing matrix
+in the Pixel menu and native pickers in the menu bar. Group expansion and
+keyboard selection are view-local and do
 not create new persisted preferences. The short root is anchored independently
 of the submenu height inside the shared panel reserve; the controller keeps its
 existing screen-quadrant placement and dismissal responsibilities.

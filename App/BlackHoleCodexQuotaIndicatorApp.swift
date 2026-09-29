@@ -54,7 +54,9 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
-    private let petPanel = PetPanelController()
+    private lazy var petPanel = PetPanelController(
+        checkForUpdates: { [weak self] in self?.checkForUpdates() }
+    )
     private var wakeObserver: NSObjectProtocol?
     private let terminationGate = UpdateTerminationGate()
     private lazy var appUpdater = AppUpdater(

@@ -445,11 +445,19 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 480, height: 505))
     }
 
-    func testGroupedContextMenuHasFiveRootActionsAndSingleLevelChildren() {
+    func testGroupedContextMenuHasSixRootActionsAndSingleLevelChildren() {
         typealias Item = PixelContextMenuItem
-        let roots: [Item] = [.appearance, .objectMix, .behavior, .hidePet, .quit]
+        let roots: [Item] = [.appearance, .objectMix, .behavior, .hidePet, .checkForUpdates, .quit]
         XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: false), roots)
         XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: true), [.retry] + roots)
+        for requiresRetry in [false, true] {
+            XCTAssertEqual(
+                PixelContextMenuNavigation.rootItems(
+                    requiresRetry: requiresRetry, canCheckForUpdates: false
+                ),
+                (requiresRetry ? [.retry] : []) + roots.filter { $0 != .checkForUpdates }
+            )
+        }
         XCTAssertEqual(
             PixelContextMenuNavigation.childItems(for: .appearance, requiresLoginApproval: false),
             [.size(.small), .size(.medium), .size(.large),
@@ -524,6 +532,48 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(navigation.selectedRoot, .quit)
         navigation.enterSubmenu(children: [])
         XCTAssertFalse(navigation.isSubmenuOpen)
+
+        navigation.selectRoot(.hidePet)
+        navigation.move(by: 1, roots: roots, children: [])
+        XCTAssertEqual(navigation.selectedRoot, .checkForUpdates)
+        let availableRoots = PixelContextMenuNavigation.rootItems(
+            requiresRetry: false, canCheckForUpdates: false
+        )
+        navigation.normalize(roots: availableRoots, children: [])
+        XCTAssertEqual(navigation.selectedRoot, .appearance)
+        navigation.selectRoot(.hidePet)
+        navigation.move(by: 1, roots: availableRoots, children: [])
+        XCTAssertEqual(navigation.selectedRoot, .quit)
+        navigation.move(by: -1, roots: availableRoots, children: [])
+        XCTAssertEqual(navigation.selectedRoot, .hidePet)
+    }
+
+    @MainActor
+    func testContextMenuUpdateActionRespectsCurrentAvailability() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            defaults: defaults,
+            appServer: appServer,
+            historyStore: QuotaHistoryStore(fileURL: nil)
+        )
+        var checks = 0
+        let controller = PetPanelController(checkForUpdates: { checks += 1 })
+        let actions = controller.contextMenuActions(appState: appState)
+
+        actions.checkForUpdates()
+        XCTAssertEqual(checks, 1)
+        appState.setCanCheckForUpdates(false)
+        actions.checkForUpdates()
+        XCTAssertEqual(checks, 1)
+        appState.setCanCheckForUpdates(true)
+        actions.checkForUpdates()
+        XCTAssertEqual(checks, 2)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+        XCTAssertNil(controller.petFrame)
+        XCTAssertNil(controller.contextMenuFrame)
     }
 
     @MainActor
@@ -536,7 +586,7 @@ final class RateLimitDecodingTests: XCTestCase {
                     requiresLoginApproval: false, hasLoginError: false
                 )
                 XCTAssertNil(closed.submenu)
-                XCTAssertEqual(closed.root.height, requiresRetry ? 210 : 179)
+                XCTAssertEqual(closed.root.height, requiresRetry ? 241 : 210)
                 XCTAssertTrue(panel.contains(closed.root))
                 XCTAssertEqual(closed.root.minY, placement.opensBelow ? 8 : 505 - closed.root.height)
                 for group: PixelContextMenuItem in [.appearance, .objectMix, .behavior] {

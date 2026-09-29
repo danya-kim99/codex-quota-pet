@@ -49,6 +49,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private let frontmostApplication: () -> (bundleIdentifier: String?, isCurrentApplication: Bool)
     private var lastExternalApplication: (bundleIdentifier: String?, isFullScreen: Bool) = (nil, false)
     private let frameName: String
+    private let checkForUpdates: () -> Void
 
     init(
         isFrontmostApplicationFullScreen: (() -> Bool)? = nil,
@@ -61,12 +62,14 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 application?.processIdentifier == ProcessInfo.processInfo.processIdentifier
             )
         },
-        frameName: String = AppConstants.petPanelFrameName
+        frameName: String = AppConstants.petPanelFrameName,
+        checkForUpdates: @escaping () -> Void = {}
     ) {
         self.isFrontmostApplicationFullScreen = isFrontmostApplicationFullScreen
             ?? Self.detectFrontmostApplicationFullScreen
         self.frontmostApplication = frontmostApplication
         self.frameName = frameName
+        self.checkForUpdates = checkForUpdates
         super.init()
     }
 
@@ -676,6 +679,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                     appState.togglePetVisibility()
                     self.updateVisibility(appState: appState)
                 }
+            },
+            checkForUpdates: { [weak self, weak appState] in
+                guard appState?.canCheckForUpdates == true else { return }
+                self?.checkForUpdates()
             },
             quit: { [weak self] in
                 self?.dismissContextMenu(animated: true) {

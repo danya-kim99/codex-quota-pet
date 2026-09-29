@@ -1910,6 +1910,49 @@ remain unverified for the regrouped menu. No GUI interaction or app restart was
 performed in this implementation pass. Evidence and the runnable headless check
 are in `build/grouped-menu-verification/`; `git diff --check` passed.
 
+### Approved menu alignment and update action — 29 September 2026
+
+The user requested that the menu-bar menu follow the existing right-click menu
+organization and that the right-click menu also offer Check for Updates. This
+authorizes this local implementation amendment to the approved grouped menu.
+
+- Keep quota, reset, mode, connection/error text and conditional Retry at the top
+  of the native menu. Group settings in the same order as the Pixel menu:
+  Appearance, Object Mix, Behavior; then Hide/Show Pet, Check for Updates, Quit.
+- Appearance retains size, tooltip style and quota dynamics in that order.
+  Keep the native-only reset-announcement toggle/provider link and clear-history
+  action/history issue in this group; preserve their current actions and guards.
+  Use native sections for size/style choices without adding another submenu.
+- Object Mix retains its native pickers and Pixel matrix. Behavior follows the
+  existing Pixel order and separators, including login approval/error feedback.
+- Add Check for Updates between Hide Pet and Quit in the Pixel root. Reuse the
+  existing localized label, AppState.canCheckForUpdates and the AppDelegate /
+  AppUpdater action. Mouse and keyboard activation both respect availability;
+  the existing updater presentation path dismisses transient pet UI first.
+- Preserve all existing settings, persistence, quota/freshness/failure states,
+  Standard/Turbo, Reduce Motion, S/M/L, Smooth/Pixel, hover/drag/placement and
+  visibility behavior. Reuse RU/EN labels and accessible control state. No
+  updater policy, dependencies, signing, release metadata or distribution change.
+- Acceptance: every existing native control remains reachable; both menus share
+  root group/action order; the update action is wired and disabled consistently;
+  keyboard ordering and panel geometry include the additional Pixel root row.
+  Build app/tests and run focused checks without opening or operating a GUI.
+  Live visual, pointer and VoiceOver verification remains a separate check.
+
+Verification: app and XCTest target compiled with `build-for-testing`; hosted
+tests were not run. A headless executable compiled from production sources
+passed 1,080 assertions, including update availability, navigation and layout.
+Independent code and QA reviews found no confirmed defects; RU/EN label and
+binding preservation and 96 conditional layout combinations passed focused
+checks. `git diff --check` passed. Evidence and reproducible commands are in
+`build/menu-alignment-verification/`. No app restart or GUI interaction occurred;
+native rendering, live pointer/focus, VoiceOver and updater presentation remain
+unverified. No publication or release metadata change was made in that pass.
+The user subsequently authorized launching the verified local build, confirmed
+the result with "excellent", and requested release preparation. The prepared
+release is 0.13.1 (31), containing this menu amendment only. Publication is a
+separate step; unrelated local work is excluded from the release candidate.
+
 ### Live grouped-menu verification — 7 September 2026
 
 The user explicitly approved restarting the app and testing the redesigned menu

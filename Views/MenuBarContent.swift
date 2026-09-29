@@ -70,21 +70,71 @@ struct MenuBarContent: View {
 
             Divider()
 
-            Button(
-                localized(appState.isPetVisible ? "menu.hide_pet" : "menu.show_pet")
-            ) {
-                togglePetVisibility()
-            }
+            Menu(localized("context_menu.appearance")) {
+                Section(localized("menu.size")) {
+                    Picker(
+                        localized("menu.size"),
+                        selection: Binding(
+                            get: { appState.petSize },
+                            set: setPetSize
+                        )
+                    ) {
+                        ForEach(PetSize.allCases, id: \.self) { size in
+                            Text(size.label).tag(size)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
 
-            Picker(
-                localized("menu.size"),
-                selection: Binding(
-                    get: { appState.petSize },
-                    set: setPetSize
+                Section(localized("menu.tooltip_style")) {
+                    Picker(
+                        localized("menu.tooltip_style"),
+                        selection: Binding(
+                            get: { appState.tooltipStyle },
+                            set: setTooltipStyle
+                        )
+                    ) {
+                        ForEach(TooltipStyle.allCases, id: \.self) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                Toggle(
+                    localized("menu.show_quota_dynamics"),
+                    isOn: Binding(
+                        get: { appState.showsQuotaDynamics },
+                        set: setShowsQuotaDynamics
+                    )
                 )
-            ) {
-                ForEach(PetSize.allCases, id: \.self) { size in
-                    Text(size.label).tag(size)
+
+                Toggle(
+                    localized("menu.show_codex_reset_forecast"),
+                    isOn: Binding(
+                        get: { appState.showsCodexResetForecast },
+                        set: setShowsCodexResetForecast
+                    )
+                )
+                .help(localized("menu.show_codex_reset_forecast.help"))
+                .accessibilityHint(localized("menu.show_codex_reset_forecast.help"))
+
+                if appState.showsCodexResetForecast,
+                   let providerURL = URL(string: "https://codex-resets.com/") {
+                    Link(
+                        localized("menu.codex_reset_forecast.provider"),
+                        destination: providerURL
+                    )
+                }
+
+                Button(localized("menu.clear_quota_history")) {
+                    clearQuotaHistory()
+                }
+
+                if let issue = appState.quotaHistoryIssue {
+                    Text(localized(issue.localizationKey))
                 }
             }
 
@@ -141,110 +191,76 @@ struct MenuBarContent: View {
             .help(localized("menu.object_mix.hint"))
             .accessibilityHint(localized("menu.object_mix.hint"))
 
-            Toggle(
-                localized("menu.lock_position"),
-                isOn: Binding(
-                    get: { appState.isPetPositionLocked },
-                    set: setPetPositionLocked
+            Menu(localized("context_menu.behavior")) {
+                Toggle(
+                    localized("menu.lock_position"),
+                    isOn: Binding(
+                        get: { appState.isPetPositionLocked },
+                        set: setPetPositionLocked
+                    )
                 )
-            )
-            .help(localized("menu.lock_position.help"))
-            .accessibilityHint(localized("menu.lock_position.help"))
+                .help(localized("menu.lock_position.help"))
+                .accessibilityHint(localized("menu.lock_position.help"))
 
-            Toggle(
-                localized("menu.pass_pointer_input_through"),
-                isOn: Binding(
-                    get: { appState.passesPointerInputThrough },
-                    set: setPassesPointerInputThrough
+                Toggle(
+                    localized("menu.pass_pointer_input_through"),
+                    isOn: Binding(
+                        get: { appState.passesPointerInputThrough },
+                        set: setPassesPointerInputThrough
+                    )
                 )
-            )
-            .help(localized("menu.pass_pointer_input_through.help"))
-            .accessibilityHint(localized("menu.pass_pointer_input_through.help"))
+                .help(localized("menu.pass_pointer_input_through.help"))
+                .accessibilityHint(localized("menu.pass_pointer_input_through.help"))
 
-            Picker(
-                localized("menu.tooltip_style"),
-                selection: Binding(
-                    get: { appState.tooltipStyle },
-                    set: setTooltipStyle
+                Divider()
+
+                Toggle(
+                    localized("menu.only_when_codex_active"),
+                    isOn: Binding(
+                        get: { appState.showsOnlyWhenCodexIsActive },
+                        set: setShowsOnlyWhenCodexIsActive
+                    )
                 )
-            ) {
-                ForEach(TooltipStyle.allCases, id: \.self) { style in
-                    Text(style.title).tag(style)
+                .help(localized("menu.only_when_codex_active.help"))
+                .accessibilityHint(localized("menu.only_when_codex_active.help"))
+
+                Toggle(
+                    localized("menu.hide_full_screen"),
+                    isOn: Binding(
+                        get: { appState.hidesInFullScreenApps },
+                        set: setHidesInFullScreenApps
+                    )
+                )
+
+                Divider()
+
+                Toggle(
+                    localized("menu.launch_at_login"),
+                    isOn: Binding(
+                        get: { appState.launchesAtLogin },
+                        set: appState.setLaunchesAtLogin
+                    )
+                )
+
+                if appState.launchAtLoginStatus == .requiresApproval {
+                    Text(localized("menu.approval_required"))
+                    Button(localized("menu.open_login_items")) {
+                        appState.openLoginItemsSettings()
+                    }
                 }
-            }
 
-            Toggle(
-                localized("menu.show_quota_dynamics"),
-                isOn: Binding(
-                    get: { appState.showsQuotaDynamics },
-                    set: setShowsQuotaDynamics
-                )
-            )
-
-            Toggle(
-                localized("menu.show_codex_reset_forecast"),
-                isOn: Binding(
-                    get: { appState.showsCodexResetForecast },
-                    set: setShowsCodexResetForecast
-                )
-            )
-            .help(localized("menu.show_codex_reset_forecast.help"))
-            .accessibilityHint(localized("menu.show_codex_reset_forecast.help"))
-
-            if appState.showsCodexResetForecast,
-               let providerURL = URL(string: "https://codex-resets.com/") {
-                Link(
-                    localized("menu.codex_reset_forecast.provider"),
-                    destination: providerURL
-                )
-            }
-
-            Button(localized("menu.clear_quota_history")) {
-                clearQuotaHistory()
-            }
-
-            if let issue = appState.quotaHistoryIssue {
-                Text(localized(issue.localizationKey))
-            }
-
-            Toggle(
-                localized("menu.only_when_codex_active"),
-                isOn: Binding(
-                    get: { appState.showsOnlyWhenCodexIsActive },
-                    set: setShowsOnlyWhenCodexIsActive
-                )
-            )
-            .help(localized("menu.only_when_codex_active.help"))
-            .accessibilityHint(localized("menu.only_when_codex_active.help"))
-
-            Toggle(
-                localized("menu.hide_full_screen"),
-                isOn: Binding(
-                    get: { appState.hidesInFullScreenApps },
-                    set: setHidesInFullScreenApps
-                )
-            )
-
-            Toggle(
-                localized("menu.launch_at_login"),
-                isOn: Binding(
-                    get: { appState.launchesAtLogin },
-                    set: appState.setLaunchesAtLogin
-                )
-            )
-
-            if appState.launchAtLoginStatus == .requiresApproval {
-                Text(localized("menu.approval_required"))
-                Button(localized("menu.open_login_items")) {
-                    appState.openLoginItemsSettings()
+                if let error = appState.launchAtLoginError {
+                    Text(shortMenuTitle(error))
                 }
-            }
-
-            if let error = appState.launchAtLoginError {
-                Text(shortMenuTitle(error))
             }
 
             Divider()
+
+            Button(
+                localized(appState.isPetVisible ? "menu.hide_pet" : "menu.show_pet")
+            ) {
+                togglePetVisibility()
+            }
 
             Button(localized("menu.check_for_updates"), action: checkForUpdates)
                 .disabled(!appState.canCheckForUpdates)

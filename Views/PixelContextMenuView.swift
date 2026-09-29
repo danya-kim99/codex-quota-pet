@@ -148,11 +148,12 @@ struct PixelContextMenuActions {
     let setLaunchesAtLogin: (Bool) -> Void
     let openLoginItems: () -> Void
     let hidePet: () -> Void
+    let checkForUpdates: () -> Void
     let quit: () -> Void
 }
 
 enum PixelContextMenuItem: Hashable {
-    case retry, appearance, objectMix, behavior, hidePet, quit
+    case retry, appearance, objectMix, behavior, hidePet, checkForUpdates, quit
     case size(PetSize), tooltipStyle(TooltipStyle), quotaDynamics
     case positionLock, pointerClickThrough, onlyWhenCodexActive, hideFullScreen
     case launchAtLogin, openLoginItems
@@ -168,8 +169,12 @@ struct PixelContextMenuNavigation: Equatable {
     private(set) var selectedChild: PixelContextMenuItem?
     private(set) var isSubmenuOpen = false
 
-    static func rootItems(requiresRetry: Bool) -> [PixelContextMenuItem] {
-        (requiresRetry ? [.retry] : []) + [.appearance, .objectMix, .behavior, .hidePet, .quit]
+    static func rootItems(
+        requiresRetry: Bool,
+        canCheckForUpdates: Bool = true
+    ) -> [PixelContextMenuItem] {
+        (requiresRetry ? [.retry] : []) + [.appearance, .objectMix, .behavior, .hidePet]
+            + (canCheckForUpdates ? [.checkForUpdates] : []) + [.quit]
     }
 
     static func childItems(
@@ -424,6 +429,12 @@ struct PixelContextMenuView: View {
             )
             PixelDivider()
             row(.hidePet, title: localized("menu.hide_pet"), icon: .hide)
+            row(
+                .checkForUpdates,
+                title: localized("menu.check_for_updates"),
+                icon: .retry,
+                isEnabled: appState.canCheckForUpdates
+            )
             row(.quit, title: localized("context_menu.quit"), icon: .power, isDestructive: true)
         }
         .padding(7)
@@ -654,6 +665,7 @@ struct PixelContextMenuView: View {
         icon: PixelMenuIcon,
         isChecked: Bool = false,
         showsDisclosure: Bool = false,
+        isEnabled: Bool = true,
         isDestructive: Bool = false,
         accessibilityValue: String? = nil,
         accessibilityHelp: String? = nil
@@ -664,11 +676,12 @@ struct PixelContextMenuView: View {
             isSelected: item == (navigation.selectedChild ?? navigation.selectedRoot),
             isChecked: isChecked,
             showsDisclosure: showsDisclosure,
-            isEnabled: true,
+            isEnabled: isEnabled,
             isDestructive: isDestructive,
             accessibilityValue: accessibilityValue,
             accessibilityHelp: accessibilityHelp
         ) {
+            guard isEnabled else { return }
             if rootItems.contains(item) {
                 navigation.selectRoot(item)
             } else {
@@ -676,7 +689,7 @@ struct PixelContextMenuView: View {
             }
             activate(item)
         } onHover: { isHovering in
-            guard isHovering else { return }
+            guard isHovering, isEnabled else { return }
             if rootItems.contains(item) {
                 navigation.selectRoot(item)
             } else {
@@ -700,7 +713,10 @@ struct PixelContextMenuView: View {
     }
 
     private var rootItems: [PixelContextMenuItem] {
-        PixelContextMenuNavigation.rootItems(requiresRetry: appState.connectionState != .connected)
+        PixelContextMenuNavigation.rootItems(
+            requiresRetry: appState.connectionState != .connected,
+            canCheckForUpdates: appState.canCheckForUpdates
+        )
     }
 
     private var childItems: [PixelContextMenuItem] {
@@ -759,6 +775,9 @@ struct PixelContextMenuView: View {
             actions.setLaunchesAtLogin(!appState.launchesAtLogin)
         case .openLoginItems: actions.openLoginItems()
         case .hidePet: actions.hidePet()
+        case .checkForUpdates:
+            guard appState.canCheckForUpdates else { return }
+            actions.checkForUpdates()
         case .quit: actions.quit()
         }
     }
