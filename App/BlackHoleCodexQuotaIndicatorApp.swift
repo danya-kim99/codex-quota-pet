@@ -183,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func setTooltipStyle(_ style: TooltipStyle) {
         guard style != appState.tooltipStyle else { return }
         appState.setTooltipStyle(style)
-        petPanel.updateTooltipStyle()
+        petPanel.updateTooltipLayout()
     }
 
     func setShowsQuotaDynamics(_ isEnabled: Bool) {

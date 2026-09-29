@@ -7,13 +7,48 @@ enum CodexResetType: String, Decodable, Sendable {
 
 enum CodexResetSignal: Equatable, Sendable {
     case watch(chancePercent: Int?, expiresAt: Date)
-    case scheduled(resetType: CodexResetType, scheduledFor: Date?)
+    case scheduled(resetType: CodexResetType, scheduledFor: Date?, id: String? = nil)
+    case completed(resetType: CodexResetType, announcedAt: Date, id: String)
 
     func valid(at date: Date) -> CodexResetSignal? {
         if case let .watch(_, expiresAt) = self, expiresAt <= date {
             return nil
         }
+        if case let .completed(_, announcedAt, _) = self,
+           !(0..<86_400).contains(date.timeIntervalSince(announcedAt)) {
+            return nil
+        }
         return self
+    }
+
+    static func visible(_ signals: [Self], at date: Date) -> [Self] {
+        let valid = signals.compactMap { $0.valid(at: date) }
+        let completed = valid.first { if case .completed = $0 { true } else { false } }
+        let scheduled = valid.first { if case .scheduled = $0 { true } else { false } }
+        if let completed,
+           case let .scheduled(_, _, scheduledID) = scheduled,
+           case let .completed(_, _, completedID) = completed,
+           scheduledID == completedID {
+            return [completed]
+        }
+        let first = scheduled ?? valid.first { if case .watch = $0 { true } else { false } }
+        return [first, completed].compactMap { $0 }
+    }
+}
+
+enum CodexResetSourceState: Equatable, Sendable {
+    case disabled
+    case loading
+    case available(signals: [CodexResetSignal], checkedAt: Date)
+    case unavailable
+
+    func signals(at date: Date) -> [CodexResetSignal] {
+        guard case let .available(signals, _) = self else { return [] }
+        return CodexResetSignal.visible(signals, at: date)
+    }
+
+    func itemCount(at date: Date) -> Int {
+        self == .disabled ? 0 : max(1, signals(at: date).count)
     }
 }
 
@@ -21,8 +56,8 @@ struct CodexResetRadar {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     enum FetchResult: Equatable, Sendable {
-        case updated(signal: CodexResetSignal?, eTag: String?, maxAge: TimeInterval)
-        case notModified(maxAge: TimeInterval)
+        case updated(signals: [CodexResetSignal], eTag: String?, maxAge: TimeInterval)
+        case notModified(maxAge: TimeInterval?)
     }
 
     enum FetchError: Error, Equatable {
@@ -39,8 +74,7 @@ struct CodexResetRadar {
     static let requestTimeout: TimeInterval = 10
     static let maximumBodyBytes = 128 * 1_024
     static let fallbackFreshness: TimeInterval = 5 * 60
-    static let maximumFreshness: TimeInterval = 60 * 60
-    static let maximumRetryAfter: TimeInterval = 24 * 60 * 60
+    static let minimumRefreshInterval: TimeInterval = 60
 
     private let transport: Transport
 
@@ -91,9 +125,9 @@ struct CodexResetRadar {
             } catch {
                 throw FetchError.invalidSchema
             }
-            let signal = try payload.validatedSignal()
+            let signals = try payload.validatedSignals()
             return .updated(
-                signal: signal,
+                signals: signals,
                 eTag: Self.validatedETag(
                     response.value(forHTTPHeaderField: "ETag")
                 ),
@@ -103,7 +137,7 @@ struct CodexResetRadar {
             guard Self.validatedETag(eTag) != nil else {
                 throw FetchError.unexpectedStatus(response.statusCode)
             }
-            return .notModified(maxAge: maxAge)
+            return .notModified(maxAge: response.value(forHTTPHeaderField: "Cache-Control") == nil ? nil : maxAge)
         case 429, 503:
             throw FetchError.retryAfter(
                 Self.retryDelay(
@@ -158,6 +192,10 @@ struct CodexResetRadar {
 
     private static func freshness(from cacheControl: String?) -> TimeInterval {
         guard let cacheControl else { return fallbackFreshness }
+        let directives = cacheControl.lowercased().split(separator: ",").map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if directives.contains("no-cache") || directives.contains("no-store") { return 0 }
         for rawDirective in cacheControl.split(separator: ",") {
             let parts = rawDirective.split(separator: "=", maxSplits: 1)
             guard parts.count == 2,
@@ -168,22 +206,25 @@ struct CodexResetRadar {
             let rawValue = parts[1]
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            if let seconds = TimeInterval(rawValue), seconds >= 0 {
-                return min(seconds, maximumFreshness)
+            if let seconds = TimeInterval(rawValue), seconds.isFinite, seconds >= 0 {
+                return seconds
             }
         }
         return fallbackFreshness
     }
 
     private static func retryDelay(from retryAfter: String?) -> TimeInterval {
-        guard let retryAfter,
-              let seconds = TimeInterval(
-                retryAfter.trimmingCharacters(in: .whitespacesAndNewlines)
-              ),
-              seconds >= 0 else {
-            return fallbackFreshness
+        guard let retryAfter else { return fallbackFreshness }
+        let value = retryAfter.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let seconds = TimeInterval(value), seconds.isFinite, seconds >= 0 {
+            return seconds
         }
-        return min(seconds, maximumRetryAfter)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        return formatter.date(from: value).map { max(0, $0.timeIntervalSinceNow) }
+            ?? fallbackFreshness
     }
 
     private static func validatedETag(_ value: String?) -> String? {
@@ -221,7 +262,7 @@ private extension CodexResetRadar {
         let data: StatusData
         let meta: Meta
 
-        func validatedSignal() throws -> CodexResetSignal? {
+        func validatedSignals() throws -> [CodexResetSignal] {
             guard meta.apiVersion == "v1",
                   Self.date(meta.generatedAt) != nil,
                   data.stats.isValid,
@@ -229,10 +270,16 @@ private extension CodexResetRadar {
                 throw FetchError.invalidSchema
             }
 
-            if let scheduled = data.scheduledReset {
-                return try scheduled.signal()
+            var signals: [CodexResetSignal] = []
+            if let scheduled = data.scheduledReset { signals.append(try scheduled.signal()) }
+            if let watch = data.activeWatch { signals.append(try watch.signal()) }
+            if let latest = data.latestReset,
+               let announcedAt = Self.date(latest.announcedAt) {
+                signals.append(.completed(
+                    resetType: latest.resetType, announcedAt: announcedAt, id: latest.id
+                ))
             }
-            return try data.activeWatch?.signal()
+            return signals
         }
 
         private static func date(_ value: String) -> Date? {
@@ -346,7 +393,7 @@ private extension CodexResetRadar {
             }
 
             func signal() throws -> CodexResetSignal {
-                guard !id.isEmpty,
+                guard !id.isEmpty, id.count <= 64,
                       StatusResponse.date(announcedAt) != nil,
                       source.isValid else {
                     throw FetchError.invalidSchema
@@ -360,7 +407,7 @@ private extension CodexResetRadar {
                 } else {
                     scheduledDate = nil
                 }
-                return .scheduled(resetType: resetType, scheduledFor: scheduledDate)
+                return .scheduled(resetType: resetType, scheduledFor: scheduledDate, id: id)
             }
         }
 

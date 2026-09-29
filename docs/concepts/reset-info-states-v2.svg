@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1010" viewBox="0 0 1560 1010">
+  <title>Состояния концепта A: ноль сбросов, ошибка источника, отсутствие событий и выключенный прогноз</title>
+  <desc>При ошибке внешнего источника остаются три личных сброса. Ноль отличается от неизвестного значения. Выключение прогноза полностью убирает внешний блок. Отдельный пример показывает два одновременных публичных события.</desc>
+  <defs>
+    <style>
+      text { font-family: "SF Pro Display", "SF Pro", -apple-system, Helvetica, Arial, sans-serif; fill: #f5f5f7; }
+      .muted { fill: #a4a5ad; } .gold { fill: #ffc24f; } .orange { fill: #ff9c69; }
+      .line { stroke: #3a3b41; stroke-width: .65; }
+    </style>
+    <g id="base">
+      <circle cx="49" cy="71" r="31" fill="none" stroke="#33343a" stroke-width="8"/>
+      <circle cx="49" cy="71" r="31" fill="none" stroke="#ffc24f" stroke-width="8" stroke-linecap="round" stroke-dasharray="109.08 194.78" transform="rotate(-90 49 71)"/>
+      <text x="49" y="77.5" font-size="19" font-weight="650" text-anchor="middle">56%</text>
+      <rect x="96" y="33" width="45" height="16" rx="8" fill="#26201b" stroke="#ff8247" stroke-width=".7"/>
+      <text x="118.5" y="44.4" text-anchor="middle" font-size="9.3">Турбо</text>
+      <line x1="96" y1="59" x2="234" y2="59" class="line"/>
+      <text x="96" y="76.2" font-size="10">Сброс лимита: 4 дн.</text>
+      <text x="96" y="93" font-size="9.5" class="muted">27 сент., 11:06</text>
+      <line x1="96" y1="103" x2="234" y2="103" class="line"/>
+      <text x="96" y="116.5" font-size="9.1" class="muted">Сейчас 56% · раньше 62%</text>
+      <text x="96" y="131" font-size="10" font-weight="550" class="gold">−6 п.п. за 2 ч</text>
+    </g>
+    <g id="shell">
+      <rect width="248" height="206" rx="18" fill="#111215" stroke="#48494f" stroke-width=".9"/>
+      <use href="#base"/>
+      <line x1="14" y1="138" x2="234" y2="138" class="line"/>
+      <text x="14" y="157" font-size="9" font-weight="550" class="muted" letter-spacing=".2">ОБЪЯВЛЕНИЯ · CODEX RESETS</text>
+    </g>
+  </defs>
+  <rect width="1560" height="1010" fill="#090a0d"/>
+  <text x="60" y="54" font-size="15" font-weight="600" letter-spacing="1" class="muted">ВАРИАНТ A · ПРОВЕРКА СМЫСЛА</text>
+  <text x="60" y="106" font-size="38" font-weight="650">Теперь понятно, что именно произошло</text>
+  <text x="60" y="145" font-size="18" class="muted">Квота и личные сбросы не зависят от доступности стороннего источника.</text>
+
+  <text x="60" y="209" font-size="19" font-weight="550">Анонс есть, сбросов нет</text>
+  <text x="434" y="209" font-size="19" font-weight="550">Источник недоступен</text>
+  <text x="808" y="209" font-size="19" font-weight="550">Новых событий нет</text>
+  <text x="1182" y="209" font-size="19" font-weight="550">Прогноз выключен</text>
+
+  <g transform="translate(60 236) scale(1.28)">
+    <use href="#shell"/>
+    <text x="96" y="23" font-size="11.7" font-weight="550" class="muted">Ручных сбросов нет</text>
+    <text x="14" y="177" font-size="12" font-weight="600" class="orange">Объявлены ручные сбросы</text>
+    <text x="14" y="193" font-size="9.5" class="muted">Сегодня, 09:59 · публичный анонс</text>
+  </g>
+  <g transform="translate(434 236) scale(1.28)">
+    <use href="#shell"/>
+    <text x="96" y="23" font-size="12.3" font-weight="600" class="gold">Ручных сбросов: 3</text>
+    <text x="14" y="177" font-size="12" font-weight="600">Объявления недоступны</text>
+    <text x="14" y="193" font-size="9.5" class="muted">Не удалось обновить источник</text>
+  </g>
+  <g transform="translate(808 236) scale(1.28)">
+    <use href="#shell"/>
+    <text x="96" y="23" font-size="12.3" font-weight="600" class="gold">Ручных сбросов: 3</text>
+    <text x="14" y="177" font-size="12" font-weight="550">Новых объявлений нет</text>
+    <text x="14" y="193" font-size="9.5" class="muted">Проверено только что</text>
+  </g>
+  <g transform="translate(1182 236) scale(1.28)">
+    <rect width="248" height="138" rx="18" fill="#111215" stroke="#48494f" stroke-width=".9"/>
+    <use href="#base"/>
+    <text x="96" y="23" font-size="12.3" font-weight="600" class="gold">Ручных сбросов: 3</text>
+  </g>
+  <text x="60" y="536" font-size="16" class="muted">Публичная выдача не означает,</text>
+  <text x="60" y="560" font-size="16" class="muted">что кредит уже есть у вас.</text>
+  <text x="434" y="536" font-size="16" class="muted">Сбой виден. Личный запас</text>
+  <text x="434" y="560" font-size="16" class="muted">остаётся на месте.</text>
+  <text x="808" y="536" font-size="16" class="muted">Это успешная проверка,</text>
+  <text x="808" y="560" font-size="16" class="muted">а не скрытая сетевая ошибка.</text>
+  <text x="1182" y="452" font-size="16" class="muted">Нет внешнего блока</text>
+  <text x="1182" y="476" font-size="16" class="muted">и запросов к источнику.</text>
+
+  <line x1="60" y1="607" x2="1500" y2="607" stroke="#2a2b31"/>
+  <text x="60" y="661" font-size="24" font-weight="600">Если опубликованы два разных события</text>
+  <text x="60" y="694" font-size="17" class="muted">Дополнительная строка — события не вытесняют друг друга.</text>
+  <g transform="translate(60 724) scale(1.85)">
+    <rect width="248" height="102" rx="12" fill="#111215" stroke="#48494f" stroke-width=".8"/>
+    <text x="14" y="21" font-size="9" font-weight="550" class="muted">ОБЪЯВЛЕНИЯ · CODEX RESETS</text>
+    <text x="14" y="43" font-size="12" font-weight="600" class="orange">Общий сброс · завтра, 09:59</text>
+    <line x1="14" y1="54" x2="234" y2="54" class="line"/>
+    <text x="14" y="73" font-size="11.5" font-weight="550">Сообщают о выдаче</text>
+    <text x="14" y="89" font-size="11.5" font-weight="550">ручных сбросов · сегодня</text>
+  </g>
+  <g transform="translate(634 746)">
+    <text x="0" y="0" font-size="21" font-weight="600">Правила для обоих вариантов</text>
+    <circle cx="4" cy="39" r="3" fill="#ffc24f"/>
+    <text x="22" y="45" font-size="17" class="muted">«Нет данных о сбросах» отличается от подтверждённого нуля.</text>
+    <circle cx="4" cy="77" r="3" fill="#ffc24f"/>
+    <text x="22" y="83" font-size="17" class="muted">Личный счётчик не обещает возможность применить сброс сейчас.</text>
+    <circle cx="4" cy="115" r="3" fill="#ff9c69"/>
+    <text x="22" y="121" font-size="17" class="muted">Сообщения о прошедших сбросах показываем 24 часа.</text>
+    <circle cx="4" cy="153" r="3" fill="#a4a5ad"/>
+    <text x="22" y="159" font-size="17" class="muted">Повторная проверка — автоматически, пока тултип открыт.</text>
+  </g>
+  <text x="60" y="976" font-size="14" class="muted">Демонстрационные состояния · макеты, не скриншоты приложения · изменения сети не требуются для отображения личных сбросов</text>
+</svg>

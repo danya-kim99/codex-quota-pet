@@ -51,9 +51,12 @@ final class AppState {
     private var historyRevision = -1
     private var historyTask: Task<Void, Never>?
     private var previousAcceptedQuotaSample: QuotaHistorySample?
-    private var codexResetSignalStorage: CodexResetSignal?
+    private var codexResetSignalsStorage: [CodexResetSignal]?
+    private var codexResetSourceStateStorage: CodexResetSourceState = .loading
     private var codexResetETag: String?
     private var codexResetFreshUntil: Date?
+    private var codexResetCacheMaxAge = CodexResetRadar.fallbackFreshness
+    private var codexResetNextAttemptAt: Date?
     private var codexResetTask: Task<Void, Never>?
     private var codexResetGeneration: UInt64 = 0
     init(
@@ -123,7 +126,24 @@ final class AppState {
     }
 
     var codexResetSignal: CodexResetSignal? {
-        codexResetSignalStorage?.valid(at: now())
+        codexResetSourceState.signals(at: now()).first
+    }
+
+    var codexResetSourceState: CodexResetSourceState {
+        guard showsCodexResetForecast else { return .disabled }
+        if case .available = codexResetSourceStateStorage,
+           let codexResetFreshUntil, now() >= codexResetFreshUntil {
+            return codexResetTask == nil ? .unavailable : .loading
+        }
+        if case let .available(signals, _) = codexResetSourceStateStorage,
+           CodexResetSignal.visible(signals, at: now()).isEmpty,
+           signals.contains(where: {
+               if case let .watch(_, expiry) = $0 { return expiry <= now() }
+               return false
+           }) {
+            return .unavailable
+        }
+        return codexResetSourceStateStorage
     }
 
     var absorptionCategories: [AbsorbableObjectManifest.Category] {
@@ -184,10 +204,17 @@ final class AppState {
             return
         }
         let requestedAt = now()
+        if let codexResetNextAttemptAt, requestedAt < codexResetNextAttemptAt {
+            return
+        }
         if let codexResetFreshUntil, requestedAt < codexResetFreshUntil {
             return
         }
 
+        codexResetNextAttemptAt = requestedAt.addingTimeInterval(
+            CodexResetRadar.minimumRefreshInterval
+        )
+        codexResetSourceStateStorage = .loading
         codexResetGeneration &+= 1
         let generation = codexResetGeneration
         let eTag = codexResetETag
@@ -210,7 +237,8 @@ final class AppState {
                       self.showsCodexResetForecast else {
                     return
                 }
-                self.codexResetSignalStorage = nil
+                self.codexResetSignalsStorage = nil
+                self.codexResetSourceStateStorage = .unavailable
                 self.codexResetETag = nil
                 let delay: TimeInterval
                 if case let CodexResetRadar.FetchError.retryAfter(retryAfter) = error {
@@ -218,7 +246,10 @@ final class AppState {
                 } else {
                     delay = CodexResetRadar.fallbackFreshness
                 }
-                self.codexResetFreshUntil = self.now().addingTimeInterval(delay)
+                self.codexResetFreshUntil = nil
+                self.codexResetNextAttemptAt = self.now().addingTimeInterval(
+                    max(CodexResetRadar.minimumRefreshInterval, delay)
+                )
                 self.codexResetTask = nil
             }
         }
@@ -229,7 +260,7 @@ final class AppState {
         showsCodexResetForecast = isEnabled
         defaults.set(isEnabled, forKey: AppConstants.showCodexResetForecastKey)
         if isEnabled {
-            codexResetFreshUntil = nil
+            codexResetSourceStateStorage = .loading
             refreshCodexResetForecastIfStale()
         } else {
             cancelCodexResetForecast(clearCache: true)
@@ -239,14 +270,25 @@ final class AppState {
     private func applyCodexResetResult(_ result: CodexResetRadar.FetchResult) {
         let receivedAt = now()
         switch result {
-        case let .updated(signal, eTag, maxAge):
-            codexResetSignalStorage = signal?.valid(at: receivedAt)
+        case let .updated(signals, eTag, maxAge):
+            codexResetSignalsStorage = signals
             codexResetETag = eTag
-            codexResetFreshUntil = receivedAt.addingTimeInterval(maxAge)
-        case let .notModified(maxAge):
-            codexResetSignalStorage = codexResetSignalStorage?.valid(at: receivedAt)
-            codexResetFreshUntil = receivedAt.addingTimeInterval(maxAge)
+            codexResetCacheMaxAge = maxAge
+            codexResetFreshUntil = receivedAt.addingTimeInterval(max(CodexResetRadar.minimumRefreshInterval, maxAge))
+            codexResetNextAttemptAt = receivedAt.addingTimeInterval(
+                CodexResetRadar.minimumRefreshInterval
+            )
+        case let .notModified(updatedMaxAge):
+            let maxAge = updatedMaxAge ?? codexResetCacheMaxAge
+            codexResetCacheMaxAge = maxAge
+            codexResetFreshUntil = receivedAt.addingTimeInterval(max(CodexResetRadar.minimumRefreshInterval, maxAge))
+            codexResetNextAttemptAt = receivedAt.addingTimeInterval(
+                CodexResetRadar.minimumRefreshInterval
+            )
         }
+        codexResetSourceStateStorage = codexResetSignalsStorage.map {
+            .available(signals: $0, checkedAt: receivedAt)
+        } ?? .unavailable
         codexResetTask = nil
     }
 
@@ -254,10 +296,12 @@ final class AppState {
         codexResetGeneration &+= 1
         codexResetTask?.cancel()
         codexResetTask = nil
-        codexResetSignalStorage = nil
+        codexResetSignalsStorage = nil
+        codexResetSourceStateStorage = .loading
         guard clearCache else { return }
         codexResetETag = nil
         codexResetFreshUntil = nil
+        codexResetCacheMaxAge = CodexResetRadar.fallbackFreshness
     }
 
     func refreshQuotaIfStale(

@@ -379,6 +379,9 @@ final class CodexAppServer: CodexAppServerClient {
 
         if let bundledAppURL {
             candidates.append(bundledAppURL.appendingPathComponent("Contents/Resources/codex"))
+            candidates.append(bundledAppURL.appendingPathComponent(
+                "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+            ))
         }
         candidates += standardDirectories.map {
             URL(fileURLWithPath: $0).appendingPathComponent("codex")

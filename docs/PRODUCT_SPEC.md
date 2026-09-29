@@ -65,6 +65,23 @@ The user requested this bug fix and approved production patch publication on
   minimal GUI-style `PATH`; verify ordered fallback and rejection cases with
   focused non-GUI checks, and compile the app and test target.
 
+### Nested ChatGPT bundle compatibility correction
+
+Approved locally on 29 September 2026 after live QA found that the registered
+Codex application is now ChatGPT.app with a nested CLI bundle. Publication is
+not authorized by this correction.
+
+- Search the registered application's `Contents/Resources/codex` first, then
+  `Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`, before the
+  existing Homebrew, home-directory, and inherited-PATH fallbacks.
+- Reuse the existing executable-file validation and preserve legacy priority.
+  Do not change system PATH, application registration, authentication, network
+  settings, App Server protocol, UI, accessibility, or release metadata.
+- Acceptance: nested-only bundles resolve with a minimal GUI PATH; legacy wins
+  when both bundled layouts exist; invalid bundled candidates do not prevent
+  existing safe fallbacks. Build and focused tests must pass. A real launch
+  without a PATH override is verified only with explicit GUI consent.
+
 ## Approved application self-update
 
 Approved for implementation on 8 September 2026 after the user selected
@@ -503,6 +520,155 @@ Smooth/Pixel S/M/L geometry, including Smooth S with Turbo and history enabled.
 Counts 99, 100, and the maximum decoded integer must prove the exact-to-compact
 boundary without truncation while accessibility retains the exact value. The
 compact high-count policy was approved on 22 September 2026.
+
+### Approved independent reset information — option A, 23 September 2026
+
+The user approved the consolidated
+[`reset-info-v2`](concepts/reset-info-v2.md) proposal and its representative
+option A with “Вариант А топ - давай делать”. This amendment supersedes the
+exclusive-header priority, silent external failure, deferred `latest_reset`,
+fixed-height and open-only refresh rules above. The personal App Server and
+external Codex Resets data remain independent.
+
+- Always show the personal count in the existing header: `Ручной сброс: 1`,
+  `Ручных сбросов: %d`, `Ручных сбросов: 99+`, `Ручных сбросов нет`, or
+  `Нет данных о сбросах`; English uses `Manual reset: 1`, `Manual resets: %d`,
+  `Manual resets: 99+`, `No manual resets`, or `Reset count unavailable`.
+  Zero and unknown remain distinct. Positive counts remain gold. The count is
+  unaffected by external opt-in, loading, errors, or announcements, and does
+  not promise that a credit can be consumed now. VoiceOver reads its exact value.
+- With opt-in enabled, add an independent full-width footer below the personal
+  quota/history, separated by a hairline and explicitly labelled
+  `ОБЪЯВЛЕНИЯ · CODEX RESETS` / `ANNOUNCEMENTS · CODEX RESETS`. Preserve the
+  existing opt-in default, preference key, native menu and clickable provider
+  credit. Opt-out removes the footer and cancels/clears external work.
+- Use the complete RU/EN external state matrix in `reset-info-v2.md`: initial
+  loading, successful empty response and failure have visibly different text.
+  Failure says `Объявления недоступны` / `Не удалось обновить источник`
+  (`Announcements unavailable` / `Could not refresh source`), never “no events”.
+  A successful empty response includes its actual check freshness. External
+  failure does not dim or alter personal quota, count, connection, or history.
+- Show the scheduled event first and a distinct recent latest event below it.
+  An active watch replaces the first event only when there is no scheduled
+  event; a distinct recent latest event can remain below it. Deduplicate by
+  event ID; when scheduled and recent completed IDs match, show the reported
+  completion once. A passed scheduled time says it awaits confirmation, never
+  infers completion. `latest_reset` is recent for 24 hours from `announced_at`,
+  not fetch time, and future timestamps are not completion. This duration is
+  a local display policy, not credit expiry. Watch ends at `expires_at`.
+  Public events never confirm a grant to the current account.
+- Keep the existing base widths and personal layout. Add 68 pt for zero/one
+  external item (loading/empty/error counts as one presentation), or 102 pt for
+  two events. Smooth S with history is card 248×206 / panel 272×226 pt, or
+  card 248×240 / panel 272×260 pt with two events. History off removes its
+  existing 26 pt. Opt-out restores the old size. Apply the same additive footer
+  to Pixel and L; M scales its existing L layout and footer together at 80%.
+  Preserve S rings, M/L bars, mode badges, history and theme typography. Long
+  event copy may wrap within its reserved row, not truncate its meaning.
+- Refresh on existing triggers and while the tooltip remains visible, reusing
+  its countdown lifecycle and the AppState stale gate. Coalesce requests and
+  allow at least 60 seconds between attempts, respecting longer Cache-Control
+  and Retry-After intervals. Expired/unusable source data must not appear as a
+  fresh “no events” result. Stop view-driven refresh when hidden; add no separate
+  background polling service or persisted response.
+- Preserve quota colour thresholds, Standard/Turbo, both themes and all sizes,
+  history, static Reduce Motion behavior, hover/drag, click-through, screen-edge
+  and multi-display placement. VoiceOver order: personal quota/reset, personal
+  count, explicitly named external source and its state. The hover tooltip
+  remains noninteractive; no retry/reset button, notification or sound is added.
+- Reuse the fixed unauthenticated endpoint and existing privacy/security
+  checks. Do not change network/VPN/PAC/proxy settings, credentials, permissions,
+  dependencies, signing, release metadata, or distribution. No reset consume
+  operation, probe, new backend or account data disclosure is authorized.
+
+Acceptance: deterministic tests for simultaneous/deduplicated events, 24-hour
+and watch expiry, missing dates, past scheduled times, positive/zero/unknown
+personal counts, opt-out/cancellation, error versus empty, cache/304/retry/minimum
+intervals and visible lifecycle; RU/EN shared semantics and exact-count
+accessibility; Smooth/Pixel S/M/L additive geometry and edge placement; compile
+app and tests and run focused non-GUI checks. No app launch/replacement or release
+is authorized by this implementation request. Live hover, spoken VoiceOver and
+multi-display interaction remain explicitly unverified without that consent.
+
+Snapshot coverage extension approved on 29 September 2026: render the actual
+SwiftUI tooltip cards offscreen from deterministic, isolated fixtures. Cover the
+complete public-state matrix and personal count boundaries, including two events,
+in RU/EN, Smooth/Pixel, S/M/L, with history on/off. Reuse the existing renderer,
+pin time/calendar/locale and disable transient animation. Produce inspectable PNGs
+and overview sheets; after visual review retain explicit reference images and a
+repeatable comparison check. Never silently replace references during a check.
+Keep fixture storage, transport, and preferences isolated: no real App Server,
+network, application launch/replacement, settings changes, or debug mode in the
+shipping app. A minimal internal clock-injection seam is allowed if needed for
+deterministic rendering; its default must preserve live behavior. Visual defects
+must be reported instead of accepted as good references. This verifies static
+cards, not runtime hover, window placement, animation, or spoken VoiceOver.
+
+Visual corrections approved on 29 September 2026 after the snapshot review:
+show the complete unavailable-reset-time message in Smooth S, preserve the full
+absolute date/time (including year and AM/PM where applicable) in Smooth M/L,
+and constrain the Pixel unavailable-quota hatch to its progress track. Keep the
+existing card sizes, visual styles and state semantics; prefer local SwiftUI
+layout/clipping corrections. Repeat the affected visual checks and complete
+matrix before accepting references. No app launch/replacement or release is
+authorized by this correction approval.
+
+Snapshot verification (29 September 2026): 32 fixtures across RU/EN,
+Smooth/Pixel, S/M/L and history on/off produce 768 full-card images. All 24
+overview sheets and focused original-size risk cases were reviewed. The three
+approved visual defects are corrected without changing panel dimensions or
+state text. Two independent final renders match exactly in decoded RGBA; 768
+reviewed references are retained in `Tests/Snapshots/Tooltip`. The app and
+XCTest target build successfully without launch. Details and limitations are
+recorded in `docs/TOOLTIP_SNAPSHOT_QA.md`.
+
+Implementation verification (23 September 2026): app and XCTest target compile
+with `xcodebuild build-for-testing`, signing disabled. All 25 explicitly selected
+non-GUI XCTest methods pass against the actual production module and bundled
+localizations. The visual regression renders the actual SwiftUI footer in eight
+RU/EN × Smooth/Pixel × one/two-event combinations and checks that text does not
+draw beyond its reserved height. An earlier font-metrics-only check missed Pixel
+overflow and was replaced; native renders confirm the corrected 11 pt Pixel
+event text and unchanged 12 pt Smooth text fit without clipping. Offscreen card
+renders additionally cover S/M/L, history, unknown/high-count headers,
+source error and opt-out. Evidence is in `build/reset-info-v2-qa/`.
+
+The working tree already contained a separate removal of the native menu's
+provider link and its localization keys. That deletion was preserved rather
+than silently overwritten; the concept's assumption that this link already
+existed was incorrect for this checkout. The user was asked whether to restore
+it; no answer had arrived during implementation. This menu discrepancy remains
+open and is not a newly implemented link or an interactive footer. No network
+settings, credentials, release settings, running app or unrelated changes were
+modified, and no publication occurred.
+
+Local verification follow-up (23 September 2026): after the readiness report,
+the user approved proceeding and clarified “Пока только локальная версия”. This
+authorizes preparing local version 0.13.0 (28), restoring the native menu credit
+requested by the API, launching/checking that version and recoverably removing
+verified superseded local application/code copies. The current source repository,
+Git history, unique uncommitted work, signing assets and verification records are
+retained. No GitHub/Sparkle publication, commit or push is authorized. This closes
+the attribution decision above without making the hover footer interactive.
+
+Local follow-up outcome: 0.13.0 (28) built and launched after manual Mac unlock;
+all 125 hosted XCTest cases passed. Live widget rendering, context-menu actions,
+Codex connection/quota updates and independent personal/public accessibility
+state were checked. Preferences were unchanged. Native provider attribution and
+its RU/EN assertions are restored. Superseded local app/package copies and
+historical code subtrees were moved recoverably to Trash; current source/Git,
+signing material and audit records remain. Exact recovery paths and verification
+limits are recorded in `build/local-v0.13.0/audit/`. Spoken VoiceOver and complete
+multi-display hover interaction remain unverified. Nothing was published.
+
+### Approved release preparation — 29 September 2026
+
+The user approved preparing version 0.13.0 (30), its release notes and full
+hosted Xcode tests, followed by GitHub/Sparkle publication after the release
+checks pass. This later approval supersedes the local-only publication limits
+in the implementation and correction records above. A normal local installation
+or application launch still requires separate explicit consent; test-host
+permission is not approval to replace or launch the installed application.
 
 ## Approved adaptive reset countdown
 

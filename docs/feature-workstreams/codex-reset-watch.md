@@ -1,8 +1,11 @@
 # Codex reset watch — design exploration
 
 Status: **implemented; full headless test suite passed, live service smoke pending**
+
 Prepared: 16 September 2026
+
 Approved: 16 September 2026 — tooltip option B, opt-in off by default
+
 Refined: 21 September 2026 — personal reset-credit confirmation
 
 ## Product distinction
@@ -160,6 +163,44 @@ count.
 
 Representative prototype:
 [`confirmed-manual-reset-v1.png`](../concepts/confirmed-manual-reset-v1.png).
+
+## Independent reset information — approved option A, 23 September 2026
+
+The user approved `../concepts/reset-info-v2.md` option A for implementation.
+The corresponding amendment in `PRODUCT_SPEC.md` supersedes the original
+exclusive header, silent failure, unchanged height and deferred latest-event
+rules above. Public news has its own 68/102 pt footer, personal count remains
+independent, and visible-tooltip refresh reuses the existing lifecycle.
+
+Implementation acceptance checklist:
+
+- [x] Personal positive/zero/unknown count remains independent, including opt-out.
+- [x] Loading, empty success and failure have distinct RU/EN text and source label.
+- [x] Scheduled plus recent latest coexist; IDs deduplicate; latest expires at 24h.
+- [x] Watch expiry and passed scheduled times never imply completed/personal reset.
+- [x] Opt-in, cancellation, minimum 60s and cache/304/retry tests pass; visible-only
+      refresh and cancellation-on-hide traced in the controller (not live-tested).
+- [x] Smooth/Pixel S/M/L, history and placement use the additive footer geometry.
+- [x] Exact-count accessibility strings and long localized text retain meaning.
+- [x] App and tests compile; 25 focused non-GUI checks and later all 125 hosted
+      XCTest cases pass for local 0.13.0 (28).
+- [x] After separate approval, local app launched; widget/context-menu interaction,
+      Codex connection, quota updates and personal/public accessibility data checked.
+- [ ] Spoken VoiceOver and complete multi-display hover interaction unverified.
+
+No network-setting change, application launch/replacement or release is included.
+
+Verification evidence: `../../build/reset-info-v2-qa/` contains the reproducible
+headless runner, exact test selectors/logs, native offscreen renders and build
+logs. The actual SwiftUI pixel-overflow test replaces the initially insufficient
+font-metrics check. Final EN Pixel S past-scheduled + recent-banked render fits
+inside the approved panel after using the existing compact Pixel text size;
+Smooth retains the approved 12 pt event text.
+
+The menu provider link was initially absent in unrelated local changes. With the
+later local-preparation approval it was restored, including RU/EN assertions.
+The original implementation scope above was extended to local launch and
+recoverable cleanup only, not publication. See `../../build/local-v0.13.0/audit/`.
 
 The consolidated freeze is recorded in `PRODUCT_SPEC.md`. The original
 reset-watch implementation matches its separately authorized first-slice

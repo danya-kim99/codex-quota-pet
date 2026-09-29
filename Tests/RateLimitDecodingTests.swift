@@ -1,6 +1,7 @@
 import AppKit
 import ImageIO
 import ServiceManagement
+import SwiftUI
 import XCTest
 @testable import Black_Hole_Codex_Quota_Indicator
 
@@ -132,10 +133,11 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(
             result,
             .updated(
-                signal: .scheduled(
+                signals: [.scheduled(
                     resetType: .regular,
-                    scheduledFor: ISO8601DateFormatter().date(from: "2026-09-16T18:00:00Z")
-                ),
+                    scheduledFor: ISO8601DateFormatter().date(from: "2026-09-16T18:00:00Z"),
+                    id: "s1"
+                ), .watch(chancePercent: 60, expiresAt: ISO8601DateFormatter().date(from: "2026-09-17T08:00:00Z")!)],
                 eTag: "\"status-1\"",
                 maxAge: 120
             )
@@ -186,7 +188,7 @@ final class RateLimitDecodingTests: XCTestCase {
         let notModified = try await CodexResetRadar {
             try await notModifiedRecorder.send($0)
         }.fetch(eTag: "\"status-1\"")
-        XCTAssertEqual(notModified, .notModified(maxAge: CodexResetRadar.maximumFreshness))
+        XCTAssertEqual(notModified, .notModified(maxAge: 99999))
         let conditionalRequests = await notModifiedRecorder.requests
         XCTAssertEqual(
             conditionalRequests.first?.value(forHTTPHeaderField: "If-None-Match"),
@@ -265,7 +267,8 @@ final class RateLimitDecodingTests: XCTestCase {
                 Self.radarResponse(headers: ["Content-Type": "application/json"])
             )
         }
-        guard case let .updated(signal?, _, _) = try await radar.fetch(eTag: nil) else {
+        guard case let .updated(signals, _, _) = try await radar.fetch(eTag: nil),
+              let signal = signals.first else {
             return XCTFail("Expected watch signal")
         }
         XCTAssertNotNil(signal.valid(at: Date(timeIntervalSince1970: 1_789_549_199)))
@@ -903,6 +906,7 @@ final class RateLimitDecodingTests: XCTestCase {
             "absorption.category.animals": ("Animals", "Зверюшки"),
             "absorption.category.characters": ("Characters", "Персонажи"),
             "menu.tooltip_style": ("Tooltip Style", "Стиль подсказки"),
+            "menu.codex_reset_forecast.provider": ("Data by Codex Resets ↗", "Данные: Codex Resets ↗"),
             "tooltip_style.smooth": ("Smooth", "Обычный"),
             "tooltip_style.pixel": ("Pixel", "Стилизованный"),
             "menu.hide_full_screen": ("Hide in Full Screen", "Скрывать в полноэкранном режиме"),
@@ -1039,7 +1043,7 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     @MainActor
-    func testTooltipDaySegmentsComeFromQuotaWindow() throws {
+    func testTooltipDaySegmentsComeFromQuotaWindow() {
         let now = Date(timeIntervalSince1970: 1_000_000)
         let resetDate = now.addingTimeInterval(5 * 86_400 + 23 * 3_600)
 
@@ -1064,30 +1068,6 @@ final class RateLimitDecodingTests: XCTestCase {
                 now: now,
                 windowDurationMinutes: nil
             )
-        )
-
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        XCTAssertTrue(
-            QuotaTooltipView.localizedDayCount(
-                1,
-                locale: Locale(identifier: "ru_RU"),
-                calendar: calendar
-            ).contains("день")
-        )
-        XCTAssertTrue(
-            QuotaTooltipView.localizedDayCount(
-                2,
-                locale: Locale(identifier: "ru_RU"),
-                calendar: calendar
-            ).contains("дня")
-        )
-        XCTAssertTrue(
-            QuotaTooltipView.localizedDayCount(
-                5,
-                locale: Locale(identifier: "ru_RU"),
-                calendar: calendar
-            ).contains("дней")
         )
     }
 
@@ -1172,7 +1152,8 @@ final class RateLimitDecodingTests: XCTestCase {
                 ),
                 now: now
             ),
-            60
+            8.05,
+            accuracy: 0.001
         )
         XCTAssertEqual(
             QuotaTooltipView.resetCountdownUpdateDelay(
@@ -2003,7 +1984,7 @@ final class RateLimitDecodingTests: XCTestCase {
         )
 
         appState.setTooltipStyle(.pixel)
-        controller.updateTooltipStyle()
+        controller.updateTooltipLayout()
 
         XCTAssertTrue(controller.isTooltipVisible)
         XCTAssertTrue(controller.isTooltipPresentationActive)
@@ -2035,7 +2016,7 @@ final class RateLimitDecodingTests: XCTestCase {
 
         XCTAssertEqual(controller.tooltipAnimationBehavior, .default)
         appState.setTooltipStyle(.pixel)
-        controller.updateTooltipStyle()
+        controller.updateTooltipLayout()
         XCTAssertEqual(controller.tooltipAnimationBehavior, NSWindow.AnimationBehavior.none)
         controller.hide()
     }
@@ -2173,16 +2154,17 @@ final class RateLimitDecodingTests: XCTestCase {
             chancePercent: 60,
             expiresAt: Date().addingTimeInterval(5)
         )
-        controller.codexResetSignalDidChange(from: nil, to: signal)
+        let state = CodexResetSourceState.available(signals: [signal], checkedAt: Date())
+        controller.codexResetSourceStateDidChange(from: .disabled, to: state)
 
         XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
         XCTAssertTrue(controller.isResetCountdownUpdateActive)
 
-        controller.codexResetSignalDidChange(from: signal, to: signal)
+        controller.codexResetSourceStateDidChange(from: state, to: state)
         XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
 
         controller.setTooltipVisible(false)
-        controller.codexResetSignalDidChange(from: signal, to: nil)
+        controller.codexResetSourceStateDidChange(from: state, to: .disabled)
         XCTAssertEqual(controller.resetCountdownRevision, initialRevision + 1)
         controller.hide()
     }
@@ -2827,8 +2809,11 @@ final class RateLimitDecodingTests: XCTestCase {
             root.appendingPathComponent($0).path
         }
         let bundled = app.appendingPathComponent("Contents/Resources/codex")
+        let nested = app.appendingPathComponent(
+            "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+        )
         let local = home.appendingPathComponent(".local/bin/codex")
-        let candidates = [bundled] + standardDirectories.map {
+        let candidates = [bundled, nested] + standardDirectories.map {
             URL(fileURLWithPath: $0).appendingPathComponent("codex")
         } + [local] + pathDirectories.map {
             URL(fileURLWithPath: $0).appendingPathComponent("codex")
@@ -2859,25 +2844,30 @@ final class RateLimitDecodingTests: XCTestCase {
         }
         XCTAssertNil(discover(path))
 
+        try makeExecutable(nested)
+        XCTAssertEqual(discover("/usr/bin:/bin"), nested)
+
         try makeExecutable(local)
+        try fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: nested.path)
         XCTAssertEqual(discover("/usr/bin:/bin"), local)
         XCTAssertEqual(discover(nil), local)
         XCTAssertEqual(discover(""), local)
+        try fileManager.removeItem(at: nested)
         try fileManager.removeItem(at: local)
 
         // A searchable directory and a non-executable file must not mask a valid CLI.
         try fileManager.createDirectory(at: bundled, withIntermediateDirectories: true)
-        try makeExecutable(candidates[1])
-        try fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: candidates[1].path)
+        try makeExecutable(candidates[2])
+        try fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: candidates[2].path)
         try fileManager.createSymbolicLink(at: local, withDestinationURL: root.appendingPathComponent("missing"))
         let target = root.appendingPathComponent("target/codex")
         try makeExecutable(target)
-        try fileManager.createSymbolicLink(at: candidates[4], withDestinationURL: target)
+        try fileManager.createSymbolicLink(at: candidates[5], withDestinationURL: target)
         let relative = String(repeating: "../", count: fileManager.currentDirectoryPath.split(separator: "/").count)
             + target.deletingLastPathComponent().path.dropFirst()
         XCTAssertTrue(fileManager.isExecutableFile(atPath: relative + "/codex"))
         XCTAssertNil(discover(":" + relative + ":.:~/.local/bin:"))
-        XCTAssertEqual(discover(":" + relative + ":" + path + ":"), candidates[4])
+        XCTAssertEqual(discover(":" + relative + ":" + path + ":"), candidates[5])
 
         try fileManager.removeItem(at: target)
         XCTAssertNil(discover(path))
@@ -2921,10 +2911,10 @@ final class RateLimitDecodingTests: XCTestCase {
         appState.setShowsCodexResetForecast(false)
         await probe.succeed(
             .updated(
-                signal: .watch(
+                signals: [.watch(
                     chancePercent: 60,
                     expiresAt: Date(timeIntervalSinceNow: 3_600)
-                ),
+                )],
                 eTag: "\"late\"",
                 maxAge: 60
             )
@@ -2952,10 +2942,10 @@ final class RateLimitDecodingTests: XCTestCase {
             expiresAt: now.addingTimeInterval(3_600)
         )
         let probe = ScriptedResetFetch(steps: [
-            .success(.updated(signal: signal, eTag: "\"one\"", maxAge: 60)),
+            .success(.updated(signals: [signal], eTag: "\"one\"", maxAge: 60)),
             .failure,
-            .success(.updated(signal: signal, eTag: "\"two\"", maxAge: 60)),
-            .success(.updated(signal: signal, eTag: "\"two\"", maxAge: 60))
+            .success(.updated(signals: [signal], eTag: "\"two\"", maxAge: 60)),
+            .success(.updated(signals: [signal], eTag: "\"two\"", maxAge: 60))
         ])
         let server = FakeAppServer()
         let appState = AppState(
@@ -3004,6 +2994,9 @@ final class RateLimitDecodingTests: XCTestCase {
 
         appState.beginTermination()
         appState.cancelTermination()
+        XCTAssertNil(appState.codexResetSignal)
+        now.addTimeInterval(60)
+        appState.refreshCodexResetForecastIfStale()
         for _ in 0..<100 {
             if await probe.callCount >= 4 { break }
             await Task.yield()
@@ -3014,279 +3007,284 @@ final class RateLimitDecodingTests: XCTestCase {
         appState.stop()
     }
 
-    func testResetWatchHeadersCoverEnglishRussianStatesAndAccessibilityOrder() throws {
-        let appBundle = Bundle(for: AppDelegate.self)
-        let english = try XCTUnwrap(
-            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        let russian = try XCTUnwrap(
-            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let now = try XCTUnwrap(
-            ISO8601DateFormatter().date(from: "2026-09-16T12:00:00Z")
-        )
-        let future = try XCTUnwrap(
-            ISO8601DateFormatter().date(from: "2026-09-16T18:00:00Z")
-        )
-        let expiry = now.addingTimeInterval(3_600)
-        let cases: [(CodexResetSignal, String, String)] = [
-            (.watch(chancePercent: 60, expiresAt: expiry), "RESET? ≈60%", "СБРОС? ≈60%"),
-            (.watch(chancePercent: nil, expiresAt: expiry), "RESET WATCH", "ЕСТЬ СИГНАЛ"),
-            (.scheduled(resetType: .regular, scheduledFor: nil), "RESET ANNOUNCED", "СБРОС ОБЪЯВЛЕН"),
-            (.scheduled(resetType: .regular, scheduledFor: now), "AWAITING CONF.", "ЖДЁМ ПОДТВ."),
-            (
-                .scheduled(resetType: .banked, scheduledFor: future),
-                "ANNOUNCED · UNKNOWN",
-                "АНОНС · НЕИЗВЕСТНО"
-            )
-        ]
-
-        for (signal, englishText, russianText) in cases {
-            let en = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-                signal: signal, now: now, locale: Locale(identifier: "en_US"),
-                calendar: calendar, bundle: english
-            ))
-            let ru = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-                signal: signal, now: now, locale: Locale(identifier: "ru_RU"),
-                calendar: calendar, bundle: russian
-            ))
-            XCTAssertEqual(en.text, englishText)
-            XCTAssertEqual(ru.text, russianText)
-            XCTAssertTrue(en.accessibilityText.contains("codex-resets.com"))
-            XCTAssertTrue(ru.accessibilityText.contains("codex-resets.com"))
+    func testResetInformationKeepsPersonalAndPublicStatesIndependent() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let scheduled = CodexResetSignal.scheduled(resetType: .regular, scheduledFor: now.addingTimeInterval(3_600), id: "next")
+        let latest = CodexResetSignal.completed(resetType: .banked, announcedAt: now.addingTimeInterval(-600), id: "last")
+        for (language, locale) in [("en", "en_US"), ("ru", "ru_RU")] {
+            let bundle = try XCTUnwrap(Bundle(for: AppDelegate.self).path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:)))
+            func content(_ count: Int?, _ state: CodexResetSourceState, connected: Bool = true) -> QuotaTooltipContent {
+                QuotaTooltipContent(
+                    remainingPercent: 73, speedMode: .turbo,
+                    connectionState: connected ? .connected : .reconnecting,
+                    resetDate: now.addingTimeInterval(3_600), windowDurationMinutes: nil,
+                    now: now, locale: Locale(identifier: locale), calendar: .current,
+                    codexResetSourceState: state, resetCreditsAvailableCount: count, bundle: bundle
+                )
+            }
+            let cases: [(Int?, String, String)] = [
+                (1, "Manual reset: 1", "Ручной сброс: 1"),
+                (3, "Manual resets: 3", "Ручных сбросов: 3"),
+                (99, "Manual resets: 99", "Ручных сбросов: 99"),
+                (100, "Manual resets: 99+", "Ручных сбросов: 99+"),
+                (.max, "Manual resets: 99+", "Ручных сбросов: 99+"),
+                (0, "No manual resets", "Ручных сбросов нет"),
+                (nil, "Reset count unavailable", "Нет данных о сбросах"),
+                (-1, "Reset count unavailable", "Нет данных о сбросах")
+            ]
+            for (count, english, russian) in cases {
+                for state: CodexResetSourceState in [.disabled, .loading, .unavailable, .available(signals: [scheduled, latest], checkedAt: now)] {
+                    let value = content(count, state)
+                    XCTAssertEqual(value.personalResetHeader?.text, language == "en" ? english : russian)
+                    XCTAssertEqual(value.resetAnnouncementCount, state == .disabled ? 0 : state.signals(at: now).isEmpty ? 1 : 2)
+                    if let count, count > 1 {
+                        XCTAssertTrue(value.personalResetHeader!.accessibilityText.contains(String(count)))
+                    }
+                }
+            }
+            let combined = content(3, .available(signals: [scheduled, latest], checkedAt: now))
+            XCTAssertEqual(combined.resetAnnouncements.count, 2)
+            XCTAssertEqual(combined.resetFooterHeight, 102)
+            let summary = combined.accessibilitySummary
+            let quota = try XCTUnwrap(summary.range(of: "73%"))
+            let personal = try XCTUnwrap(summary.range(of: combined.personalResetHeader!.accessibilityText))
+            let external = try XCTUnwrap(summary.range(of: "codex-resets.com"))
+            XCTAssertLessThan(quota.lowerBound, personal.lowerBound)
+            XCTAssertLessThan(personal.lowerBound, external.lowerBound)
+            let disconnected = content(3, .available(signals: [scheduled], checkedAt: now), connected: false)
+            XCTAssertEqual(disconnected.personalResetHeader?.text, language == "en" ? "Reset count unavailable" : "Нет данных о сбросах")
+            XCTAssertEqual(disconnected.resetAnnouncements.count, 1)
         }
-
-        let scheduledEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: .scheduled(resetType: .regular, scheduledFor: future),
-            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
-            bundle: english
-        ))
-        let scheduledRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: .scheduled(resetType: .regular, scheduledFor: future),
-            now: now, locale: Locale(identifier: "ru_RU"), calendar: calendar,
-            bundle: russian
-        ))
-        XCTAssertTrue(scheduledEN.text.hasPrefix("RESET · "))
-        XCTAssertEqual(scheduledRU.text, "СБРОС · 18:00")
-
-        let content = QuotaTooltipContent(
-            remainingPercent: 73, speedMode: .standard, connectionState: .connected,
-            resetDate: future, windowDurationMinutes: nil, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar,
-            codexResetSignal: .watch(chancePercent: 60, expiresAt: expiry),
-            bundle: english
-        )
-        let accessibilitySummary = content.accessibilitySummary
-        let personalRange = try XCTUnwrap(accessibilitySummary.range(of: "73%"))
-        let externalRange = try XCTUnwrap(
-            accessibilitySummary.range(of: "codex-resets.com")
-        )
-        XCTAssertLessThan(personalRange.lowerBound, externalRange.lowerBound)
-        XCTAssertTrue(accessibilitySummary.contains(". Third-party forecast"))
-        XCTAssertNil(QuotaTooltipContent.resetWatchHeader(
-            signal: .watch(chancePercent: 60, expiresAt: now),
-            now: now, locale: .current, calendar: calendar, bundle: english
-        ))
     }
 
-    func testPersonalResetCreditHeadersOverrideExternalSignalsInEnglishAndRussian() throws {
-        let appBundle = Bundle(for: AppDelegate.self)
-        let english = try XCTUnwrap(
-            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        let russian = try XCTUnwrap(
-            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
+    func testResetAnnouncementStateCopyAndRelativeDates() throws {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let watch = CodexResetSignal.watch(
-            chancePercent: 60,
-            expiresAt: now.addingTimeInterval(3_600)
-        )
-        let banked = CodexResetSignal.scheduled(
-            resetType: .banked,
-            scheduledFor: nil
-        )
-
-        let oneEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: watch, resetCreditsAvailableCount: 1, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        let oneRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: nil, resetCreditsAvailableCount: 1, now: now,
-            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-        ))
-        XCTAssertEqual(oneEN.text, "MANUAL RESET: 1")
-        XCTAssertEqual(oneRU.text, "РУЧНОЙ СБРОС: 1")
-        XCTAssertEqual(
-            oneRU.accessibilityText,
-            "В этом аккаунте доступен один ручной сброс квоты Codex. Возможность применить его сейчас не подтверждена."
-        )
-        XCTAssertEqual(oneEN.tone, .scheduled)
-        XCTAssertFalse(oneEN.accessibilityText.contains("codex-resets.com"))
-
-        let manyEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: banked, resetCreditsAvailableCount: 3, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        let manyRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: watch, resetCreditsAvailableCount: 3, now: now,
-            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-        ))
-        XCTAssertEqual(manyEN.text, "MANUAL RESETS: 3")
-        XCTAssertEqual(manyRU.text, "РУЧНЫХ СБРОСОВ: 3")
-        XCTAssertEqual(
-            manyRU.accessibilityText,
-            "Доступные ручные сбросы квоты Codex в этом аккаунте: 3. Возможность применить их сейчас не подтверждена."
-        )
-        XCTAssertEqual(manyEN.tone, .scheduled)
-
-        let noneEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: banked, resetCreditsAvailableCount: 0, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        let noneRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: banked, resetCreditsAvailableCount: 0, now: now,
-            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-        ))
-        XCTAssertEqual(noneEN.text, "ANNOUNCED · NO RESET")
-        XCTAssertEqual(noneRU.text, "АНОНС · СБРОСА НЕТ")
-        XCTAssertEqual(
-            noneRU.accessibilityText,
-            "Codex Resets, codex-resets.com, сообщил о ручном сбросе. В этом аккаунте доступных ручных сбросов сейчас нет."
-        )
-        XCTAssertEqual(noneEN.tone, .watch)
-        XCTAssertTrue(noneEN.accessibilityText.contains("codex-resets.com"))
-        XCTAssertTrue(noneRU.accessibilityText.contains("codex-resets.com"))
-
-        let unknownEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: banked, resetCreditsAvailableCount: nil, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        let unknownRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: banked, resetCreditsAvailableCount: nil, now: now,
-            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-        ))
-        XCTAssertEqual(unknownEN.text, "ANNOUNCED · UNKNOWN")
-        XCTAssertEqual(unknownRU.text, "АНОНС · НЕИЗВЕСТНО")
-        XCTAssertEqual(
-            unknownRU.accessibilityText,
-            "Codex Resets, codex-resets.com, сообщил о ручном сбросе. Доступность для этого аккаунта неизвестна."
-        )
-        XCTAssertEqual(unknownEN.tone, .watch)
-        XCTAssertTrue(unknownEN.accessibilityText.contains("unknown"))
-
-        let watchWithZero = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: watch, resetCreditsAvailableCount: 0, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        XCTAssertEqual(watchWithZero.text, "RESET? ≈60%")
-        XCTAssertNil(QuotaTooltipContent.resetWatchHeader(
-            signal: nil, resetCreditsAvailableCount: 0, now: now,
-            locale: .current, calendar: calendar, bundle: english
-        ))
-    }
-
-    func testPersonalResetCreditHighCountsCapOnlyVisibleText() throws {
-        let appBundle = Bundle(for: AppDelegate.self)
-        let english = try XCTUnwrap(
-            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        let russian = try XCTUnwrap(
-            appBundle.path(forResource: "ru", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let cases: [(count: Int, english: String, russian: String)] = [
-            (99, "MANUAL RESETS: 99", "РУЧНЫХ СБРОСОВ: 99"),
-            (100, "99+ RESETS", "99+ СБРОСОВ"),
-            (.max, "99+ RESETS", "99+ СБРОСОВ")
-        ]
-
-        for testCase in cases {
-            let en = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-                signal: nil, resetCreditsAvailableCount: testCase.count, now: now,
-                locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-            ))
-            let ru = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-                signal: nil, resetCreditsAvailableCount: testCase.count, now: now,
-                locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-            ))
-
-            XCTAssertEqual(en.text, testCase.english)
-            XCTAssertEqual(ru.text, testCase.russian)
-            XCTAssertEqual(en.tone, .scheduled)
-            XCTAssertEqual(ru.tone, .scheduled)
-            XCTAssertTrue(en.accessibilityText.contains(String(testCase.count)))
-            XCTAssertTrue(ru.accessibilityText.contains(String(testCase.count)))
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-09-23T10:00:00Z")!
+        for (language, locale) in [("en", "en_US"), ("ru", "ru_RU")] {
+            let bundle = try XCTUnwrap(Bundle(for: AppDelegate.self).path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:)))
+            func content(_ state: CodexResetSourceState) -> QuotaTooltipContent {
+                QuotaTooltipContent(
+                    remainingPercent: 73, speedMode: .standard, connectionState: .connected,
+                    resetDate: nil, windowDurationMinutes: nil, now: now,
+                    locale: Locale(identifier: locale), calendar: calendar,
+                    codexResetSourceState: state, resetCreditsAvailableCount: 0, bundle: bundle
+                )
+            }
+            let cases: [(CodexResetSourceState, String, String)] = [
+                (.loading, "Checking announcements…", "Проверяем объявления…"),
+                (.unavailable, "Announcements unavailable", "Объявления недоступны"),
+                (.available(signals: [], checkedAt: now), "No new announcements", "Новых объявлений нет"),
+                (.available(signals: [.watch(chancePercent: 60, expiresAt: now.addingTimeInterval(60))], checkedAt: now), "Possible reset · ≈60%", "Возможен сброс · ≈60%"),
+                (.available(signals: [.watch(chancePercent: nil, expiresAt: now.addingTimeInterval(60))], checkedAt: now), "Possible reset", "Возможен сброс"),
+                (.available(signals: [.scheduled(resetType: .regular, scheduledFor: nil)], checkedAt: now), "General reset announced", "Объявлен общий сброс"),
+                (.available(signals: [.scheduled(resetType: .regular, scheduledFor: now)], checkedAt: now), "Time passed; awaiting confirmation", "Время прошло; ждём подтверждения"),
+                (.available(signals: [.scheduled(resetType: .banked, scheduledFor: nil)], checkedAt: now), "Manual resets announced", "Объявлены ручные сбросы"),
+                (.available(signals: [.completed(resetType: .banked, announcedAt: now, id: "b")], checkedAt: now), "Manual reset credits reportedly issued", "Сообщают о выдаче ручных сбросов"),
+                (.available(signals: [.completed(resetType: .regular, announcedAt: now, id: "r")], checkedAt: now), "General reset reportedly completed", "Сообщают об общем сбросе")
+            ]
+            for (state, english, russian) in cases {
+                XCTAssertEqual(content(state).resetAnnouncements.first?.title, language == "en" ? english : russian)
+            }
+            XCTAssertTrue(content(.available(signals: [], checkedAt: now)).resetAnnouncements[0].detail.hasPrefix(language == "en" ? "Checked:" : "Проверено:"))
+            XCTAssertEqual(content(.unavailable).resetAnnouncements[0].detail, language == "en" ? "Could not refresh source" : "Не удалось обновить источник")
+            for (offset, english, russian) in [(3_600.0, "Today", "Сегодня"), (86_400.0, "Tomorrow", "Завтра")] {
+                let state = CodexResetSourceState.available(signals: [.scheduled(resetType: .regular, scheduledFor: now.addingTimeInterval(offset))], checkedAt: now)
+                XCTAssertTrue(content(state).resetAnnouncements[0].detail.hasPrefix(language == "en" ? english : russian))
+            }
+            XCTAssertEqual(content(.disabled).resetFooterHeight, 0)
+            XCTAssertEqual(content(.loading).resetFooterHeight, 68)
         }
-
-        let maximum = String(Int.max)
-        let maximumEN = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: nil, resetCreditsAvailableCount: .max, now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar, bundle: english
-        ))
-        let maximumRU = try XCTUnwrap(QuotaTooltipContent.resetWatchHeader(
-            signal: nil, resetCreditsAvailableCount: .max, now: now,
-            locale: Locale(identifier: "ru_RU"), calendar: calendar, bundle: russian
-        ))
-        XCTAssertEqual(
-            maximumEN.accessibilityText,
-            "The personal Codex account has \(maximum) earned manual reset credits. This does not confirm that they can be applied now."
-        )
-        XCTAssertEqual(
-            maximumRU.accessibilityText,
-            "Доступные ручные сбросы квоты Codex в этом аккаунте: \(maximum). Возможность применить их сейчас не подтверждена."
-        )
     }
 
-    func testPersonalResetCreditAccessibilityFollowsQuotaAndDisconnectsToUnknown() throws {
-        let appBundle = Bundle(for: AppDelegate.self)
-        let english = try XCTUnwrap(
-            appBundle.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
-        )
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let banked = CodexResetSignal.scheduled(
-            resetType: .banked,
-            scheduledFor: nil
-        )
-        let connected = QuotaTooltipContent(
-            remainingPercent: 73, speedMode: .turbo, connectionState: .connected,
-            resetDate: now.addingTimeInterval(3_600), windowDurationMinutes: nil,
-            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
-            codexResetSignal: banked, resetCreditsAvailableCount: 2, bundle: english
-        )
-        let quotaRange = try XCTUnwrap(connected.accessibilitySummary.range(of: "73%"))
-        let creditRange = try XCTUnwrap(
-            connected.accessibilitySummary.range(of: "2 earned manual reset credits")
-        )
-        XCTAssertLessThan(quotaRange.lowerBound, creditRange.lowerBound)
-        XCTAssertTrue(connected.accessibilitySummary.contains(". The personal Codex account"))
+    func testResetEventsDeduplicateAndExpireFromAnnouncementTime() async throws {
+        let now = ISO8601DateFormatter().date(from: "2026-09-23T12:00:00Z")!
+        let latest = #"{"id":"done","reset_type":"banked","announced_at":"2026-09-23T11:00:00Z","text":"Issued","source":{"type":"observed"}}"#
+        let scheduled = #"{"id":"next","status":"scheduled","reset_type":"regular","announced_at":"2026-09-23T10:00:00Z","scheduled_for":null,"text":"Soon","source":{"type":"observed"}}"#
+        let result = try await CodexResetRadar { _ in
+            (Self.resetStatusJSON(latest: latest, scheduled: scheduled), Self.radarResponse(headers: ["Content-Type": "application/json"]))
+        }.fetch(eTag: nil)
+        guard case let .updated(signals, _, _) = result else { return XCTFail("Expected events") }
+        XCTAssertEqual(CodexResetSignal.visible(signals, at: now).count, 2)
+        let completed = CodexResetSignal.completed(resetType: .banked, announcedAt: now, id: "same")
+        let duplicate = CodexResetSignal.scheduled(resetType: .banked, scheduledFor: now, id: "same")
+        let watch = CodexResetSignal.watch(chancePercent: 50, expiresAt: now.addingTimeInterval(30))
+        XCTAssertEqual(CodexResetSignal.visible([duplicate, completed, watch], at: now), [completed])
+        XCTAssertEqual(CodexResetSignal.visible([watch, completed], at: now), [watch, completed])
+        XCTAssertEqual(CodexResetSignal.visible([watch, completed], at: now.addingTimeInterval(30)), [completed])
+        XCTAssertEqual(CodexResetSignal.visible([completed], at: now.addingTimeInterval(86_399)).count, 1)
+        XCTAssertTrue(CodexResetSignal.visible([completed], at: now.addingTimeInterval(86_400)).isEmpty)
+        XCTAssertTrue(CodexResetSignal.visible([completed], at: now.addingTimeInterval(-1)).isEmpty)
+        XCTAssertEqual(QuotaTooltipView.resetCountdownUpdateDelay(resetDate: nil, codexResetSignals: [completed, watch], now: now), 30.05, accuracy: 0.001)
+    }
 
-        let reconnecting = QuotaTooltipContent(
-            remainingPercent: 73, speedMode: .turbo, connectionState: .reconnecting,
-            resetDate: now.addingTimeInterval(3_600), windowDurationMinutes: nil,
-            now: now, locale: Locale(identifier: "en_US"), calendar: calendar,
-            codexResetSignal: banked, resetCreditsAvailableCount: 2, bundle: english
-        )
-        XCTAssertEqual(reconnecting.resetWatchHeader?.text, "ANNOUNCED · UNKNOWN")
-        XCTAssertTrue(
-            reconnecting.accessibilitySummary.contains(
-                "Availability for the personal Codex account is unknown."
+    @MainActor
+    func testResetFooterSizesAndScreenEdgePlacement() {
+        for style: TooltipStyle in [.smooth, .pixel] {
+            for size: PetSize in [.small, .medium, .large] {
+                for history in [false, true] {
+                    let base = QuotaTooltipView.panelSize(for: size, style: style, showsHistory: history)
+                    for count in [0, 1, 2] {
+                        let expanded = QuotaTooltipView.panelSize(for: size, style: style, showsHistory: history, resetAnnouncementCount: count)
+                        XCTAssertEqual(expanded.width, base.width)
+                        XCTAssertEqual(expanded.height, base.height + QuotaTooltipContent.resetFooterHeight(itemCount: count) * (size == .medium ? 0.8 : 1), accuracy: 0.001)
+                        let screen = CGRect(x: -1440, y: 0, width: 1440, height: 900)
+                        for origin in [CGPoint(x: -1440, y: 0), CGPoint(x: -400, y: 0), CGPoint(x: -1440, y: 680), CGPoint(x: -400, y: 680)] {
+                            let layout = PetPanelController.tooltipLayout(petFrame: CGRect(origin: origin, size: size.sceneSize), visibleFrame: screen, tooltipStyle: style, showsHistory: history, resetAnnouncementCount: count)
+                            XCTAssertEqual(layout.size, expanded)
+                            XCTAssertTrue(screen.contains(CGRect(origin: layout.origin, size: layout.size)))
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertEqual(QuotaTooltipView.panelSize(for: .small, showsHistory: true, resetAnnouncementCount: 1), CGSize(width: 272, height: 226))
+        XCTAssertEqual(QuotaTooltipView.panelSize(for: .small, showsHistory: true, resetAnnouncementCount: 2), CGSize(width: 272, height: 260))
+    }
+
+    @MainActor
+    func testResetFooterWorstCaseLocalizedRowsFitReservedHeight() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for language in ["en", "ru"] {
+            let bundle = try XCTUnwrap(Bundle(for: AppDelegate.self).path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:)))
+            let completed = CodexResetSignal.completed(resetType: .banked, announcedAt: now, id: "issued")
+            for signals: [CodexResetSignal] in [[.scheduled(resetType: .regular, scheduledFor: now, id: "past"), completed], [completed]] {
+            let content = QuotaTooltipContent(
+                remainingPercent: 73, speedMode: .turbo, connectionState: .connected,
+                resetDate: nil, windowDurationMinutes: nil, now: now,
+                locale: Locale(identifier: language), calendar: .current,
+                codexResetSourceState: .available(signals: signals, checkedAt: now), resetCreditsAvailableCount: 3, bundle: bundle
             )
-        )
-        XCTAssertEqual(QuotaTooltipView.historySmallPanelSize, CGSize(width: 272, height: 158))
-        XCTAssertEqual(PixelQuotaTooltipView.smallPanelSize, CGSize(width: 304, height: 148))
-        XCTAssertEqual(
-            PixelQuotaTooltipView.smallHistoryPanelSize,
-            CGSize(width: 304, height: 174)
-        )
+            for pixel in [false, true] {
+                let renderer = ImageRenderer(content:
+                    ResetAnnouncementsFooter(content: content, pixel: pixel)
+                        .frame(width: pixel ? 280 : 248)
+                        .padding(.vertical, 20)
+                )
+                renderer.scale = 2
+                let bitmap = NSBitmapImageRep(cgImage: try XCTUnwrap(renderer.cgImage))
+                let safeBottom = Int((20 + content.resetFooterHeight - 2) * 2)
+                var overflow = false
+                for y in safeBottom..<bitmap.pixelsHigh {
+                    for x in 0..<bitmap.pixelsWide where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.02 {
+                        overflow = true
+                        break
+                    }
+                    if overflow { break }
+                }
+                XCTAssertFalse(overflow, "Actual SwiftUI footer crossed its bottom reserve: \(language), pixel=\(pixel)")
+            }
+            }
+        }
+    }
+
+    @MainActor
+    func testResetMinimumRefreshCacheAnd304PreserveHonestSourceState() async throws {
+        let suite = "ResetMinimumRefreshTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: AppConstants.showCodexResetForecastKey)
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let probe = ScriptedResetFetch(steps: [
+            .success(.updated(signals: [], eTag: "\"empty\"", maxAge: 0)),
+            .success(.notModified(maxAge: 7_200)),
+            .failure
+        ])
+        let appState = AppState(defaults: defaults, appServer: FakeAppServer(), now: { now }, historyStore: QuotaHistoryStore(fileURL: nil), absorptionCatalog: nil, fetchCodexResetStatus: { try await probe.fetch($0) })
+        appState.start()
+        await Self.waitUntil { if case .available = appState.codexResetSourceState { true } else { false } }
+        XCTAssertEqual(appState.codexResetSourceState, .available(signals: [], checkedAt: now))
+        now.addTimeInterval(59)
+        appState.refreshCodexResetForecastIfStale()
+        await Task.yield()
+        var calls = await probe.callCount
+        XCTAssertEqual(calls, 1)
+        now.addTimeInterval(1)
+        XCTAssertEqual(appState.codexResetSourceState, .unavailable)
+        appState.refreshCodexResetForecastIfStale()
+        await Self.waitUntil { if case .available = appState.codexResetSourceState { true } else { false } }
+        let tags = await probe.requestedETags
+        XCTAssertEqual(tags, [nil, "\"empty\""])
+        now.addTimeInterval(7_199)
+        appState.refreshCodexResetForecastIfStale()
+        await Task.yield()
+        calls = await probe.callCount
+        XCTAssertEqual(calls, 2)
+        now.addTimeInterval(1)
+        appState.refreshCodexResetForecastIfStale()
+        await Self.waitUntil { appState.codexResetSourceState == .unavailable }
+        XCTAssertEqual(appState.codexResetSourceState, .unavailable)
+        appState.stop()
+    }
+
+    func testResetHTTPFreshnessHonorsLongIntervalsDatesAndNonFiniteValues() async throws {
+        for (header, expected) in [("max-age=172800", 172800.0), ("no-cache, max-age=7200", 0.0), ("no-store", 0.0), ("max-age=inf", 300.0), ("max-age=nan", 300.0)] {
+            let result = try await CodexResetRadar { _ in
+                (Self.resetStatusJSON(), Self.radarResponse(headers: ["Content-Type": "application/json", "Cache-Control": header]))
+            }.fetch(eTag: nil)
+            XCTAssertEqual(result, .updated(signals: [], eTag: nil, maxAge: expected))
+        }
+        let retained = try await CodexResetRadar { _ in
+            (Data(), Self.radarResponse(status: 304))
+        }.fetch(eTag: "\"existing\"")
+        XCTAssertEqual(retained, .notModified(maxAge: nil))
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        let date = formatter.string(from: Date().addingTimeInterval(172_800))
+        for header in ["172800", date, "inf", "nan"] {
+            do {
+                _ = try await CodexResetRadar { _ in
+                    (Data(), Self.radarResponse(status: 429, headers: ["Retry-After": header]))
+                }.fetch(eTag: nil)
+                XCTFail("Expected retry delay")
+            } catch CodexResetRadar.FetchError.retryAfter(let delay) {
+                XCTAssertEqual(delay, header == "inf" || header == "nan" ? 300 : 172_800, accuracy: 3)
+            }
+        }
+    }
+
+    @MainActor
+    func testResetRetryAfterAndExpiredWatchDoNotBecomeFreshEmptyResults() async throws {
+        let suite = "ResetRetryTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: AppConstants.showCodexResetForecastKey)
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let original = now
+        let probe = DeferredResetFetch()
+        let appState = AppState(defaults: defaults, appServer: FakeAppServer(), now: { now }, historyStore: QuotaHistoryStore(fileURL: nil), absorptionCatalog: nil, fetchCodexResetStatus: { try await probe.fetch($0) })
+        appState.start()
+        for _ in 0..<100 { if await probe.callCount == 1 { break }; await Task.yield() }
+        await probe.succeed(.updated(signals: [.watch(chancePercent: 50, expiresAt: original.addingTimeInterval(10))], eTag: nil, maxAge: 300))
+        await Self.waitUntil { appState.codexResetSignal != nil }
+        now.addTimeInterval(10)
+        XCTAssertEqual(appState.codexResetSourceState, .unavailable)
+        appState.refreshCodexResetForecastIfStale()
+        await Task.yield()
+        var calls = await probe.callCount
+        XCTAssertEqual(calls, 1)
+        now.addTimeInterval(290)
+        appState.refreshCodexResetForecastIfStale()
+        for _ in 0..<100 { if await probe.callCount == 2 { break }; await Task.yield() }
+        await probe.fail(CodexResetRadar.FetchError.retryAfter(7_200))
+        await Self.waitUntil { appState.codexResetSourceState == .unavailable }
+        now.addTimeInterval(7_199)
+        appState.refreshCodexResetForecastIfStale()
+        await Task.yield()
+        calls = await probe.callCount
+        XCTAssertEqual(calls, 2)
+        now.addTimeInterval(1)
+        appState.refreshCodexResetForecastIfStale()
+        for _ in 0..<100 { if await probe.callCount == 3 { break }; await Task.yield() }
+        calls = await probe.callCount
+        XCTAssertEqual(calls, 3)
+        appState.setShowsCodexResetForecast(false)
+        await probe.succeed(.updated(signals: [], eTag: nil, maxAge: 60))
+        await Task.yield()
+        XCTAssertEqual(appState.codexResetSourceState, .disabled)
+        appState.stop()
     }
 
     private static func snapshot(
@@ -3307,6 +3305,7 @@ final class RateLimitDecodingTests: XCTestCase {
     }
 
     private static func resetStatusJSON(
+        latest: String = "null",
         scheduled: String = "null",
         watch: String = "null",
         apiVersion: String = "v1"
@@ -3314,7 +3313,7 @@ final class RateLimitDecodingTests: XCTestCase {
         Data(#"""
         {
           "data": {
-            "latest_reset": null,
+            "latest_reset": \#(latest),
             "scheduled_reset": \#(scheduled),
             "active_watch": \#(watch),
             "stats": {
@@ -4139,10 +4138,6 @@ final class PositionLockClickThroughTests: XCTestCase {
                 "Pass Pointer Input Through",
                 "Пропускать ввод указателя"
             ),
-            "menu.codex_reset_forecast.provider": (
-                "Data by Codex Resets ↗",
-                "Данные: Codex Resets ↗"
-            ),
             "accessibility.toggle.on": ("On", "Включено"),
             "accessibility.toggle.off": ("Off", "Выключено")
         ]
@@ -4199,6 +4194,11 @@ private actor DeferredResetFetch {
     func succeed(_ result: CodexResetRadar.FetchResult) {
         guard !continuations.isEmpty else { return }
         continuations.removeFirst().resume(returning: result)
+    }
+
+    func fail(_ error: Error) {
+        guard !continuations.isEmpty else { return }
+        continuations.removeFirst().resume(throwing: error)
     }
 }
 

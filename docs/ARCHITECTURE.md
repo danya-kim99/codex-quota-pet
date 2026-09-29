@@ -17,16 +17,22 @@
 `AppState` is the SwiftUI source of truth. The AppKit panel receives state but
 does not own product data.
 
-The optional Codex reset watch is a separate, fail-closed path:
-`codex-resets.com -> CodexResetRadar -> AppState -> tooltip header`. It never
+The optional Codex reset watch is a separate path with an explicit failure state:
+`codex-resets.com -> CodexResetRadar -> AppState -> tooltip announcements footer`. It never
 feeds the Codex App Server connection, personal quota, reset timestamp, local
 history, retry state, or menu-bar status. `CodexResetRadar` uses one fixed
 unauthenticated HTTPS GET, a 10-second timeout, a bounded response body, strict
 schema and endpoint validation, and native `URLSession` with cookies and its
 cache disabled. `AppState` owns opt-in, ETag/freshness metadata, request
 coalescing, cancellation and generation guards. Start, enable, wake and a real
-hidden-to-visible tooltip transition share the same stale gate; there is no
-polling timer or persisted response.
+hidden-to-visible tooltip transition and the existing visible-tooltip countdown
+lifecycle share the same stale gate (minimum 60 seconds and longer cache/retry
+intervals). There is no separate background polling timer or persisted response.
+The validated response retains scheduled, latest and watch data separately;
+shared presentation deduplicates event IDs and expires latest events after 24
+hours from their announcement, never from their fetch. A stale/failed source is
+unavailable, distinct from a successful empty response. The footer adds 68 or
+102 pt before the existing M scaling, and panel geometry uses the same state.
 
 The existing `account/rateLimits/read` response also supplies the personal,
 account-level reset-credit confirmation. The decoder tolerantly accepts only a
@@ -34,9 +40,9 @@ nonnegative `rateLimitResetCredits.availableCount`; malformed or missing credit
 metadata becomes unknown without rejecting the quota snapshot. `AppState` keeps
 the count only in memory while the matching App Server connection is current,
 outside `QuotaSnapshot`, quota history, and preferences. Shared
-`QuotaTooltipContent` gives a positive personal count priority over external
-signals and otherwise distinguishes a banked third-party announcement from a
-confirmed zero or unknown personal count. This path adds no request, timer,
+`QuotaTooltipContent` always presents the personal count independently of the
+external footer and distinguishes confirmed zero from unknown. Public news
+never proves personal availability. This path adds no request, timer,
 persistence, authentication flow, or consume operation.
 
 ## Modules

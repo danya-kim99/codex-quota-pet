@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="880" viewBox="0 0 1460 880">
+  <title>Два концепта независимого показа личных сбросов и объявлений Codex Resets</title>
+  <desc>Демонстрационные данные. A: узкая карточка с объявлениями внизу. B: широкая карточка с объявлением вверху. В обоих вариантах 56 процентов квоты и три личных ручных сброса.</desc>
+  <defs>
+    <radialGradient id="backdrop" cx="15%" cy="0%" r="85%">
+      <stop stop-color="#231c12"/><stop offset="1" stop-color="#090a0d"/>
+    </radialGradient>
+    <style>
+      text { font-family: "SF Pro Display", "SF Pro", -apple-system, Helvetica, Arial, sans-serif; fill: #f5f5f7; }
+      .muted { fill: #a4a5ad; } .gold { fill: #ffc24f; } .orange { fill: #ff9c69; }
+      .line { stroke: #3a3b41; stroke-width: .65; }
+      .label { font-size: 15px; font-weight: 600; letter-spacing: 1px; fill: #a4a5ad; }
+    </style>
+    <g id="ring">
+      <circle r="31" fill="none" stroke="#33343a" stroke-width="8"/>
+      <circle r="31" fill="none" stroke="#ffc24f" stroke-width="8" stroke-linecap="round" stroke-dasharray="109.08 194.78" transform="rotate(-90)"/>
+      <text x="0" y="6.5" font-size="19" font-weight="650" text-anchor="middle">56%</text>
+    </g>
+    <g id="personal">
+      <text x="0" y="0" font-size="12.3" font-weight="600" class="gold">Ручных сбросов: 3</text>
+      <rect x="0" y="10" width="45" height="16" rx="8" fill="#26201b" stroke="#ff8247" stroke-width=".7"/>
+      <text x="22.5" y="21.4" text-anchor="middle" font-size="9.3" fill="#ff8247">Турбо</text>
+      <line x1="0" y1="36" x2="138" y2="36" class="line"/>
+      <circle cx="4" cy="50" r="3.3" fill="none" stroke="#a4a5ad" stroke-width=".8"/>
+      <path d="M4 47.5v3l2 1" fill="none" stroke="#a4a5ad" stroke-width=".8"/>
+      <text x="12" y="53.2" font-size="10">Сброс лимита: 4 дн.</text>
+      <rect x="1" y="64" width="6" height="5.7" rx=".8" fill="none" stroke="#a4a5ad" stroke-width=".8"/>
+      <path d="M2.5 62.5v3 M5.5 62.5v3" stroke="#a4a5ad" stroke-width=".8"/>
+      <text x="12" y="70" font-size="9.5" class="muted">27 сент., 11:06</text>
+      <line x1="0" y1="80" x2="138" y2="80" class="line"/>
+      <text x="0" y="93.5" font-size="9.1" class="muted">Сейчас 56% · раньше 62%</text>
+      <text x="0" y="108" font-size="10" font-weight="550" class="gold">−6 п.п. за 2 ч</text>
+    </g>
+    <g id="announcement">
+      <text x="0" y="0" font-size="9" font-weight="550" class="muted" letter-spacing=".2">ОБЪЯВЛЕНИЯ · CODEX RESETS</text>
+      <text x="0" y="20" font-size="12" font-weight="600" class="orange">Объявлены ручные сбросы</text>
+      <text x="0" y="36" font-size="9.5" class="muted">Сегодня, 09:59 · публичный анонс</text>
+    </g>
+  </defs>
+
+  <rect width="1460" height="880" fill="url(#backdrop)"/>
+  <text x="64" y="62" class="label">BLACK HOLE · КОНЦЕПТЫ</text>
+  <text x="64" y="112" font-size="38" font-weight="650">Личные сбросы и объявления</text>
+  <text x="64" y="150" font-size="18" class="muted">Два источника видны одновременно. Числа и даты — примеры, не текущий статус.</text>
+
+  <text x="64" y="216" font-size="26" font-weight="600">A · Объявления снизу</text>
+  <rect x="391" y="191" width="164" height="31" rx="15.5" fill="#302817" stroke="#6c5529"/>
+  <text x="473" y="212" text-anchor="middle" font-size="14" font-weight="550" class="gold">Рекомендую</text>
+  <text x="684" y="216" font-size="26" font-weight="600">B · Объявление первым</text>
+  <text x="64" y="245" font-size="16" class="muted">Прежняя ширина, отдельный блок источника</text>
+  <text x="684" y="245" font-size="16" class="muted">Больше внимания новости, больше ширина</text>
+
+  <!-- Same 2.2× scale, actual card dimensions in logical points. -->
+  <g transform="translate(76 278) scale(2.2)">
+    <rect x="0" y="5" width="248" height="206" rx="18" fill="#000" opacity=".28"/>
+    <rect width="248" height="206" rx="18" fill="#111215" stroke="#48494f" stroke-width=".9"/>
+    <use href="#ring" x="49" y="71"/>
+    <use href="#personal" x="96" y="23"/>
+    <line x1="14" y1="138" x2="234" y2="138" class="line"/>
+    <use href="#announcement" x="14" y="157"/>
+    <path d="M116 206l8 8 8-8" fill="#111215" stroke="#48494f" stroke-width=".8"/>
+    <path d="M116 206h16" stroke="#111215" stroke-width="1.6"/>
+  </g>
+  <g transform="translate(684 278) scale(2.2)">
+    <rect x="0" y="5" width="320" height="206" rx="18" fill="#000" opacity=".28"/>
+    <rect width="320" height="206" rx="18" fill="#111215" stroke="#48494f" stroke-width=".9"/>
+    <path d="M18 0h284a18 18 0 0 1 18 18v50H0V18A18 18 0 0 1 18 0" fill="#1c1714"/>
+    <use href="#announcement" x="14" y="20"/>
+    <line x1="14" y1="68" x2="306" y2="68" class="line"/>
+    <use href="#ring" x="57" y="139"/>
+    <use href="#personal" x="112" y="91"/>
+    <path d="M152 206l8 8 8-8" fill="#111215" stroke="#48494f" stroke-width=".8"/>
+    <path d="M152 206h16" stroke="#111215" stroke-width="1.6"/>
+  </g>
+
+  <text x="64" y="782" font-size="18" font-weight="550">Личное состояние — на первом месте.</text>
+  <text x="64" y="811" font-size="16" class="muted">Карточка 248 × 206 pt · высота +68 pt</text>
+  <text x="684" y="782" font-size="18" font-weight="550">Новость замечается раньше квоты.</text>
+  <text x="684" y="811" font-size="16" class="muted">Карточка 320 × 206 pt · ширина +72 pt</text>
+  <text x="64" y="854" font-size="13" class="muted">Smooth S · Турбо · история включена · одинаковый масштаб ×2,2 · прототип компоновки</text>
+</svg>

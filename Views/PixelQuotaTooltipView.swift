@@ -7,7 +7,6 @@ struct PixelQuotaTooltipView: View {
     nonisolated static let largeHistoryPanelSize = CGSize(width: 420, height: 290)
     nonisolated static let mediumCardSize = CGSize(width: 312, height: 144)
     nonisolated static let mediumPanelSize = CGSize(width: 336, height: 168)
-    nonisolated static let mediumHistoryCardSize = CGSize(width: 312, height: 208)
     nonisolated static let mediumHistoryPanelSize = CGSize(width: 336, height: 232)
     nonisolated static let smallCardSize = CGSize(width: 280, height: 128)
     nonisolated static let smallPanelSize = CGSize(width: 304, height: 148)
@@ -27,12 +26,13 @@ struct PixelQuotaTooltipView: View {
     private let orange = Color(red: 1, green: 0.34, blue: 0.16)
     private let purple = Color(red: 0.68, green: 0.27, blue: 0.94)
 
-    static func panelSize(for petSize: PetSize, showsHistory: Bool = false) -> CGSize {
-        switch petSize {
+    static func panelSize(for petSize: PetSize, showsHistory: Bool = false, resetAnnouncementCount: Int = 0) -> CGSize {
+        let base = switch petSize {
         case .large: showsHistory ? largeHistoryPanelSize : largePanelSize
         case .medium: showsHistory ? mediumHistoryPanelSize : mediumPanelSize
         case .small: showsHistory ? smallHistoryPanelSize : smallPanelSize
         }
+        return CGSize(width: base.width, height: base.height + QuotaTooltipContent.resetFooterHeight(itemCount: resetAnnouncementCount) * (petSize == .medium ? 0.8 : 1))
     }
 
     @ViewBuilder
@@ -46,7 +46,8 @@ struct PixelQuotaTooltipView: View {
                     width: Self.panelSize(for: petSize).width,
                     height: Self.panelSize(
                         for: petSize,
-                        showsHistory: content.showsQuotaDynamics
+                        showsHistory: content.showsQuotaDynamics,
+                        resetAnnouncementCount: content.resetAnnouncementCount
                     ).height
                 )
         }
@@ -54,15 +55,16 @@ struct PixelQuotaTooltipView: View {
 
     private var largeTooltip: some View {
         pixelCard(
-            size: content.showsQuotaDynamics
+            size: expanded(content.showsQuotaDynamics
                 ? Self.largeHistoryCardSize
-                : Self.largeCardSize
+                : Self.largeCardSize)
         ) {
+            VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 12) {
-                    Text(content.resetWatchHeader?.text ?? localized("pixel.quota.title"))
+                    Text(content.personalResetHeader?.text ?? localized("pixel.quota.title"))
                         .font(pixelFont(size: 15, weight: .bold))
-                        .foregroundStyle(resetWatchTitleColor)
+                        .foregroundStyle(personalResetTitleColor)
                         .tracking(0.8)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -107,14 +109,17 @@ struct PixelQuotaTooltipView: View {
             .padding(.horizontal, 19)
             .padding(.vertical, 17)
             .opacity(content.isStale ? 0.62 : 1)
+            .frame(height: content.showsQuotaDynamics ? Self.largeHistoryCardSize.height : Self.largeCardSize.height)
+            ResetAnnouncementsFooter(content: content, pixel: true)
+            }
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 15)
         .frame(
             width: Self.largePanelSize.width,
-            height: content.showsQuotaDynamics
+            height: (content.showsQuotaDynamics
                 ? Self.largeHistoryPanelSize.height
-                : Self.largePanelSize.height,
+                : Self.largePanelSize.height) + content.resetFooterHeight,
             alignment: panelAlignment
         )
         .accessibilityHidden(true)
@@ -122,18 +127,19 @@ struct PixelQuotaTooltipView: View {
 
     private var smallTooltip: some View {
         pixelCard(
-            size: content.showsQuotaDynamics
+            size: expanded(content.showsQuotaDynamics
                 ? Self.smallHistoryCardSize
-                : Self.smallCardSize
+                : Self.smallCardSize)
         ) {
+            VStack(spacing: 0) {
             HStack(spacing: 14) {
                 smallRing
 
                 VStack(alignment: .leading, spacing: 7) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(content.resetWatchHeader?.text ?? localized("pixel.quota.title"))
+                        Text(content.personalResetHeader?.text ?? localized("pixel.quota.title"))
                             .font(pixelFont(size: 11, weight: .bold))
-                            .foregroundStyle(resetWatchTitleColor)
+                            .foregroundStyle(personalResetTitleColor)
                             .tracking(0.4)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -162,14 +168,17 @@ struct PixelQuotaTooltipView: View {
             .padding(.horizontal, 15)
             .padding(.vertical, 13)
             .opacity(content.isStale ? 0.62 : 1)
+            .frame(height: content.showsQuotaDynamics ? Self.smallHistoryCardSize.height : Self.smallCardSize.height)
+            ResetAnnouncementsFooter(content: content, pixel: true)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(
             width: Self.smallPanelSize.width,
-            height: content.showsQuotaDynamics
+            height: (content.showsQuotaDynamics
                 ? Self.smallHistoryPanelSize.height
-                : Self.smallPanelSize.height,
+                : Self.smallPanelSize.height) + content.resetFooterHeight,
             alignment: panelAlignment
         )
         .accessibilityHidden(true)
@@ -224,6 +233,10 @@ struct PixelQuotaTooltipView: View {
             .overlay(alignment: pointerAlignment) {
                 pixelPointer
             }
+    }
+
+    private func expanded(_ size: CGSize) -> CGSize {
+        CGSize(width: size.width, height: size.height + content.resetFooterHeight)
     }
 
     private var modeBadge: some View {
@@ -467,11 +480,11 @@ struct PixelQuotaTooltipView: View {
         }
     }
 
-    private var resetWatchTitleColor: Color {
-        switch content.resetWatchHeader?.tone {
+    private var personalResetTitleColor: Color {
+        switch content.personalResetHeader?.tone {
         case .watch: orange
         case .scheduled: gold
-        case nil: PixelPalette.highlightText
+        case .neutral, nil: PixelPalette.highlightText.opacity(0.72)
         }
     }
 
@@ -594,6 +607,7 @@ private struct PixelMissingPattern: View {
                 x += 9
             }
         }
+        .clipped()
         .accessibilityHidden(true)
     }
 }
