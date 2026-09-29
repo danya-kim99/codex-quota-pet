@@ -48,6 +48,23 @@ requiring the user to keep the Codex window open.
   seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
+## Codex CLI discovery correction
+
+The user requested this bug fix and approved production patch publication on
+29 September 2026 after an executable Codex CLI installed in
+`~/.local/bin/codex` was not found.
+
+- Preserve discovery inside Codex.app and the existing Homebrew locations.
+- Also discover `~/.local/bin/codex` independently of the app's environment,
+  then search absolute directories in the inherited `PATH` in order.
+- Accept executable files and valid executable symlinks; skip missing files,
+  directories, non-executable files, and empty or relative `PATH` entries.
+- Keep the current App Server launch, authentication, reconnection, quota,
+  presentation, localization, accessibility, and distribution behavior.
+- Acceptance: reproduce the reported home-directory installation with a
+  minimal GUI-style `PATH`; verify ordered fallback and rejection cases with
+  focused non-GUI checks, and compile the app and test target.
+
 ## Approved application self-update
 
 Approved for implementation on 8 September 2026 after the user selected

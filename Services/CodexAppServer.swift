@@ -145,7 +145,11 @@ final class CodexAppServer: CodexAppServerClient {
     ) throws {
         stop()
 
-        guard let executableURL = Self.codexExecutableURL else {
+        guard let executableURL = Self.codexExecutableURL(
+            bundledAppURL: NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: "com.openai.codex"
+            )
+        ) else {
             throw AppServerError.codexNotFound
         }
 
@@ -364,22 +368,32 @@ final class CodexAppServer: CodexAppServerClient {
         try input.write(contentsOf: data)
     }
 
-    private static var codexExecutableURL: URL? {
+    static func codexExecutableURL(
+        bundledAppURL: URL?,
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        path: String? = ProcessInfo.processInfo.environment["PATH"],
+        standardDirectories: [String] = ["/opt/homebrew/bin", "/usr/local/bin"]
+    ) -> URL? {
         let fileManager = FileManager.default
+        var candidates: [URL] = []
 
-        if let appURL = NSWorkspace.shared.urlForApplication(
-            withBundleIdentifier: "com.openai.codex"
-        ) {
-            let bundledCodex = appURL.appendingPathComponent("Contents/Resources/codex")
-            if fileManager.isExecutableFile(atPath: bundledCodex.path) {
-                return bundledCodex
-            }
+        if let bundledAppURL {
+            candidates.append(bundledAppURL.appendingPathComponent("Contents/Resources/codex"))
         }
+        candidates += standardDirectories.map {
+            URL(fileURLWithPath: $0).appendingPathComponent("codex")
+        }
+        candidates.append(homeDirectory.appendingPathComponent(".local/bin/codex"))
+        candidates += (path ?? "").split(separator: ":")
+            .filter { $0.hasPrefix("/") }
+            .map { URL(fileURLWithPath: String($0)).appendingPathComponent("codex") }
 
-        // ponytail: standard CLI locations cover the MVP; onboarding can add a custom path.
-        return ["/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
-            .first(where: fileManager.isExecutableFile(atPath:))
-            .map(URL.init(fileURLWithPath:))
+        return candidates.first { candidate in
+            var isDirectory: ObjCBool = false
+            return fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory)
+                && !isDirectory.boolValue
+                && fileManager.isExecutableFile(atPath: candidate.path)
+        }
     }
 }
 

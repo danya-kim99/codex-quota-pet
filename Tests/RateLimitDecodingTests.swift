@@ -2813,6 +2813,76 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(CodexAppServer.rateLimitRefreshInterval, 60)
     }
 
+    func testCodexExecutableDiscoveryUsesOrderedSafeFallbacks() throws {
+        let fileManager = FileManager.default
+        let root = fileManager.temporaryDirectory
+            .appendingPathComponent("Codex discovery \(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: root) }
+        let app = root.appendingPathComponent("Codex.app")
+        let home = root.appendingPathComponent("home")
+        let standardDirectories = ["homebrew/bin", "usr/local/bin"].map {
+            root.appendingPathComponent($0).path
+        }
+        let pathDirectories = ["first bin", "second bin"].map {
+            root.appendingPathComponent($0).path
+        }
+        let bundled = app.appendingPathComponent("Contents/Resources/codex")
+        let local = home.appendingPathComponent(".local/bin/codex")
+        let candidates = [bundled] + standardDirectories.map {
+            URL(fileURLWithPath: $0).appendingPathComponent("codex")
+        } + [local] + pathDirectories.map {
+            URL(fileURLWithPath: $0).appendingPathComponent("codex")
+        }
+        func makeExecutable(_ url: URL) throws {
+            try fileManager.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data("#!/bin/sh\nexit 0\n".utf8).write(to: url)
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        }
+        func discover(_ path: String?) -> URL? {
+            CodexAppServer.codexExecutableURL(
+                bundledAppURL: app,
+                homeDirectory: home,
+                path: path,
+                standardDirectories: standardDirectories
+            )
+        }
+
+        // Every earlier candidate retains priority over every later candidate.
+        try candidates.forEach(makeExecutable)
+        let path = pathDirectories.joined(separator: ":")
+        for candidate in candidates {
+            XCTAssertEqual(discover(path), candidate)
+            try fileManager.removeItem(at: candidate)
+        }
+        XCTAssertNil(discover(path))
+
+        try makeExecutable(local)
+        XCTAssertEqual(discover("/usr/bin:/bin"), local)
+        XCTAssertEqual(discover(nil), local)
+        XCTAssertEqual(discover(""), local)
+        try fileManager.removeItem(at: local)
+
+        // A searchable directory and a non-executable file must not mask a valid CLI.
+        try fileManager.createDirectory(at: bundled, withIntermediateDirectories: true)
+        try makeExecutable(candidates[1])
+        try fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: candidates[1].path)
+        try fileManager.createSymbolicLink(at: local, withDestinationURL: root.appendingPathComponent("missing"))
+        let target = root.appendingPathComponent("target/codex")
+        try makeExecutable(target)
+        try fileManager.createSymbolicLink(at: candidates[4], withDestinationURL: target)
+        let relative = String(repeating: "../", count: fileManager.currentDirectoryPath.split(separator: "/").count)
+            + target.deletingLastPathComponent().path.dropFirst()
+        XCTAssertTrue(fileManager.isExecutableFile(atPath: relative + "/codex"))
+        XCTAssertNil(discover(":" + relative + ":.:~/.local/bin:"))
+        XCTAssertEqual(discover(":" + relative + ":" + path + ":"), candidates[4])
+
+        try fileManager.removeItem(at: target)
+        XCTAssertNil(discover(path))
+    }
+
     @MainActor
     func testResetForecastOptInDefaultsOffPersistsStrictBooleanAndCoalesces() async throws {
         let suiteName = "ResetForecastPreferenceTests.\(UUID().uuidString)"
