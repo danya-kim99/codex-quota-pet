@@ -1953,6 +1953,30 @@ the result with "excellent", and requested release preparation. The prepared
 release is 0.13.1 (31), containing this menu amendment only. Publication is a
 separate step; unrelated local work is excluded from the release candidate.
 
+### Approved menu content synchronization — 2 October 2026
+
+The user requested synchronized menu contents, then explicitly requested release.
+Version 0.13.2 (32) publishes the existing forecast and local-history controls on
+both menu surfaces. Separate, unreleased response-ready notices remain local.
+
+- Appearance exposes size, tooltip style, quota dynamics, reset announcements,
+  the conditional Codex Resets provider link, clear history and history issues
+  in the same order in both menus.
+- Reuse the persisted forecast opt-in, exact provider URL, existing RU/EN copy
+  and the existing history confirmation with Cancel as the default. Dismiss the
+  Pixel menu before opening the provider link or confirmation; recheck provider
+  availability after dismissal.
+- Pixel keyboard traversal includes the visible provider action and normalizes
+  selection when it disappears. Every conditional submenu fits the existing
+  480 × 505 pt panel reserve; the root stays anchored when child content changes.
+- Preserve the native quota/connection summary, all released settings, actions,
+  guards, persistence, tooltip/visibility/interaction behavior and update policy.
+  No new preference, data source, dependency or distribution change is introduced.
+- Acceptance: both menus expose the same released settings/actions in the same
+  groups and order; callbacks, conditional navigation and layout checks pass;
+  app/tests compile and hosted CI passes. Live GUI and spoken VoiceOver are
+  separate, unverified checks; this release request does not authorize GUI work.
+
 ### Live grouped-menu verification — 7 September 2026
 
 The user explicitly approved restarting the app and testing the redesigned menu

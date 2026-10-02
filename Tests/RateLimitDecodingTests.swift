@@ -461,7 +461,14 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(
             PixelContextMenuNavigation.childItems(for: .appearance, requiresLoginApproval: false),
             [.size(.small), .size(.medium), .size(.large),
-             .tooltipStyle(.smooth), .tooltipStyle(.pixel), .quotaDynamics]
+             .tooltipStyle(.smooth), .tooltipStyle(.pixel), .quotaDynamics,
+             .codexResetForecast, .clearQuotaHistory]
+        )
+        XCTAssertEqual(
+            PixelContextMenuNavigation.childItems(
+                for: .appearance, requiresLoginApproval: false, showsCodexResetForecast: true
+            ).suffix(4),
+            [.quotaDynamics, .codexResetForecast, .codexResetProvider, .clearQuotaHistory]
         )
         let behavior: [Item] = [
             .positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin
@@ -503,7 +510,7 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(navigation.selectedChild, .size(.small))
         XCTAssertTrue(navigation.isSubmenuOpen)
         navigation.move(by: -1, roots: roots, children: appearance)
-        XCTAssertEqual(navigation.selectedChild, .quotaDynamics)
+        XCTAssertEqual(navigation.selectedChild, .clearQuotaHistory)
         navigation.move(by: 1, roots: roots, children: appearance)
         XCTAssertEqual(navigation.selectedChild, .size(.small))
         navigation.leaveSubmenu()
@@ -546,6 +553,52 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(navigation.selectedRoot, .quit)
         navigation.move(by: -1, roots: availableRoots, children: [])
         XCTAssertEqual(navigation.selectedRoot, .hidePet)
+
+        navigation.selectRoot(.appearance)
+        navigation.selectChild(.codexResetProvider)
+        navigation.normalize(roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedChild, .size(.small))
+        navigation.selectChild(.codexResetForecast)
+        navigation.move(by: 1, roots: roots, children: appearance)
+        XCTAssertEqual(navigation.selectedChild, .clearQuotaHistory)
+    }
+
+    @MainActor
+    func testContextMenuAppearanceActionsShareForecastAndRequestHistoryConfirmation() throws {
+        let suiteName = "BlackHoleQuotaTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appServer = FakeAppServer()
+        let appState = AppState(
+            defaults: defaults,
+            appServer: appServer,
+            launchAtLoginStatusProvider: { .notRegistered },
+            historyStore: QuotaHistoryStore(fileURL: nil),
+            fetchCodexResetStatus: { _ in throw URLError(.notConnectedToInternet) }
+        )
+        var confirmations = 0
+        var providerOpens = 0
+        let controller = PetPanelController(
+            clearQuotaHistory: { confirmations += 1 },
+            openCodexResetProvider: { providerOpens += 1 }
+        )
+        let actions = controller.contextMenuActions(appState: appState)
+        actions.openCodexResetProvider()
+        XCTAssertEqual(providerOpens, 0)
+        actions.setShowsCodexResetForecast(true)
+        XCTAssertTrue(appState.showsCodexResetForecast)
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.showCodexResetForecastKey))
+        actions.openCodexResetProvider()
+        XCTAssertEqual(providerOpens, 1)
+        appState.setShowsCodexResetForecast(false)
+        actions.openCodexResetProvider()
+        XCTAssertEqual(providerOpens, 1)
+        XCTAssertFalse(defaults.bool(forKey: AppConstants.showCodexResetForecastKey))
+        actions.clearQuotaHistory()
+        XCTAssertEqual(confirmations, 1)
+        XCTAssertEqual(appServer.rateLimitRefreshCount, 0)
+        XCTAssertNil(controller.petFrame)
+        XCTAssertNil(controller.contextMenuFrame)
     }
 
     @MainActor
@@ -592,24 +645,32 @@ final class RateLimitDecodingTests: XCTestCase {
                 for group: PixelContextMenuItem in [.appearance, .objectMix, .behavior] {
                     for requiresApproval in [false, true] {
                         for hasError in [false, true] {
-                            let layout = PixelContextMenuView.menuFrames(
-                                placement: placement, requiresRetry: requiresRetry, openGroup: group,
-                                requiresLoginApproval: requiresApproval, hasLoginError: hasError
-                            )
-                            let submenu = try XCTUnwrap(layout.submenu)
-                            XCTAssertEqual(layout.root, closed.root)
-                            XCTAssertTrue(panel.contains(submenu))
-                            XCTAssertEqual(submenu.width, group == .objectMix ? 214 : 232)
-                            XCTAssertGreaterThanOrEqual(submenu.minY, PixelContextMenuView.shadowTopInset)
-                            XCTAssertLessThanOrEqual(submenu.maxX + PixelContextMenuView.shadowTrailingInset, panel.maxX)
-                            XCTAssertFalse(submenu.intersects(layout.root))
-                            let row = try XCTUnwrap(
-                                PixelContextMenuNavigation.rootItems(requiresRetry: requiresRetry).firstIndex(of: group)
-                            )
-                            XCTAssertEqual(
-                                submenu.minY,
-                                min(panel.height - submenu.height, layout.root.minY + 7 + CGFloat(row) * 31)
-                            )
+                            for conditionalRows in 0..<4 {
+                                let showsForecast = conditionalRows & 1 != 0
+                                let hasHistoryIssue = conditionalRows & 2 != 0
+                                let layout = PixelContextMenuView.menuFrames(
+                                    placement: placement, requiresRetry: requiresRetry, openGroup: group,
+                                    requiresLoginApproval: requiresApproval, hasLoginError: hasError,
+                                    showsCodexResetForecast: showsForecast, hasHistoryIssue: hasHistoryIssue
+                                )
+                                let submenu = try XCTUnwrap(layout.submenu)
+                                XCTAssertEqual(layout.root, closed.root)
+                                XCTAssertTrue(panel.contains(submenu))
+                                XCTAssertEqual(submenu.width, group == .objectMix ? 214 : 232)
+                                XCTAssertGreaterThanOrEqual(submenu.minY, PixelContextMenuView.shadowTopInset)
+                                XCTAssertLessThanOrEqual(submenu.maxX + PixelContextMenuView.shadowTrailingInset, panel.maxX)
+                                XCTAssertFalse(submenu.intersects(layout.root))
+                                if group == .appearance {
+                                    XCTAssertEqual(submenu.height, 318 + (showsForecast ? 31 : 0) + (hasHistoryIssue ? 31 : 0))
+                                }
+                                let row = try XCTUnwrap(
+                                    PixelContextMenuNavigation.rootItems(requiresRetry: requiresRetry).firstIndex(of: group)
+                                )
+                                XCTAssertEqual(
+                                    submenu.minY,
+                                    min(panel.height - submenu.height, layout.root.minY + 7 + CGFloat(row) * 31)
+                                )
+                            }
                         }
                     }
                 }

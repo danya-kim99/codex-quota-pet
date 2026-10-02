@@ -143,6 +143,9 @@ struct PixelContextMenuActions {
     let setPassesPointerInputThrough: (Bool) -> Void
     let setTooltipStyle: (TooltipStyle) -> Void
     let setShowsQuotaDynamics: (Bool) -> Void
+    let setShowsCodexResetForecast: (Bool) -> Void
+    let openCodexResetProvider: () -> Void
+    let clearQuotaHistory: () -> Void
     let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
     let setLaunchesAtLogin: (Bool) -> Void
@@ -155,6 +158,7 @@ struct PixelContextMenuActions {
 enum PixelContextMenuItem: Hashable {
     case retry, appearance, objectMix, behavior, hidePet, checkForUpdates, quit
     case size(PetSize), tooltipStyle(TooltipStyle), quotaDynamics
+    case codexResetForecast, codexResetProvider, clearQuotaHistory
     case positionLock, pointerClickThrough, onlyWhenCodexActive, hideFullScreen
     case launchAtLogin, openLoginItems
     case objectWeight(categoryID: String, weight: Int)
@@ -180,12 +184,15 @@ struct PixelContextMenuNavigation: Equatable {
     static func childItems(
         for group: PixelContextMenuItem,
         requiresLoginApproval: Bool,
+        showsCodexResetForecast: Bool = false,
         objectWeights: [PixelContextMenuItem] = []
     ) -> [PixelContextMenuItem] {
         switch group {
         case .appearance:
             PetSize.allCases.map(PixelContextMenuItem.size)
-                + TooltipStyle.allCases.map(PixelContextMenuItem.tooltipStyle) + [.quotaDynamics]
+                + TooltipStyle.allCases.map(PixelContextMenuItem.tooltipStyle)
+                + [.quotaDynamics, .codexResetForecast]
+                + (showsCodexResetForecast ? [.codexResetProvider] : []) + [.clearQuotaHistory]
         case .behavior:
             [.positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin]
                 + (requiresLoginApproval ? [.openLoginItems] : [])
@@ -350,7 +357,9 @@ struct PixelContextMenuView: View {
         requiresRetry: Bool,
         openGroup: PixelContextMenuItem?,
         requiresLoginApproval: Bool,
-        hasLoginError: Bool
+        hasLoginError: Bool,
+        showsCodexResetForecast: Bool = false,
+        hasHistoryIssue: Bool = false
     ) -> (root: CGRect, submenu: CGRect?) {
         let roots = PixelContextMenuNavigation.rootItems(requiresRetry: requiresRetry)
         let rootHeight = CGFloat(roots.count) * 31 + 10 + 14
@@ -364,7 +373,7 @@ struct PixelContextMenuView: View {
             return (root, nil)
         }
         let submenuHeight: CGFloat = switch group {
-        case .appearance: 256
+        case .appearance: 318 + (showsCodexResetForecast ? 31 : 0) + (hasHistoryIssue ? 31 : 0)
         case .objectMix: 171
         default: 189 + (requiresLoginApproval ? 62 : 0) + (hasLoginError ? 31 : 0)
         }
@@ -386,7 +395,9 @@ struct PixelContextMenuView: View {
             requiresRetry: appState.connectionState != .connected,
             openGroup: navigation.isSubmenuOpen ? navigation.selectedRoot : nil,
             requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
-            hasLoginError: appState.launchAtLoginError != nil
+            hasLoginError: appState.launchAtLoginError != nil,
+            showsCodexResetForecast: appState.showsCodexResetForecast,
+            hasHistoryIssue: appState.quotaHistoryIssue != nil
         )
         return ZStack(alignment: .topLeading) {
             mainMenu
@@ -480,6 +491,29 @@ struct PixelContextMenuView: View {
                 icon: .history,
                 isChecked: appState.showsQuotaDynamics
             )
+            row(
+                .codexResetForecast,
+                title: localized("menu.show_codex_reset_forecast"),
+                icon: .retry,
+                isChecked: appState.showsCodexResetForecast,
+                accessibilityValue: toggleValue(appState.showsCodexResetForecast),
+                accessibilityHelp: localized("menu.show_codex_reset_forecast.help")
+            )
+            if appState.showsCodexResetForecast {
+                row(
+                    .codexResetProvider,
+                    title: localized("menu.codex_reset_forecast.provider"),
+                    icon: .retry
+                )
+            }
+            row(
+                .clearQuotaHistory,
+                title: localized("menu.clear_quota_history"),
+                icon: .history
+            )
+            if let issue = appState.quotaHistoryIssue {
+                disabledRow(title: localized(issue.localizationKey), icon: .warning)
+            }
         }
         .padding(7)
         .frame(width: Self.groupedSubmenuWidth)
@@ -723,6 +757,7 @@ struct PixelContextMenuView: View {
         PixelContextMenuNavigation.childItems(
             for: navigation.selectedRoot,
             requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
+            showsCodexResetForecast: appState.showsCodexResetForecast,
             objectWeights: appState.absorptionCategories.prefix(Self.matrixCategoryCount).flatMap { category in
                 Self.matrixWeights.compactMap { weight in
                     appState.canSetAbsorptionCategoryWeight(weight, for: category.id)
@@ -767,6 +802,12 @@ struct PixelContextMenuView: View {
             actions.setPassesPointerInputThrough(!appState.passesPointerInputThrough)
         case .quotaDynamics:
             actions.setShowsQuotaDynamics(!appState.showsQuotaDynamics)
+        case .codexResetForecast:
+            actions.setShowsCodexResetForecast(!appState.showsCodexResetForecast)
+        case .codexResetProvider:
+            guard appState.showsCodexResetForecast else { return }
+            actions.openCodexResetProvider()
+        case .clearQuotaHistory: actions.clearQuotaHistory()
         case .onlyWhenCodexActive:
             actions.setShowsOnlyWhenCodexIsActive(!appState.showsOnlyWhenCodexIsActive)
         case .hideFullScreen:

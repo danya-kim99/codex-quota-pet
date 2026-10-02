@@ -168,8 +168,12 @@ root actions. Its update action routes through the same AppDelegate callback
 and AppState availability as the native menu. Appearance and Behavior flatten
 their settings into one submenu level; Object Mix retains its existing matrix
 in the Pixel menu and native pickers in the menu bar. Group expansion and
-keyboard selection are view-local and do
-not create new persisted preferences. The short root is anchored independently
+keyboard selection are view-local and do not create new persisted preferences.
+Both Appearance groups expose the existing forecast opt-in, conditional provider
+link and local-history command/status. The Pixel history action reaches the same
+AppDelegate confirmation as the native menu; provider navigation and confirmation
+run after context-menu dismissal. Keyboard traversal uses current forecast state
+and normalizes selection when its conditional provider action disappears. The short root is anchored independently
 of the submenu height inside the shared panel reserve; the controller keeps its
 existing screen-quadrant placement and dismissal responsibilities.
 

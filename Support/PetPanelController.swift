@@ -50,6 +50,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var lastExternalApplication: (bundleIdentifier: String?, isFullScreen: Bool) = (nil, false)
     private let frameName: String
     private let checkForUpdates: () -> Void
+    private let clearQuotaHistory: () -> Void
+    private let openCodexResetProvider: () -> Void
 
     init(
         isFrontmostApplicationFullScreen: (() -> Bool)? = nil,
@@ -63,13 +65,21 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             )
         },
         frameName: String = AppConstants.petPanelFrameName,
-        checkForUpdates: @escaping () -> Void = {}
+        checkForUpdates: @escaping () -> Void = {},
+        clearQuotaHistory: @escaping () -> Void = {},
+        openCodexResetProvider: @escaping () -> Void = {
+            if let url = URL(string: "https://codex-resets.com/") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     ) {
         self.isFrontmostApplicationFullScreen = isFrontmostApplicationFullScreen
             ?? Self.detectFrontmostApplicationFullScreen
         self.frontmostApplication = frontmostApplication
         self.frameName = frameName
         self.checkForUpdates = checkForUpdates
+        self.clearQuotaHistory = clearQuotaHistory
+        self.openCodexResetProvider = openCodexResetProvider
         super.init()
     }
 
@@ -655,6 +665,21 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 guard let self, let appState else { return }
                 appState.setShowsQuotaDynamics(isEnabled)
                 self.updateTooltipLayout()
+            },
+            setShowsCodexResetForecast: { [weak appState] isEnabled in
+                appState?.setShowsCodexResetForecast(isEnabled)
+            },
+            openCodexResetProvider: { [weak self, weak appState] in
+                guard appState?.showsCodexResetForecast == true else { return }
+                self?.dismissContextMenu(animated: true) { [weak self, weak appState] in
+                    guard appState?.showsCodexResetForecast == true else { return }
+                    self?.openCodexResetProvider()
+                }
+            },
+            clearQuotaHistory: { [weak self] in
+                self?.dismissContextMenu(animated: true) { [weak self] in
+                    self?.clearQuotaHistory()
+                }
             },
             setShowsOnlyWhenCodexIsActive: { [weak self, weak appState] isEnabled in
                 guard let self, let appState else { return }
