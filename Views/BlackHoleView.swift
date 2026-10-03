@@ -17,6 +17,7 @@ struct BlackHoleView: View {
     @State private var activePlans: [AbsorptionPlan] = []
     @State private var lastObjectID: String?
     @State private var reactionStart: Date?
+    @State private var companionPresentation = CompanionOrbitPresentation()
     private static let objectCatalog = try? AbsorbableObjectCatalog()
 
     init(
@@ -57,6 +58,7 @@ struct BlackHoleView: View {
         .frame(width: sceneSize.width, height: sceneSize.height)
         .opacity(appState.connectionState == .connected ? 1 : 0.35)
         .onAppear {
+            updateCompanionPresentation()
             visibleRegionDidChange(visualState.spriteStatePercent)
         }
         .onChange(of: visualState.spriteStatePercent) { _, bucket in
@@ -70,8 +72,16 @@ struct BlackHoleView: View {
         }
         .onChange(of: appState.absorptionResetID) { _, _ in
             resetAbsorptionScene()
+            companionPresentation.reset()
+        }
+        .onChange(of: appState.selectedCompanionID) { _, _ in updateCompanionPresentation() }
+        .onChange(of: appState.companionActivity) { _, _ in updateCompanionPresentation() }
+        .onChange(of: reduceMotion) { _, _ in updateCompanionPresentation() }
+        .onChange(of: appState.connectionState) { _, state in
+            if state != .connected { companionPresentation.reset() }
         }
         .onDisappear {
+            companionPresentation.reset()
             resetAbsorptionScene()
             setTooltipVisible(false)
         }
@@ -85,7 +95,14 @@ struct BlackHoleView: View {
             )
         ) { timeline in
             ZStack {
-                idleQuotaSprite(at: timeline.date)
+                PetSpriteScene(
+                    quotaSpriteName: visualState.spriteName(elapsedTime: animationTime(at: timeline.date), speedMode: appState.speedMode),
+                    sceneSize: sceneSize,
+                    pulseScale: pulseScale(at: timeline.date),
+                    pulseBrightness: pulseBrightness(at: timeline.date),
+                    companion: companionPresentation.object,
+                    companionState: companionPresentation.visualState(at: timeline.date, sceneSize: sceneSize, reduceMotion: reduceMotion)
+                )
 
                 ForEach(activePlans) { plan in
                     if let sprite = AbsorbableSprites.sprite(named: plan.object.asset) {
@@ -99,6 +116,9 @@ struct BlackHoleView: View {
                 }
 
                 reactionOverlay(at: timeline.date)
+            }
+            .onChange(of: timeline.date) { _, date in
+                companionPresentation.advance(at: date)
             }
         }
         .frame(width: sceneSize.width, height: sceneSize.height)
@@ -134,7 +154,8 @@ struct BlackHoleView: View {
     }
 
     private var timelineInterval: TimeInterval {
-        if !activePlans.isEmpty || reactionStart != nil || shouldTurboPulse {
+        if !activePlans.isEmpty || reactionStart != nil || shouldTurboPulse
+            || companionPresentation.needsAnimation(reduceMotion: reduceMotion) {
             return 1.0 / 30.0
         }
         return visualState.frameInterval(for: appState.speedMode)
@@ -172,19 +193,11 @@ struct BlackHoleView: View {
         return CGFloat(sin(progress * .pi))
     }
 
-    @ViewBuilder
-    private func idleQuotaSprite(at date: Date) -> some View {
-        if let sprite = SpriteFrames.image(named: visualState.spriteName(
-            elapsedTime: animationTime(at: date),
-            speedMode: appState.speedMode
-        )) {
-            Image(nsImage: sprite)
-                .resizable()
-                .interpolation(.none)
-                .aspectRatio(contentMode: .fit)
-                .scaleEffect(pulseScale(at: date))
-                .brightness(pulseBrightness(at: date))
-        }
+    private func updateCompanionPresentation() {
+        guard appState.isPetVisible, appState.connectionState == .connected,
+              !appState.isPreparingToTerminate else { companionPresentation.reset(); return }
+        companionPresentation.update(selection: appState.selectedCompanion, activity: appState.companionActivity,
+                                     at: Date(), reduceMotion: reduceMotion)
     }
 
     private func startAbsorption() {
@@ -235,6 +248,46 @@ struct BlackHoleView: View {
     private func resetAbsorptionScene() {
         activePlans.removeAll()
         reactionStart = nil
+    }
+}
+
+/// The same native composition is used by the live timeline and deterministic offscreen checks.
+struct PetSpriteScene: View {
+    let quotaSpriteName: String
+    let sceneSize: CGSize
+    var pulseScale: CGFloat = 1
+    var pulseBrightness: Double = 0
+    var companion: AbsorbableObjectManifest.Object?
+    var companionState: CompanionOrbitVisualState?
+
+    var body: some View {
+        ZStack {
+            companionLayer(behind: true)
+            if let sprite = SpriteFrames.image(named: quotaSpriteName) {
+                Image(nsImage: sprite)
+                    .resizable().interpolation(.none).aspectRatio(contentMode: .fit)
+                    .scaleEffect(pulseScale).brightness(pulseBrightness)
+            }
+            companionLayer(behind: false)
+        }
+        .frame(width: sceneSize.width, height: sceneSize.height)
+    }
+
+    @ViewBuilder
+    private func companionLayer(behind: Bool) -> some View {
+        if let companion, let state = companionState, state.opacity > 0,
+           state.isBehindHole == behind,
+           let sprite = AbsorbableSprites.sprite(named: companion.asset) {
+            Image(nsImage: sprite.image)
+                .resizable().interpolation(.none)
+                .frame(width: state.canvasSize, height: state.canvasSize)
+                .scaleEffect(state.scale)
+                .rotationEffect(.degrees(state.tiltDegrees))
+                .position(state.position)
+                .opacity(state.opacity)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 }
 

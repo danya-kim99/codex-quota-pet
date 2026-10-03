@@ -16,6 +16,7 @@ final class AppState {
     private(set) var errorMessage: String?
     private(set) var isPetVisible = true
     private(set) var petSize: PetSize
+    private(set) var selectedCompanionID: String?
     private(set) var absorptionCategoryWeights: [String: Int]
     private(set) var tooltipStyle: TooltipStyle
     private(set) var showsQuotaDynamics: Bool
@@ -30,6 +31,13 @@ final class AppState {
     private(set) var showsOnlyWhenCodexIsActive: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
     private(set) var launchAtLoginError: String?
+    private(set) var responseNoticesEnabled: Bool
+    private(set) var responseNoticeConfigurationBusy = false
+    private(set) var responseNoticeIssue: String?
+    private(set) var completionNotice: CompletionNotice? {
+        didSet { responseNoticeDidChange?() }
+    }
+    @ObservationIgnored var responseNoticeDidChange: (() -> Void)?
     private(set) var absorptionRequestID = 0
     private(set) var absorptionResetID = 0
 
@@ -59,6 +67,22 @@ final class AppState {
     private var codexResetNextAttemptAt: Date?
     private var codexResetTask: Task<Void, Never>?
     private var codexResetGeneration: UInt64 = 0
+    private var completionObserver: NSObjectProtocol?
+    private var completionEpoch = Date()
+    private var completionGeneration: UInt64 = 0
+    private var completionSeen: [String] = []
+    private var completionChecks: [String: Task<Void, Never>] = [:]
+    private var completionExpiry: Task<Void, Never>?
+    private var completionInteractions = Set<CompletionNoticeInteraction>()
+    private var completionAllowed = false
+    private var completionNativeMenuOpen = false
+    private var completionSleeping = false
+    private let companionExperimentToken: String?
+    private var companionTracker: CompanionHookTracker
+    private var companionHookObserver: NSObjectProtocol?
+    private var companionExpiryTask: Task<Void, Never>?
+    private var companionGeneration: UInt64 = 0
+    private var companionPanelVisible = false
     init(
         defaults: UserDefaults = .standard,
         appServer: any CodexAppServerClient = CodexAppServer(),
@@ -76,12 +100,19 @@ final class AppState {
         now: @escaping () -> Date = Date.init,
         historyStore: QuotaHistoryStore = QuotaHistoryStore(),
         absorptionCatalog: AbsorbableObjectCatalog? = try? AbsorbableObjectCatalog(),
+        companionExperimentToken: String? = ProcessInfo.processInfo.environment[CompanionActivityHook.environmentKey],
         fetchCodexResetStatus: @escaping @Sendable (String?) async throws -> CodexResetRadar.FetchResult = {
             try await CodexResetRadar().fetch(eTag: $0)
         }
     ) {
         self.defaults = defaults
+        self.companionExperimentToken = CompanionActivityHook.token(companionExperimentToken)
+        companionTracker = CompanionHookTracker(acceptSince: now())
+        responseNoticesEnabled = Self.storedBoolean(in: defaults, forKey: AppConstants.responseNoticesKey)
         self.absorptionCatalog = absorptionCatalog
+        selectedCompanionID = absorptionCatalog?.resolvedCompanionID(
+            from: defaults.object(forKey: AppConstants.selectedCompanionIDKey)
+        )
         self.appServer = appServer
         self.retryDelays = retryDelays
         self.launchAtLoginStatusProvider = launchAtLoginStatusProvider
@@ -121,6 +152,229 @@ final class AppState {
         )
     }
 
+    func setResponseNoticesEnabled(_ enabled: Bool) {
+        guard !responseNoticeConfigurationBusy, enabled != responseNoticesEnabled else { return }
+        // Disable presentation immediately, even if restoring the user's config fails.
+        if !enabled {
+            responseNoticesEnabled = false
+            defaults.set(false, forKey: AppConstants.responseNoticesKey)
+            invalidateCompletionNotices()
+        }
+        responseNoticeConfigurationBusy = true
+        responseNoticeIssue = nil
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.responseNoticeConfigurationBusy = false }
+            do {
+                guard let executable = Bundle.main.executableURL?.path else { throw CompletionError.configuration }
+                let response = try await self.appServer.request(method: "config/read", params: ["includeLayers": true], timeout: 3)
+                let storedToken = self.defaults.string(forKey: AppConstants.responseNotifyTokenKey)
+                let token = storedToken.flatMap(UUID.init(uuidString:))?.uuidString ?? UUID().uuidString
+                let plan = try CompletionConfigPlan.make(response: response, enable: enabled, executable: executable,
+                    ownedFingerprint: self.defaults.string(forKey: AppConstants.responseNotifyFingerprintKey), token: token)
+                // Store no original argv locally: it remains inside Codex's owned notify command.
+                if let wrapper = plan.wrapper, let adapter = CompletionNotifyAdapter.decode(wrapper[2]) {
+                    self.defaults.set(CompletionNotifyAdapter.fingerprint(wrapper), forKey: AppConstants.responseNotifyFingerprintKey)
+                    self.defaults.set(adapter.token, forKey: AppConstants.responseNotifyTokenKey)
+                }
+                let result = try await self.appServer.request(method: "config/value/write", params: plan.parameters, timeout: 3)
+                guard result["status"] as? String == "ok" else { throw CompletionError.configuration }
+                if enabled {
+                    self.responseNoticesEnabled = true
+                    self.defaults.set(true, forKey: AppConstants.responseNoticesKey)
+                    self.invalidateCompletionNotices()
+                    self.startCompletionListener()
+                }
+            } catch {
+                self.responseNoticeIssue = "completion.configuration_failed"
+            }
+        }
+    }
+
+    private func startCompletionListener() {
+        CompletionTrace.event("listener.start enabled=\(responseNoticesEnabled) existing=\(completionObserver != nil) hasToken=\(defaults.string(forKey: AppConstants.responseNotifyTokenKey) != nil)")
+        guard completionObserver == nil, responseNoticesEnabled,
+              let token = defaults.string(forKey: AppConstants.responseNotifyTokenKey) else { return }
+        completionEpoch = now()
+        completionObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CompletionNotifyAdapter.notification, object: token, queue: .main
+        ) { [weak self] notification in
+            CompletionTrace.event("ipc.received")
+            // Capture only the bounded IPC metadata, never the raw Codex event.
+            guard let fields = notification.userInfo,
+                  let threadID = fields["thread"] as? String,
+                  let turnID = fields["turn"] as? String,
+                  let sentAt = fields["sentAt"] as? Double,
+                  sentAt.isFinite,
+                  let hint = CompletionHint(threadID: threadID, turnID: turnID) else {
+                CompletionTrace.event("ipc.rejected malformed=true")
+                return
+            }
+            CompletionTrace.event("ipc.parsed")
+            Task { @MainActor [weak self] in
+                self?.receiveCompletionHint(hint, sentAt: Date(timeIntervalSince1970: sentAt))
+            }
+        }
+        CompletionTrace.event("listener.registered")
+    }
+
+    func setCompletionPresentationAllowed(_ allowed: Bool) {
+        guard completionAllowed != allowed else { return }
+        CompletionTrace.event("eligibility.changed allowed=\(allowed)")
+        completionAllowed = allowed
+        invalidateCompletionNotices()
+    }
+
+    func setCompletionNativeMenuOpen(_ open: Bool) {
+        guard completionNativeMenuOpen != open else { return }
+        CompletionTrace.event("nativeMenu.changed open=\(open)")
+        completionNativeMenuOpen = open
+        invalidateCompletionNotices()
+    }
+
+    func setCompletionSleeping(_ sleeping: Bool) {
+        completionSleeping = sleeping
+        resetCompanionActivity()
+        invalidateCompletionNotices()
+    }
+
+    private var canPresentCompletion: Bool {
+        hasStarted && !isPreparingToTerminate && responseNoticesEnabled && isPetVisible
+            && completionAllowed && !completionSleeping && !completionNativeMenuOpen
+            && connectionState == .connected
+    }
+
+    func receiveCompletionHint(_ hint: CompletionHint, sentAt: Date) {
+        CompletionTrace.event("hint.gates enabled=\(responseNoticesEnabled) started=\(hasStarted) connected=\(connectionState == .connected) visible=\(isPetVisible) allowed=\(completionAllowed) sleeping=\(completionSleeping) nativeMenu=\(completionNativeMenuOpen) terminating=\(isPreparingToTerminate) duplicate=\(completionSeen.contains(hint.key)) age=\(now().timeIntervalSince(sentAt)) epochPassed=\(sentAt >= completionEpoch) inflight=\(completionChecks.count)")
+        guard !completionSeen.contains(hint.key) else { return }
+        // Remember suppressed/rejected events too: later visibility/reconnect must never replay them.
+        completionSeen.append(hint.key)
+        // ponytail: 512 recent IDs; raise this bound only above 512 completions per freshness window.
+        if completionSeen.count > 512 { completionSeen.removeFirst(completionSeen.count - 512) }
+        guard canPresentCompletion, sentAt >= completionEpoch,
+              now().timeIntervalSince(sentAt) >= -1, now().timeIntervalSince(sentAt) <= 3,
+              completionChecks.count < 8 else { return }
+        let generation = completionGeneration
+        let epoch = completionEpoch
+        completionChecks[hint.key] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.completionChecks[hint.key] = nil }
+            for (attempt, delay) in [0.0, 0.3, 1.0, 2.0].enumerated() {
+                if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+                guard !Task.isCancelled, self.completionGeneration == generation, self.canPresentCompletion,
+                      self.now().timeIntervalSince(sentAt) <= 12 else {
+                    CompletionTrace.event("verification.aborted attempt=\(attempt + 1) cancelled=\(Task.isCancelled) generationCurrent=\(self.completionGeneration == generation) canPresent=\(self.canPresentCompletion)")
+                    return
+                }
+                var stage = "metadata"
+                do {
+                    CompletionTrace.event("rpc.begin attempt=\(attempt + 1) stage=metadata")
+                    let metadata = try await self.appServer.request(method: "thread/read", params: ["threadId": hint.threadID, "includeTurns": false], timeout: 2)
+                    CompletionTrace.event("rpc.success attempt=\(attempt + 1) stage=metadata hasThread=\(metadata["thread"] is [String: Any])")
+                    guard !Task.isCancelled, self.completionGeneration == generation,
+                          let thread = metadata["thread"] as? [String: Any] else {
+                        CompletionTrace.event("verification.aborted stage=metadata")
+                        return
+                    }
+                    stage = "turns"
+                    CompletionTrace.event("rpc.begin attempt=\(attempt + 1) stage=turns")
+                    let turns = try await self.appServer.request(method: "thread/turns/list", params: [
+                        "threadId": hint.threadID, "itemsView": "notLoaded", "limit": 8, "sortDirection": "desc"
+                    ], timeout: 2)
+                    CompletionTrace.event("rpc.success attempt=\(attempt + 1) stage=turns")
+                    guard !Task.isCancelled, self.completionGeneration == generation, self.canPresentCompletion else {
+                        CompletionTrace.event("verification.aborted stage=turns cancelled=\(Task.isCancelled) generationCurrent=\(self.completionGeneration == generation) canPresent=\(self.canPresentCompletion)")
+                        return
+                    }
+                    switch CompletionVerification.evaluate(hint: hint, thread: thread, turns: turns, since: epoch, now: self.now()) {
+                    case .pending:
+                        CompletionTrace.event("verification.pending attempt=\(attempt + 1)")
+                        continue
+                    case .rejected:
+                        CompletionTrace.event("verification.rejected attempt=\(attempt + 1)")
+                        return
+                    case .completed(let title):
+                        CompletionTrace.event("verification.completed attempt=\(attempt + 1)")
+                        self.presentCompletion(title: title)
+                        return
+                    }
+                } catch {
+                    CompletionTrace.event("rpc.error attempt=\(attempt + 1) stage=\(stage)")
+                    // A notice lookup failure never changes quota connectivity or its retry loop.
+                    continue
+                }
+            }
+            CompletionTrace.event("verification.exhausted")
+        }
+    }
+
+    private func presentCompletion(title: String) {
+        let date = now()
+        if var notice = completionNotice, notice.pausedRemaining != nil || notice.deadline > date {
+            notice.count += 1
+            notice.title = title
+            CompletionTrace.event("notice.updated count=\(notice.count) callbackBound=\(responseNoticeDidChange != nil)")
+            completionNotice = notice
+            return
+        }
+        completionExpiry?.cancel()
+        completionInteractions.removeAll()
+        let notice = CompletionNotice(id: UUID(), deadline: date.addingTimeInterval(8), count: 1, title: title)
+        CompletionTrace.event("notice.created callbackBound=\(responseNoticeDidChange != nil)")
+        completionNotice = notice
+        scheduleCompletionExpiry(id: notice.id)
+    }
+
+    func dismissCompletionNotice(id: UUID) {
+        guard completionNotice?.id == id else { return }
+        invalidateCompletionNotices()
+    }
+
+    func setCompletionInteraction(_ interaction: CompletionNoticeInteraction, active: Bool, id: UUID) {
+        guard var notice = completionNotice, notice.id == id else { return }
+        let wasPaused = !completionInteractions.isEmpty
+        if active { completionInteractions.insert(interaction) }
+        else { completionInteractions.remove(interaction) }
+        let isPaused = !completionInteractions.isEmpty
+        guard wasPaused != isPaused else { return }
+        completionExpiry?.cancel()
+        completionExpiry = nil
+        if isPaused {
+            let remaining = max(0, notice.deadline.timeIntervalSince(now()))
+            guard remaining > 0 else { dismissCompletionNotice(id: id); return }
+            notice.pausedRemaining = remaining
+            completionNotice = notice
+        } else {
+            notice.deadline = now().addingTimeInterval(notice.pausedRemaining ?? 0)
+            notice.pausedRemaining = nil
+            completionNotice = notice
+            scheduleCompletionExpiry(id: id)
+        }
+    }
+
+    private func scheduleCompletionExpiry(id: UUID) {
+        guard let notice = completionNotice, notice.id == id, notice.pausedRemaining == nil else { return }
+        let remaining = max(0, notice.deadline.timeIntervalSince(now()))
+        completionExpiry = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(remaining), tolerance: .milliseconds(20))
+            guard !Task.isCancelled, self?.completionNotice?.id == id else { return }
+            self?.completionInteractions.removeAll()
+            self?.completionNotice = nil
+            self?.completionExpiry = nil
+        }
+    }
+
+    func invalidateCompletionNotices() {
+        completionGeneration &+= 1
+        completionEpoch = now()
+        completionChecks.values.forEach { $0.cancel() }
+        completionChecks.removeAll()
+        completionExpiry?.cancel()
+        completionExpiry = nil
+        completionInteractions.removeAll()
+        completionNotice = nil
+    }
+
     var launchesAtLogin: Bool {
         launchAtLoginStatus == .enabled || launchAtLoginStatus == .requiresApproval
     }
@@ -146,6 +400,83 @@ final class AppState {
         return codexResetSourceStateStorage
     }
 
+    // Explicitly opted-in, approximate hook hints; ordinary launches remain unavailable.
+    var companionActivity: CompanionActivity {
+        canReceiveCompanionHooks ? companionTracker.activity : .unavailable
+    }
+
+    private var canReceiveCompanionHooks: Bool {
+        companionExperimentToken != nil && hasStarted && !isPreparingToTerminate
+            && connectionState == .connected && isPetVisible && companionPanelVisible && !completionSleeping
+    }
+
+    func setCompanionPanelVisible(_ visible: Bool) {
+        guard companionPanelVisible != visible else { return }
+        companionPanelVisible = visible
+        resetCompanionActivity()
+    }
+
+    private func startCompanionHookListener() {
+        guard companionHookObserver == nil, let token = companionExperimentToken else { return }
+        companionHookObserver = DistributedNotificationCenter.default().addObserver(
+            forName: CompanionActivityHook.notification, object: token, queue: .main
+        ) { [weak self] notification in
+            guard let info = notification.userInfo, let hint = CompanionHookHint(userInfo: info) else { return }
+            Task { @MainActor [weak self] in self?.receiveCompanionHook(hint) }
+        }
+    }
+
+    func receiveCompanionHook(_ hint: CompanionHookHint) {
+        guard canReceiveCompanionHooks else { return }
+        companionTracker.receive(hint, now: now())
+        scheduleCompanionExpiry()
+    }
+
+    func expireCompanionActivity() {
+        companionTracker.expire(at: now())
+        scheduleCompanionExpiry()
+    }
+
+    private func resetCompanionActivity() {
+        companionGeneration &+= 1
+        companionExpiryTask?.cancel()
+        companionExpiryTask = nil
+        companionTracker.reset(at: now())
+    }
+
+    private func scheduleCompanionExpiry() {
+        companionExpiryTask?.cancel()
+        companionExpiryTask = nil
+        guard canReceiveCompanionHooks, let deadline = companionTracker.nextExpiry else { return }
+        let generation = companionGeneration
+        let delay = max(0, deadline.timeIntervalSince(now()))
+        companionExpiryTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, self.companionGeneration == generation else { return }
+            self.expireCompanionActivity()
+        }
+    }
+
+    var companionObjects: [AbsorbableObjectManifest.Object] {
+        absorptionCatalog?.manifest.objects ?? []
+    }
+
+    var selectedCompanion: AbsorbableObjectManifest.Object? {
+        companionObjects.first { $0.id == selectedCompanionID }
+    }
+
+    var companionSelectionName: String {
+        selectedCompanion?.companionName ?? NSLocalizedString("companion.none", comment: "No companion")
+    }
+
+    func setSelectedCompanionID(_ id: String?) {
+        let resolved = absorptionCatalog?.resolvedCompanionID(from: id)
+        guard selectedCompanionID != resolved else { return }
+        selectedCompanionID = resolved
+        if let resolved { defaults.set(resolved, forKey: AppConstants.selectedCompanionIDKey) }
+        else { defaults.removeObject(forKey: AppConstants.selectedCompanionIDKey) }
+    }
+
     var absorptionCategories: [AbsorbableObjectManifest.Category] {
         absorptionCatalog?.manifest.categories ?? []
     }
@@ -162,6 +493,8 @@ final class AppState {
         }
 
         hasStarted = true
+        startCompletionListener()
+        startCompanionHookListener()
         let loadedAt = now()
         enqueueHistory { [historyStore] in
             await historyStore.load(at: loadedAt)
@@ -185,6 +518,12 @@ final class AppState {
     }
 
     func stop() {
+        resetCompanionActivity()
+        if let companionHookObserver { DistributedNotificationCenter.default().removeObserver(companionHookObserver) }
+        companionHookObserver = nil
+        invalidateCompletionNotices()
+        if let completionObserver { DistributedNotificationCenter.default().removeObserver(completionObserver) }
+        completionObserver = nil
         connectionGeneration &+= 1
         hasStarted = false
         reconnectTask?.cancel()
@@ -317,6 +656,8 @@ final class AppState {
     }
 
     private func connect(isRetry: Bool) {
+        resetCompanionActivity()
+        invalidateCompletionNotices()
         connectionGeneration &+= 1
         let generation = connectionGeneration
         resetCreditsAvailableCount = nil
@@ -356,6 +697,7 @@ final class AppState {
         _ snapshot: QuotaSnapshot,
         resetCreditsAvailableCount: Int?
     ) {
+        if connectionState != .connected { resetCompanionActivity() }
         let observedAt = now()
         let forceHistoryGap = requiresHistoryGap
         let currentSample = QuotaHistorySample(snapshot: snapshot, observedAt: observedAt)
@@ -394,6 +736,8 @@ final class AppState {
             return
         }
 
+        invalidateCompletionNotices()
+        resetCompanionActivity()
         errorMessage = message
         resetCreditsAvailableCount = nil
         connectionState = .reconnecting
@@ -418,6 +762,8 @@ final class AppState {
 
     func togglePetVisibility() {
         isPetVisible.toggle()
+        resetCompanionActivity()
+        if !isPetVisible { invalidateCompletionNotices() }
     }
 
     func requestAbsorption() {
@@ -425,6 +771,7 @@ final class AppState {
     }
 
     func resetAbsorptionScene() {
+        resetCompanionActivity()
         absorptionResetID &+= 1
     }
 
@@ -529,6 +876,8 @@ final class AppState {
         quotaHistoryIssue = .notSaved
         // Resume with a fresh baseline without reloading over pending in-memory writes.
         hasStarted = true
+        startCompletionListener()
+        startCompanionHookListener()
         connect(isRetry: false)
         refreshCodexResetForecastIfStale()
     }

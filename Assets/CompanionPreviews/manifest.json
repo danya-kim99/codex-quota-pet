@@ -1,0 +1,478 @@
+[
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      47.61,
+      56.805,
+      164.78,
+      189.39000000000001
+    ],
+    "id": "astronaut"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      268.065,
+      71.295,
+      150.87,
+      174.41
+    ],
+    "id": "rocket"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      468.28,
+      66.33,
+      205.44,
+      173.34
+    ],
+    "id": "satellite"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      697.735,
+      75.365,
+      191.53,
+      172.27
+    ],
+    "id": "lunar-rover"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      919.665,
+      70.295,
+      193.67000000000002,
+      174.41
+    ],
+    "id": "ufo"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      1153.61,
+      50.42,
+      164.78,
+      201.16000000000003
+    ],
+    "id": "space-probe"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      36.91,
+      317.735,
+      186.18,
+      191.53
+    ],
+    "id": "comet"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      257.05,
+      339.26,
+      181.9,
+      175.48000000000002
+    ],
+    "id": "asteroid"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      467.385,
+      346.1,
+      202.23000000000002,
+      149.8
+    ],
+    "id": "ringed-planet"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      721.855,
+      339.155,
+      157.29000000000002,
+      178.69
+    ],
+    "id": "space-capsule"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      921.085,
+      336.155,
+      180.83,
+      178.69
+    ],
+    "id": "broken-solar-panel"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      1157.96,
+      339.12,
+      154.08,
+      179.76000000000002
+    ],
+    "id": "space-wrench"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      41.085,
+      598.42,
+      180.83,
+      201.16000000000003
+    ],
+    "id": "kitten"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      266.26,
+      596.385,
+      175.48000000000002,
+      202.23000000000002
+    ],
+    "id": "corgi"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      476.085,
+      595.595,
+      180.83,
+      195.81
+    ],
+    "id": "bunny"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      697.98,
+      604.315,
+      184.04000000000002,
+      204.37
+    ],
+    "id": "red-panda"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      916.315,
+      614.435,
+      204.37,
+      170.13000000000002
+    ],
+    "id": "axolotl"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      1157.54,
+      613.12,
+      166.92000000000002,
+      179.76000000000002
+    ],
+    "id": "frog"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      51.75,
+      874.98,
+      160.5,
+      184.04000000000002
+    ],
+    "id": "duckling"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      257.98,
+      874.525,
+      184.04000000000002,
+      197.95000000000002
+    ],
+    "id": "raccoon"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      494.785,
+      879.12,
+      159.43,
+      179.76000000000002
+    ],
+    "id": "hamster"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      701.19,
+      862.685,
+      177.62,
+      223.63000000000002
+    ],
+    "id": "fox"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      921.875,
+      885.225,
+      187.25,
+      176.55
+    ],
+    "id": "penguin"
+  },
+  {
+    "source": "objects",
+    "sourceSize": [
+      1369,
+      1149
+    ],
+    "crop": [
+      1145.26,
+      874.665,
+      175.48000000000002,
+      193.67000000000002
+    ],
+    "id": "bear-cub"
+  },
+  {
+    "source": "characters",
+    "sourceSize": [
+      2056,
+      765
+    ],
+    "crop": [
+      94.155,
+      72.785,
+      392.69,
+      587.4300000000001
+    ],
+    "id": "character-white-shirt"
+  },
+  {
+    "source": "characters",
+    "sourceSize": [
+      2056,
+      765
+    ],
+    "crop": [
+      592.75,
+      66.575,
+      374.5,
+      593.85
+    ],
+    "id": "character-purple-shirt"
+  },
+  {
+    "source": "characters",
+    "sourceSize": [
+      2056,
+      765
+    ],
+    "crop": [
+      1058.4,
+      65.085,
+      385.20000000000005,
+      608.83
+    ],
+    "id": "character-green-hoodie"
+  },
+  {
+    "source": "characters",
+    "sourceSize": [
+      2056,
+      765
+    ],
+    "crop": [
+      1565.16,
+      86.82,
+      453.68,
+      586.36
+    ],
+    "id": "character-glasses"
+  },
+  {
+    "source": "person-05",
+    "sourceSize": [
+      1254,
+      1254
+    ],
+    "crop": [
+      266.39,
+      90.84,
+      691.22,
+      1044.3200000000002
+    ],
+    "id": "character-cream-sweater"
+  },
+  {
+    "source": "people-06-07",
+    "sourceSize": [
+      1683,
+      935
+    ],
+    "crop": [
+      169.605,
+      59.345,
+      531.7900000000001,
+      784.3100000000001
+    ],
+    "id": "character-cargo-skirt"
+  },
+  {
+    "source": "people-06-07",
+    "sourceSize": [
+      1683,
+      935
+    ],
+    "crop": [
+      939.17,
+      79.55499999999999,
+      575.6600000000001,
+      777.8900000000001
+    ],
+    "id": "character-botanical-shirt"
+  },
+  {
+    "source": "person-08",
+    "sourceSize": [
+      1122,
+      1402
+    ],
+    "crop": [
+      322.18,
+      246.49,
+      483.64000000000004,
+      841.0200000000001
+    ],
+    "id": "character-taupe-loungewear"
+  },
+  {
+    "source": "person-09",
+    "sourceSize": [
+      1154,
+      1363
+    ],
+    "crop": [
+      254.985,
+      278.345,
+      673.0300000000001,
+      784.3100000000001
+    ],
+    "id": "character-tied-cream-sweater"
+  },
+  {
+    "source": "person-10",
+    "sourceSize": [
+      1122,
+      1402
+    ],
+    "crop": [
+      255.24,
+      182.48499999999996,
+      573.52,
+      994.0300000000001
+    ],
+    "id": "character-charcoal-blazer"
+  }
+]

@@ -153,14 +153,15 @@ struct PixelContextMenuActions {
     let hidePet: () -> Void
     let checkForUpdates: () -> Void
     let quit: () -> Void
+    var openCompanionPicker: () -> Void = {}
 }
 
 enum PixelContextMenuItem: Hashable {
-    case retry, appearance, objectMix, behavior, hidePet, checkForUpdates, quit
+    case retry, appearance, objectMix, companion, behavior, hidePet, checkForUpdates, quit
     case size(PetSize), tooltipStyle(TooltipStyle), quotaDynamics
     case codexResetForecast, codexResetProvider, clearQuotaHistory
     case positionLock, pointerClickThrough, onlyWhenCodexActive, hideFullScreen
-    case launchAtLogin, openLoginItems
+    case responseNotices, launchAtLogin, openLoginItems
     case objectWeight(categoryID: String, weight: Int)
 
     var isGroup: Bool {
@@ -177,7 +178,7 @@ struct PixelContextMenuNavigation: Equatable {
         requiresRetry: Bool,
         canCheckForUpdates: Bool = true
     ) -> [PixelContextMenuItem] {
-        (requiresRetry ? [.retry] : []) + [.appearance, .objectMix, .behavior, .hidePet]
+        (requiresRetry ? [.retry] : []) + [.appearance, .objectMix, .companion, .behavior, .hidePet]
             + (canCheckForUpdates ? [.checkForUpdates] : []) + [.quit]
     }
 
@@ -185,6 +186,7 @@ struct PixelContextMenuNavigation: Equatable {
         for group: PixelContextMenuItem,
         requiresLoginApproval: Bool,
         showsCodexResetForecast: Bool = false,
+        responseNoticeConfigurationBusy: Bool = false,
         objectWeights: [PixelContextMenuItem] = []
     ) -> [PixelContextMenuItem] {
         switch group {
@@ -194,7 +196,8 @@ struct PixelContextMenuNavigation: Equatable {
                 + [.quotaDynamics, .codexResetForecast]
                 + (showsCodexResetForecast ? [.codexResetProvider] : []) + [.clearQuotaHistory]
         case .behavior:
-            [.positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin]
+            [.positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen]
+                + (responseNoticeConfigurationBusy ? [] : [.responseNotices]) + [.launchAtLogin]
                 + (requiresLoginApproval ? [.openLoginItems] : [])
         case .objectMix:
             objectWeights
@@ -358,6 +361,7 @@ struct PixelContextMenuView: View {
         openGroup: PixelContextMenuItem?,
         requiresLoginApproval: Bool,
         hasLoginError: Bool,
+        hasCompletionError: Bool = false,
         showsCodexResetForecast: Bool = false,
         hasHistoryIssue: Bool = false
     ) -> (root: CGRect, submenu: CGRect?) {
@@ -375,7 +379,7 @@ struct PixelContextMenuView: View {
         let submenuHeight: CGFloat = switch group {
         case .appearance: 318 + (showsCodexResetForecast ? 31 : 0) + (hasHistoryIssue ? 31 : 0)
         case .objectMix: 171
-        default: 189 + (requiresLoginApproval ? 62 : 0) + (hasLoginError ? 31 : 0)
+        default: 220 + (requiresLoginApproval ? 62 : 0) + (hasLoginError ? 31 : 0) + (hasCompletionError ? 31 : 0)
         }
         let width = group == .objectMix ? submenuWidth : groupedSubmenuWidth
         return (
@@ -396,6 +400,7 @@ struct PixelContextMenuView: View {
             openGroup: navigation.isSubmenuOpen ? navigation.selectedRoot : nil,
             requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
             hasLoginError: appState.launchAtLoginError != nil,
+            hasCompletionError: appState.responseNoticeIssue != nil,
             showsCodexResetForecast: appState.showsCodexResetForecast,
             hasHistoryIssue: appState.quotaHistoryIssue != nil
         )
@@ -431,6 +436,14 @@ struct PixelContextMenuView: View {
                 showsDisclosure: true,
                 accessibilityValue: appState.absorptionCategoryWeightsSummary,
                 accessibilityHelp: localized("menu.object_mix.hint")
+            )
+            row(
+                .companion,
+                title: localized("companion.entry"),
+                icon: .mix,
+                accessibilityValue: appState.companionSelectionName,
+                detail: appState.selectedCompanion?.companionName ?? localized("companion.not_selected"),
+                companion: appState.selectedCompanion
             )
             row(
                 .behavior,
@@ -555,6 +568,18 @@ struct PixelContextMenuView: View {
                 icon: .fullscreen,
                 isChecked: appState.hidesInFullScreenApps
             )
+            row(
+                .responseNotices,
+                title: localized("menu.response_notices"),
+                icon: .check,
+                isChecked: appState.responseNoticesEnabled,
+                isEnabled: !appState.responseNoticeConfigurationBusy,
+                accessibilityValue: toggleValue(appState.responseNoticesEnabled),
+                accessibilityHelp: localized("menu.response_notices.help")
+            )
+            if let issue = appState.responseNoticeIssue {
+                disabledRow(title: localized(issue), icon: .warning)
+            }
             PixelDivider()
             row(
                 .launchAtLogin,
@@ -702,7 +727,9 @@ struct PixelContextMenuView: View {
         isEnabled: Bool = true,
         isDestructive: Bool = false,
         accessibilityValue: String? = nil,
-        accessibilityHelp: String? = nil
+        accessibilityHelp: String? = nil,
+        detail: String? = nil,
+        companion: AbsorbableObjectManifest.Object? = nil
     ) -> some View {
         PixelMenuRow(
             title: title,
@@ -713,7 +740,9 @@ struct PixelContextMenuView: View {
             isEnabled: isEnabled,
             isDestructive: isDestructive,
             accessibilityValue: accessibilityValue,
-            accessibilityHelp: accessibilityHelp
+            accessibilityHelp: accessibilityHelp,
+            detail: detail,
+            companion: companion
         ) {
             guard isEnabled else { return }
             if rootItems.contains(item) {
@@ -758,6 +787,7 @@ struct PixelContextMenuView: View {
             for: navigation.selectedRoot,
             requiresLoginApproval: appState.launchAtLoginStatus == .requiresApproval,
             showsCodexResetForecast: appState.showsCodexResetForecast,
+            responseNoticeConfigurationBusy: appState.responseNoticeConfigurationBusy,
             objectWeights: appState.absorptionCategories.prefix(Self.matrixCategoryCount).flatMap { category in
                 Self.matrixWeights.compactMap { weight in
                     appState.canSetAbsorptionCategoryWeight(weight, for: category.id)
@@ -790,6 +820,7 @@ struct PixelContextMenuView: View {
         guard presentation.phase == .open else { return }
         switch item {
         case .retry: actions.retry()
+        case .companion: actions.openCompanionPicker()
         case .appearance, .objectMix, .behavior: enterSelectedSubmenu()
         case .size(let size): actions.setPetSize(size)
         case .tooltipStyle(let style): actions.setTooltipStyle(style)
@@ -812,6 +843,9 @@ struct PixelContextMenuView: View {
             actions.setShowsOnlyWhenCodexIsActive(!appState.showsOnlyWhenCodexIsActive)
         case .hideFullScreen:
             actions.setHidesInFullScreenApps(!appState.hidesInFullScreenApps)
+        case .responseNotices:
+            guard !appState.responseNoticeConfigurationBusy else { return }
+            appState.setResponseNoticesEnabled(!appState.responseNoticesEnabled)
         case .launchAtLogin:
             actions.setLaunchesAtLogin(!appState.launchesAtLogin)
         case .openLoginItems: actions.openLoginItems()
@@ -987,15 +1021,21 @@ private struct PixelMenuRow: View {
     let isDestructive: Bool
     var accessibilityValue: String? = nil
     var accessibilityHelp: String? = nil
+    var detail: String? = nil
+    var companion: AbsorbableObjectManifest.Object? = nil
     let action: () -> Void
     let onHover: (Bool) -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 7) {
-                PixelMenuIconView(icon: icon)
-                    .frame(width: 12, height: 12)
-                    .accessibilityHidden(true)
+                if let companion {
+                    CompanionThumbnail(object: companion).frame(width: 24, height: 24)
+                } else {
+                    PixelMenuIconView(icon: icon)
+                        .frame(width: 12, height: 12)
+                        .accessibilityHidden(true)
+                }
 
                 Text(title)
                     .lineLimit(1)
@@ -1003,7 +1043,10 @@ private struct PixelMenuRow: View {
                     .minimumScaleFactor(0.78)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if showsDisclosure {
+                if let detail {
+                    Text(detail).lineLimit(1).truncationMode(.tail)
+                        .foregroundStyle(companion == nil ? PixelPalette.mutedGold : PixelPalette.brightGold)
+                } else if showsDisclosure {
                     Text("›")
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
                         .foregroundStyle(PixelPalette.orange)
@@ -1070,7 +1113,7 @@ private struct PixelDivider: View {
     }
 }
 
-private struct PixelMenuBackground: View {
+struct PixelMenuBackground: View {
     var body: some View {
         ZStack {
             PixelPanelShape()

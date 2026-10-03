@@ -32,6 +32,12 @@
 		A10000000000000000000019 /* AppUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* AppUpdateTests.swift */; };
 		A10000000000000000000020 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AC0000000000000000000002 /* Sparkle */; };
 		A10000000000000000000021 /* CodexResetRadar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* CodexResetRadar.swift */; };
+		A10000000000000000000031 /* CompletionNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* CompletionNotice.swift */; };
+		A10000000000000000000032 /* CompletionNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* CompletionNoticeView.swift */; };
+		A10000000000000000000033 /* CompanionPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* CompanionPickerView.swift */; };
+		A10000000000000000000034 /* CompanionPreviews in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* CompanionPreviews */; };
+		A10000000000000000000035 /* CompanionOrbit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* CompanionOrbit.swift */; };
+		A10000000000000000000036 /* CompanionActivityHook.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* CompanionActivityHook.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +78,12 @@
 		A20000000000000000000028 /* UpdateHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateHandoff.swift; sourceTree = "<group>"; };
 		A20000000000000000000029 /* AppUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000030 /* CodexResetRadar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexResetRadar.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* CompletionNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionNotice.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* CompletionNoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionNoticeView.swift; sourceTree = "<group>"; };
+		A20000000000000000000033 /* CompanionPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionPickerView.swift; sourceTree = "<group>"; };
+		A20000000000000000000034 /* CompanionPreviews */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Assets/CompanionPreviews; sourceTree = "<group>"; };
+		A20000000000000000000035 /* CompanionOrbit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionOrbit.swift; sourceTree = "<group>"; };
+		A20000000000000000000036 /* CompanionActivityHook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionActivityHook.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +118,7 @@
 				A40000000000000000000009 /* Resources */,
 				A2000000000000000000000E /* frames */,
 				A20000000000000000000015 /* objects */,
+				A20000000000000000000034 /* CompanionPreviews */,
 				A40000000000000000000006 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -125,6 +138,7 @@
 				A20000000000000000000018 /* QuotaHistory.swift */,
 				A2000000000000000000000A /* PetVisualState.swift */,
 				A20000000000000000000014 /* Absorption.swift */,
+				A20000000000000000000035 /* CompanionOrbit.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -137,6 +151,8 @@
 				A2000000000000000000000F /* QuotaTooltipView.swift */,
 				A20000000000000000000016 /* PixelContextMenuView.swift */,
 				A20000000000000000000017 /* PixelQuotaTooltipView.swift */,
+				A20000000000000000000032 /* CompletionNoticeView.swift */,
+				A20000000000000000000033 /* CompanionPickerView.swift */,
 				A20000000000000000000019 /* QuotaHistoryView.swift */,
 			);
 			path = Views;
@@ -167,6 +183,8 @@
 				A20000000000000000000027 /* AppUpdater.swift */,
 				A20000000000000000000007 /* CodexAppServer.swift */,
 				A20000000000000000000030 /* CodexResetRadar.swift */,
+				A20000000000000000000031 /* CompletionNotice.swift */,
+				A20000000000000000000036 /* CompanionActivityHook.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -288,6 +306,7 @@
 				A1000000000000000000000F /* Assets.xcassets in Resources */,
 				A1000000000000000000000C /* frames in Resources */,
 				A10000000000000000000011 /* objects in Resources */,
+				A10000000000000000000034 /* CompanionPreviews in Resources */,
 				A1000000000000000000000E /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -314,13 +333,18 @@
 				A10000000000000000000005 /* AppConstants.swift in Sources */,
 				A10000000000000000000006 /* CodexAppServer.swift in Sources */,
 				A10000000000000000000021 /* CodexResetRadar.swift in Sources */,
+				A10000000000000000000031 /* CompletionNotice.swift in Sources */,
+				A10000000000000000000036 /* CompanionActivityHook.swift in Sources */,
 				A10000000000000000000008 /* PetVisualState.swift in Sources */,
 				A10000000000000000000010 /* Absorption.swift in Sources */,
+				A10000000000000000000035 /* CompanionOrbit.swift in Sources */,
 				A10000000000000000000009 /* BlackHoleView.swift in Sources */,
 				A1000000000000000000000A /* PetPanelController.swift in Sources */,
 				A1000000000000000000000D /* QuotaTooltipView.swift in Sources */,
 				A10000000000000000000012 /* PixelContextMenuView.swift in Sources */,
 				A10000000000000000000013 /* PixelQuotaTooltipView.swift in Sources */,
+				A10000000000000000000032 /* CompletionNoticeView.swift in Sources */,
+				A10000000000000000000033 /* CompanionPickerView.swift in Sources */,
 				A10000000000000000000014 /* QuotaHistory.swift in Sources */,
 				A10000000000000000000015 /* QuotaHistoryView.swift in Sources */,
 			);
@@ -467,7 +491,7 @@
 				INFOPLIST_FILE = Support/Info.plist;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -479,7 +503,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.13.2;
+				MARKETING_VERSION = 0.14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -496,7 +520,7 @@
 				CLANG_COVERAGE_MAPPING_LINKER_ARGS = NO;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -508,7 +532,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.13.2;
+				MARKETING_VERSION = 0.14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blackholecodex.quotaindicator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

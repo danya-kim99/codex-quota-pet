@@ -58,6 +58,74 @@ persistence, authentication flow, or consume operation.
 The app consumes the documented Codex App Server protocol and does not
 scrape Codex UI or private application files.
 
+## Optional response-ready notices
+
+The default-off notice has its own event path:
+`Codex notify -> headless app invocation -> native local IPC -> AppState verification -> child NSPanel`.
+It does not infer completion from quota or subscribe to another process's turn
+notifications. The normal app entry point handles `--black-hole-notify-v1`
+before starting SwiftUI. The adapter forwards the original JSON argument to
+the previous notifier unchanged, without a shell, then sends only bounded
+thread/turn IDs and a timestamp through `DistributedNotificationCenter`.
+The receiver is scoped by a random per-installation token; the IPC message is
+only a hint, never proof that a response completed.
+
+Explicit opt-in reads the raw user configuration layer through `config/read`
+and writes only `notify` through `config/value/write`, using its version as a
+concurrency guard. The encoded adapter contains the previous command. A stored
+fingerprint allows disabling to restore that command, or remove an originally
+absent key, only while the wrapper is still owned by this feature. Active
+profiles, overriding notification configuration, invalid wrappers and failed
+writes leave an actionable setting error. Startup does not rewrite configuration.
+Codex keeps `notify` in loaded session state, so existing chats may require a
+Codex restart after first setup. Source verification used installed CLI
+0.159.0-alpha.12.1 and its matching public source commit
+`180d8caaac22c656bfc6329f2f573ee1430cbe20`.
+
+The existing App Server makes bounded, event-triggered `thread/read` requests
+without turns and `thread/turns/list` requests with `itemsView: notLoaded`.
+Only an exact turn with status `completed`, no error, a recent `completedAt`,
+and a top-level `user` thread is accepted. Missing freshness or scope metadata
+fails closed. The optional chat name falls back to `Codex`; message contents
+are neither requested for verification nor retained. Local user-thread turns
+are supported, including background continuations in the same thread; dedicated
+automation, child and remote/cloud threads are outside this boundary.
+
+A separate App Server can temporarily normalize an unfinished persisted turn to
+`interrupted` without `completedAt`. That error-free, undated shape receives the
+existing bounded retries; an actual dated interruption remains rejected.
+
+`AppState` owns bounded deduplication, verification retries, eight seconds of
+automatic dismissal time and the shared menu preference. Interaction with the
+card pauses the remaining time; leaving resumes it. New completions update the
+current count without resetting the remaining time. An ID-scoped close action
+uses the existing invalidation path, so stale callbacks cannot dismiss a newer
+notice. Generation guards invalidate work on hide, pet interaction, sleep,
+reconnect, disable and termination. No missed event queue or periodic history
+polling is added. Transport failures leave quota and history unchanged.
+
+`AppDelegate` synchronously observes process-local `NSMenu` begin/end tracking
+notifications to suppress notices during actual native menu interaction. A set
+of menu identities keeps suppression active through nested and duplicate events.
+The observers and set are cleared at termination. SwiftUI menu content appearance
+does not own this state: its view can appear while the native menu is closed.
+
+`PetPanelController` reuses the existing tooltip placement helper for a static,
+nonactivating child panel. The card accepts pointer input for its native close
+button; the body has no action and cannot click an obscured application. This
+avoids an asynchronous global-monitor race when changing whole-window mouse
+transparency above a small close target. The pet's own input policy is separate.
+The hosting view is retained during content updates to preserve hover and focus.
+Hovering the pet, dragging it and opening menus still take precedence.
+`CompletionNoticeView` shares existing Smooth/Pixel styling, keeps a readable
+size independent of the pet, exposes the close button separately to accessibility,
+and provides one accessibility announcement per presentation. Pointer and
+keyboard/accessibility interaction pause the timer without automatic activation
+or focus transfer. Headless logic/IPC checks and an offscreen view preview are
+available via `script/check_completion_notices.sh`; live Desktop delivery,
+native menu tracking, first-click behavior, focus and spoken VoiceOver require
+separate GUI verification.
+
 ## Application updates
 
 The approved update boundary is independent of Codex quota:
@@ -172,8 +240,9 @@ keyboard selection are view-local and do not create new persisted preferences.
 Both Appearance groups expose the existing forecast opt-in, conditional provider
 link and local-history command/status. The Pixel history action reaches the same
 AppDelegate confirmation as the native menu; provider navigation and confirmation
-run after context-menu dismissal. Keyboard traversal uses current forecast state
-and normalizes selection when its conditional provider action disappears. The short root is anchored independently
+run after context-menu dismissal. Conditional provider actions and busy response
+notice settings are omitted from keyboard traversal using their current AppState
+values. The short root is anchored independently
 of the submenu height inside the shared panel reserve; the controller keeps its
 existing screen-quadrant placement and dismissal responsibilities.
 
@@ -188,3 +257,71 @@ pulse together with the stable absorption core, is the shared hover, context,
 drag, and dynamic transparent-padding pass-through region. Local and global
 mouse-move monitors update the one panel's native `ignoresMouseEvents` policy;
 active pointer sequences hold capture until release without adding permissions.
+
+## Companion catalogue selection control
+
+`AppState` owns the optional catalogue-validated `selectedCompanionID` in local
+preferences, independently of manual absorption weights. `CompanionPickerView`
+keeps category, magnifier zoom and preview/focus local; only selection commits
+the ID. `CompanionPreviews` contains the six unchanged approved detailed source
+sheets plus the restored tenth character's source sheet (Паша), with per-ID
+fractional crop metadata. Grid/menu images reuse the existing
+80×80 PNGs. No production sprite or black-hole rendering changes are involved.
+
+Native and Pixel menus share an AppDelegate action into the existing
+`PetPanelController`. It owns one transient nonactivating catalogue panel,
+clamps it to the visible display, suppresses conflicting pet UI and removes its
+outside-click monitors on dismissal. The SwiftUI catalogue can scroll vertically
+on a small display. The real work-start/pause transport and orbital rendering are
+not part of this implemented control slice; the existing completion hint cannot
+be treated as a signal that work started.
+
+## Companion orbit renderer
+
+The subsequent approved motion slice adds `CompanionOrbitVisualState` and a
+small view-local `CompanionOrbitPresentation`. The pure geometry uses the
+approved 5-second period and 80 pt sprite canvas at L. `PetSpriteScene` shares
+the existing quota-frame and object-image caches and composes the far companion,
+quota image and near companion in that order; manual absorption and reaction
+layers stay above it. The existing `BlackHoleView` timeline advances both the
+orbit and its finite appearance/removal state. No extra timer, task queue,
+transport, image assets or dependencies are introduced. Companion images are
+excluded from pointer hit testing and accessibility focus.
+
+Ordinary launches keep `AppState.companionActivity` at `.unavailable`. The renderer
+and transition checks use isolated synthetic inputs. The installed
+Codex's independent App Server and external hooks do not provide a complete
+Desktop lifecycle; details and exact source evidence are recorded in
+`docs/feature-workstreams/companion-picker.md`.
+
+Future activity integration must own concurrent turns in AppState and obtain
+fresh verified state after reconnect, hide/show, sleep and resize. In particular,
+the current shared `absorptionResetID` clears presentation on resize and hide;
+the future source/presentation connection must explicitly reconcile after these
+resets. The inactive-source implementation and pure tests do not prove these
+live lifecycle transitions, GUI delivery or spoken VoiceOver behavior.
+
+The approved hooks experiment supplies an explicitly approximate exception.
+`BLACK_HOLE_COMPANION_HOOK_TOKEN` must contain a UUID at launch. Without it there
+is no activity listener. `CompanionActivityHook` handles a bounded stdin JSON
+payload before the application's SwiftUI entry point, emits a metadata-only
+local notification on a separate channel, and returns neutral JSON without
+controlling Codex. The token scopes the experiment; it is not authentication.
+
+`AppState` owns `CompanionHookTracker`, the listener and one expiry task. Positive
+prompt/tool hints create or refresh ephemeral turns; permission hints only pause
+an observed turn. Stop, SubagentStop and Interrupt remove matching turns with
+temporary tombstones; SessionEnd clears its session up to a timestamp cutoff.
+The aggregate remains working if any tracked turn works. After ten minutes
+without a positive hint, an expired turn is removed and an empty aggregate is
+unavailable. Generation/epoch resets clear state on connection changes, sleep,
+actual panel visibility changes and scene resets. Fresh hints are required to
+restart; there is no snapshot or inferred recovery. Hook timestamps represent
+helper start, not guaranteed runtime ordering. Same-turn Stop continuations,
+missing terminal events and long silent work remain known approximation limits.
+
+The experiment does not install/trust hooks, persist activity, change existing
+completion-notify configuration, add UI or alter release metadata. The prepared
+hook definition lives under build artifacts until reviewed separately. Actual
+Codex-dispatched delivery and live GUI behavior must be distinguished from
+headless synthetic-input/IPC checks.

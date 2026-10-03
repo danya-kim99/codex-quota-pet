@@ -48,6 +48,183 @@ requiring the user to keep the Codex window open.
   seconds old, and after macOS wakes from sleep.
 - All processing is local. There is no backend, analytics, or cloud sync.
 
+## Approved local response-ready notice — 2 October 2026
+
+The user approved the consolidated behavior below with “ок, делай”. This covers
+local implementation and verification, not publication, installation/replacement,
+or agent interaction with the graphical interface. The completion transport must
+be verified before it is chosen; the existing quota App Server is not a global
+subscription to turns executed by other Codex processes.
+
+The same day, the user requested immediate manual dismissal instead of waiting
+eight seconds, then explicitly asked to study and apply established interaction
+practices. The local implementation below incorporates that requested refinement:
+a visible close button and a timer that pauses during interaction. This replaces
+the original fully noninteractive-card requirement; the remaining feature scope
+and the restriction on agent GUI interaction remain unchanged.
+
+- Add one persisted, default-off Behavior toggle shared by the native and Pixel
+  menus: `Сообщать о готовом ответе` / `Notify When Response Is Ready`.
+- A fresh, confirmed successful top-level Codex response produces one
+  notice beside the visible pet: `Ответ готов` / `Response ready`.
+  This means an assistant turn ended, not that the user's goal was achieved.
+  Errors, interruption, approval waits and individual tool/subagent completions
+  do not count. The supported source scope must be proved, not inferred from
+  arbitrary folder names or message text.
+- The second line is a verified chat name, ellipsized to one readable line with
+  the full value available to accessibility. Missing or unavailable names use
+  `Codex`. Never use prompt or answer text as a title, log it, or persist it.
+  Name lookup must not indefinitely delay the notice.
+- Show immediately with eight seconds of automatic dismissal time. Hovering the
+  card or focusing a control with the keyboard/assistive technology pauses the
+  remaining time; leaving resumes that remainder, not a new eight seconds.
+  Further distinct completions update one localized count and the latest label
+  without resetting the remaining time or stacking notices. Deduplicate by
+  thread and turn ID, including across reconnects within the same app run.
+- A permanently visible `xmark` button closes the current notice immediately.
+  Use a 28×28 pt target and the localized accessible name `Закрыть уведомление`
+  / `Dismiss notification`. Keep its position stable while the count changes.
+  Closing cancels the current timer and pending presentation work, does not
+  disable future notices, and cannot revive a dismissed event. A stale close
+  callback must not dismiss a later notice. The card body has no action.
+- Hover quota information, dragging and the context menu take precedence. Those
+  interactions dismiss a notice and suppress new notices without queuing them.
+  Manual hiding, fullscreen hiding and Only When Codex Is Active also suppress
+  notices; a completion never reveals a hidden pet. Start, enable, wake and
+  reconnect never replay historical completions. Disabling or sleeping clears
+  transient presentation and its deadline.
+- Do not suppress merely because Codex is foreground: the current integration
+  cannot reliably identify which chat is being viewed. In Codex-only mode,
+  notices are consequently visible only while Codex and the pet are visible.
+- Reuse the existing Smooth/Pixel visual language and adaptive screen placement.
+  Keep text readable independently of S/M/L pet size, fit the notice within the
+  pet's display visible frame, and never move or resize the pet to show it.
+  There is no motion, sound, flashing, automatic focus transfer or deep link.
+  The notice receives pointer input so its close button works on the first
+  click; clicking its body has no action and does not pass through to an
+  obscured application. The pet's click-through, absorption, drag and position
+  lock remain unchanged. Escape may close a focused notice but must never be
+  intercepted globally from another application.
+- All quota values, including zero, unknown and stale, Standard/Turbo and Reduce
+  Motion have the same notice behavior. Completion transport failure is separate
+  from quota health and must not dim the pet or alter quota retry/history.
+- Localize the toggle, single/plural notice and help in English/Russian. Announce
+  a newly presented notice once to VoiceOver without moving focus; count updates
+  do not repeatedly interrupt speech. Preserve native/Pixel keyboard navigation.
+- Keep processing local and use native APIs with no new dependency, backend,
+  analytics, system notifications, notification history or release/signing change.
+  Preserve any existing Codex notification integration; do not silently replace
+  user configuration as part of enabling an unverified transport.
+
+Acceptance checklist:
+
+- [x] Verify the source contract and read-only cross-process metadata access:
+      installed Codex 0.159.0-alpha.12.1 runs `notify` in shared core after
+      follow-up decisions. `notify` is a wake-up hint, not final-status proof.
+- [ ] Verify the installed desktop-to-pet delivery end to end after explicit
+      GUI authorization; source/schema checks do not substitute for this.
+- [x] Headless checks accept a successful completion once and reject duplicate,
+      failed, interrupted, approval and child/dedicated automation events.
+- [x] Without interaction, three distinct completions produce count three with
+      the original eight-second deadline; actual timer expiry passes the
+      headless check.
+- [x] AppState checks cover stale intake, reconnect, disabled/hidden state,
+      interaction suppression, sleep and canceled termination without replay.
+- [x] Missing titles and configuration errors fail gracefully without changing quota.
+- [x] Build and focused runnable logic checks pass with existing user work intact.
+- [x] Actual SwiftUI Smooth/Pixel previews in Russian and English are available
+      for user review, rendered offscreen without launching the application UI.
+- [x] Manual dismissal clears immediately; stale callbacks and pending checks
+      cannot dismiss a newer notice or revive an old one.
+- [x] Headless state checks cover pointer and accessibility/keyboard pause
+      reasons together, resuming the remainder and grouping during a long pause.
+      Native event delivery still requires the live checks below.
+- [x] Source exposes a separate native Button with RU/EN accessibility names;
+      message and button accessibility focus both hold the timer. Updated
+      Smooth/Pixel offscreen previews fit the label and 28 pt close target.
+      The actual accessibility tree and spoken behavior remain live QA items.
+- [ ] Live fullscreen/Codex-only visibility, hover/drag, native menu tracking,
+      screen-edge/multidisplay, focus, keyboard and spoken VoiceOver verification
+      require specific GUI authorization. Pure layout checks do not replace them.
+
+Interaction references checked on 2 October 2026:
+
+- [Fluent 2 Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage)
+  supports timed informational notices, hover pausing and explicit close when
+  the underlying information is available elsewhere. Codex retains the answer.
+  Keeping eight seconds and resuming the remainder are this product's choices.
+- [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility)
+  recommends a default 28×28 pt macOS control target. A persistent close affordance
+  makes the action discoverable without first requiring hover.
+- [W3C status-message guidance](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
+  informs the noninterrupting accessibility announcement; this is design guidance,
+  not a claim of audited WCAG conformance for this native app.
+- [AppKit nonactivating panel behavior](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)
+  distinguishes pointer interaction from taking keyboard focus. Use native
+  routing rather than asynchronous global mouse interception for the close click.
+
+Transport boundary verified for local implementation:
+
+- A headless invocation of the existing app executable forwards the original
+  `notify` argument unchanged to the previously configured command, without a
+  shell. It delivers only bounded thread/turn IDs and a timestamp to an
+  already-running pet and never launches its GUI. Forwarding is independent of
+  whether Black Hole accepts the event. No persistent listener process is added.
+- The explicit in-app opt-in installs this adapter using documented, versioned
+  Codex configuration APIs. Preserve the previous command, reject incompatible
+  or concurrently changed configuration, and restore only an adapter still
+  owned by this feature when disabling it. The development task does not install
+  the adapter into the user's live Codex configuration automatically.
+  Codex retains legacy `notify` per loaded session: clearly explain that existing
+  chats may require restarting Codex after first setup. Successful configuration
+  writing is not a claim of verified live delivery. Missing optional `client`
+  metadata alone must not reject an otherwise verified top-level user response.
+- The existing App Server verifies metadata with `thread/read` without turns
+  and checks the exact turn with `thread/turns/list`, requesting `itemsView:
+  notLoaded`. Only a terminal `completed` turn in a top-level `user` thread is
+  eligible. Runtime `notLoaded` and `idle` are not completion signals. Source
+  strings alone, especially `appServer` versus `vscode`, do not identify Desktop.
+  Unknown/unsupported metadata fails closed. A bounded event-triggered retry
+  handles completion persistence lag; no background history scan is introduced.
+- Titles remain optional. Local Codex user-thread turns are the scope;
+  remote/cloud execution, child threads and dedicated automation threads are
+  outside it. A background continuation within a user thread is still a turn
+  in that thread; do not claim to distinguish its intent from a manual response.
+
+Local verification, 2 October 2026:
+
+- `xcodebuild build-for-testing`, Debug, macOS, `CODE_SIGNING_ALLOWED=NO` passed
+  in `build/CompletionNoticesDerivedData`; log: `build/completion-build.log`.
+  This compiled the existing XCTest target without launching its application host.
+- `script/check_completion_notices.sh` passed parser/status/freshness,
+  configuration ownership/restoration, AppState lifecycle/grouping/expiry,
+  native IPC and actual-binary callback forwarding checks. It uses isolated
+  preferences and synthetic configuration; the live Codex configuration was not
+  changed. Forwarding covers malformed/irrelevant events, literal shell
+  metacharacters and a directory shadowing an executable in PATH.
+- Both localization files passed `plutil -lint`; `git diff --check` passed.
+  Offscreen previews: `build/completion-checks/response-notice-preview.png` and
+  `build/completion-checks/response-notice-preview-en.png`.
+- Reviewer findings were corrected and re-reviewed. With the extra agent slot
+  unavailable, the primary agent performed the QA/accessibility role: source
+  checks, localization validation, layout assertions and preview inspection.
+  No app launch/replacement, native GUI interaction, release or publication ran.
+- The dismissal refinement passed `build-for-testing` and the expanded headless
+  checks: a pause after two seconds preserves six seconds, a pause can outlast
+  the original deadline, combined hover/keyboard/AX reasons resume only when
+  all clear, and old close/focus callbacks cannot affect a new notice. Pending
+  metadata checks cannot revive a manually dismissed notice. Independent review
+  found no confirmed defect in this delta. The native close target, first-click
+  behavior and spoken VoiceOver remain part of the separate live QA.
+  Both updated locale previews were inspected using an offscreen `NSHostingView`
+  bitmap. `ImageRenderer` omitted native focus wrappers, so its incomplete
+  preview was not accepted as visual evidence. The replacement renderer creates
+  no window and invokes neither application entry point nor AppDelegate.
+- Local read-only evidence confirmed this chat exposes `originator: Codex Desktop`,
+  `threadSource: user`, no parent, and persisted completed/interrupted turn IDs.
+  The exact tagged Codex source, not private application logs or databases,
+  established notification ordering and optional current-client metadata.
+
 ## Codex CLI discovery correction
 
 The user requested this bug fix and approved production patch publication on
@@ -413,10 +590,6 @@ are in
   text. Turning it off cancels an in-flight request, clears the in-memory
   external state, and immediately restores the ordinary tooltip title. The
   custom pet context menu and a Settings window are outside this first slice.
-- While the opt-in is enabled, the native menu shows a clickable provider credit,
-  `Data by Codex Resets ↗` / `Данные: Codex Resets ↗`, linking to exactly
-  `https://codex-resets.com/`. This credit is required wherever the external
-  data is displayed; individual signal and source-post links remain deferred.
 - After opt-in, use only unauthenticated
   `GET https://codex-resets.com/api/v1/status`, with no query, request body,
   cookies, account ID, quota, plan, history, project data, locale, or Codex
@@ -450,8 +623,7 @@ are in
 - VoiceOver reads personal quota and reset first, then identifies the external
   forecast and `codex-resets.com`. Reduce Motion adds no alternate behavior
   because the new header is static.
-- Notifications, sounds, individual signal/source-post links or post text,
-  reset statistics, custom
+- Notifications, sounds, source links or post text, reset statistics, custom
   prediction, spending advice, banked-credit controls, and duplicate signal
   surfaces remain deferred.
 
@@ -905,7 +1077,7 @@ Acceptance criteria for this update:
   unwritable storage, in-memory continuation, retry, and confirmed clear are
   safe and do not affect live quota behavior;
 - Smooth and Pixel L/M/S render the approved current/earlier endpoint copy,
-  adaptive Y-domain and actual bound labels, grouped gap, reset, and current-point cues,
+  adaptive Y-domain and actual bound labels, gap, reset, and current-point cues,
   graph/compact composition, Standard/Turbo, Reduce Motion, stale, missing,
   English, Russian, accessibility, and visible/hidden geometry states;
 - all tooltip placements, display edges, accessibility text sizes, hover,
@@ -1372,18 +1544,11 @@ existing character category weight and interaction behavior are unchanged.
 On 17 August 2026, the user approved two additional character concepts:
 [`absorbable-person-08-v5.png`](concepts/absorbable-person-08-v5.png), the man
 in a taupe loungewear set, and
-[`absorbable-person-09-v4.png`](concepts/absorbable-person-09-v4.png), the woman
-with round glasses, a vivid golden-yellow face-framing streak, a tied cream
-sweater, and wide gray trousers. Her V4 concept supersedes V3. The catalog now
-contains 33 models with nine characters. The existing `characters` category
+[`absorbable-person-09-v3.png`](concepts/absorbable-person-09-v3.png), the woman
+with round glasses, a prominent silver-gray face-framing streak, a tied cream
+sweater, and wide gray trousers. Her V3 concept supersedes V2. That addition
+brought the catalog to 33 models with nine characters. The existing `characters` category
 weight, selection behavior, animation, and interaction rules remain unchanged.
-
-On 20 August 2026, the user approved
-[`absorbable-person-10-v1.png`](concepts/absorbable-person-10-v1.png), the man
-with side-swept brown hair, a friendly smile, light stubble, a charcoal blazer,
-and a white band-collar shirt. The catalog now contains 34 models with ten
-characters. The existing `characters` category defaults, saved selection
-behavior, animation, and interaction rules remain unchanged.
 
 The V2 astronaut animation is the approved representative visual prototype.
 The slower V3 timing is approved through the three-object launch with varied
@@ -1459,7 +1624,7 @@ State matrix and accessibility:
   renderer work, dependency, permission, signing, packaging, or distribution
   change.
 
-Explicit non-goals are individual weights for the 34 models, physical mass,
+Explicit non-goals are individual model weights, physical mass,
 weight-dependent speed, trajectory or black-hole reaction, percentages,
 presets, import/export, sync, counters, collections, achievements, a reset
 command, or a Settings window.
@@ -1955,27 +2120,50 @@ separate step; unrelated local work is excluded from the release candidate.
 
 ### Approved menu content synchronization — 2 October 2026
 
-The user requested synchronized menu contents, then explicitly requested release.
-Version 0.13.2 (32) publishes the existing forecast and local-history controls on
-both menu surfaces. Separate, unreleased response-ready notices remain local.
+The user explicitly requested synchronizing the contents of the pet's right-click
+menu and the menu-bar menu. This authorizes local implementation of the existing
+controls on both surfaces and supersedes the native-only control exceptions in
+the 29 September amendment.
 
-- Appearance exposes size, tooltip style, quota dynamics, reset announcements,
-  the conditional Codex Resets provider link, clear history and history issues
-  in the same order in both menus.
-- Reuse the persisted forecast opt-in, exact provider URL, existing RU/EN copy
-  and the existing history confirmation with Cancel as the default. Dismiss the
-  Pixel menu before opening the provider link or confirmation; recheck provider
-  availability after dismissal.
-- Pixel keyboard traversal includes the visible provider action and normalizes
-  selection when it disappears. Every conditional submenu fits the existing
-  480 × 505 pt panel reserve; the root stays anchored when child content changes.
-- Preserve the native quota/connection summary, all released settings, actions,
-  guards, persistence, tooltip/visibility/interaction behavior and update policy.
-  No new preference, data source, dependency or distribution change is introduced.
-- Acceptance: both menus expose the same released settings/actions in the same
-  groups and order; callbacks, conditional navigation and layout checks pass;
-  app/tests compile and hosted CI passes. Live GUI and spoken VoiceOver are
-  separate, unverified checks; this release request does not authorize GUI work.
+- Both menus retain Appearance, Object Mix, Behavior, then visibility, updates
+  and Quit. The native quota/connection summary remains its existing status
+  header; the pet context menu continues to avoid duplicating the tooltip.
+- Appearance has size, tooltip style, quota dynamics, reset announcements,
+  the existing conditional Codex Resets provider link, clear history and any
+  history issue, in the same order. Reuse the existing persisted forecast setting,
+  exact provider URL, localized copy and clear-history confirmation with Cancel
+  as the default. Dismiss the Pixel menu before opening the link or confirmation.
+- Behavior has position lock, pointer pass-through, Codex-only visibility,
+  fullscreen hiding, response-ready notices and launch at login in the same
+  order. Keep response-notice errors beside that setting and login approval,
+  settings action and errors beside the login setting on both surfaces.
+- Preserve every existing action, setting value, opt-in, lifecycle and disabled
+  state. Pixel keyboard navigation follows visual order, skips disabled actions
+  and normalizes selection when conditional actions disappear. Reuse existing
+  RU/EN labels, accessible state/help and the current panel reserve when it fits.
+- Existing quota/failure states, Standard/Turbo, Reduce Motion, Smooth/Pixel,
+  S/M/L, hover/drag, screen placement and visibility contracts are unchanged.
+  No new data source, preference, dependency or release change is required.
+
+Acceptance: both surfaces expose the same settings/actions in the same groups
+and order; shared actions retain their guards and confirmation; all conditional
+rows fit the Pixel submenu; focused navigation/action/layout checks pass and
+the app and tests compile. No application launch, GUI interaction, installation,
+commit or publication is authorized by this request. Live pointer/focus and
+spoken VoiceOver remain unverified until separately requested.
+
+Verification: Debug app and XCTest target compiled with `build-for-testing`
+and `CODE_SIGNING_ALLOWED=NO`; hosted XCTest was not launched. The headless
+runner compiled against production sources passed 7,407 assertions, including
+conditional keyboard navigation, shared callbacks, 768 submenu combinations
+and 27 display anchors. Appearance fits 318–380 pt within the unchanged
+480 × 505 pt panel reserve. RU/EN localization validation and `git diff --check`
+passed. Independent code and QA/accessibility reviews found no confirmed
+in-scope defects. Evidence, source fingerprints, commands and the runnable check
+are in `build/menu-content-sync-verification/`. Concurrent completion-notice
+work was preserved and excluded from this change's scope. No GUI interaction,
+app replacement, commit or publication occurred; live focus, pointer interaction,
+rendering and spoken VoiceOver remain unverified.
 
 ### Live grouped-menu verification — 7 September 2026
 
@@ -2081,3 +2269,228 @@ The complete approved scope is:
 
 No new visual design is introduced. Local GUI checks/installation are excluded
 without specific consent; automated checks do not claim live visual approval.
+
+## Approved companion catalogue implementation — 2 October 2026
+
+The user explicitly froze both final Pixel/Smooth mockups and authorized
+implementation: “Фиксируем макеты, разрешаю приступать к реализации”. This
+approves the complete selection-control slice below. The follow-up notes that
+orbital motion has not yet been shown: present a representative animation before
+implementing runtime motion. Control implementation can proceed independently.
+No app launch, GUI interaction, installation, release or publication is included.
+
+- Add the same Companion entry to both existing menus. Open one separate
+  transient catalogue panel, approximately 380 pt wide, in the selected
+  Smooth/Pixel appearance. Keep existing menu groups and actions reachable.
+- AppState owns one optional stable companion ID, validated against the existing
+  34-item catalogue and persisted locally. Default is no companion. Missing,
+  malformed or removed IDs resolve to no companion. Selection is independent of
+  the category weights for manual absorption.
+- Reuse the frozen three categories and item order. Characters use three columns
+  with a fourth row for the tenth character (3 October correction below).
+  Preserve the ten explicitly named characters listed in
+  docs/feature-workstreams/companion-picker.md; names do not translate, ordinary
+  labels/descriptions do in English and Russian.
+- Hover/focus previews without selecting. Click, Enter and Space select and
+  persist immediately. Arrows move in the grid; Tab follows native focus order.
+  Checkmark, selected-state semantics and gold name distinguish selection.
+  Only the selected name is gold in the entry, grid and preview. Non-selected
+  preview names use normal text. Announce selection, not every hover.
+- Use the original detailed source crops for the large preview and unchanged
+  game sprites for miniatures. Zoom 1× / 1.5× / 2× affects only the preview.
+  Preserve its aspect ratio and centered crop. Reserve two description lines
+  and anchor the name so changing characters cannot move the name baseline.
+  Use one common inset. Do not restore the removed “У Дыры” comparison/divider.
+- Category, preview and zoom are local presentation state. Changing categories,
+  preview, zoom or style never changes the selected ID. “Без спутника” clears
+  selection. X, Escape and outside dismissal close the panel without reverting
+  an already committed selection; focus returns to its initiating surface when
+  that surface is available, without focusing another application.
+- Reuse existing screen placement/clamping. The panel does not resize or move
+  the pet and fits its display's visible frame; scrolling content is permitted
+  if a small visible frame cannot contain the whole catalogue. Closing/hiding,
+  sleep and termination clean up panel tracking/observers. Pet input and manual
+  absorption remain unchanged. Opening the picker dismisses conflicting tooltip,
+  context menu and completion notice presentation.
+- The control is available for all quota/connection states, Standard/Turbo,
+  Reduce Motion and S/M/L. Its readable dimensions are independent of pet size.
+  It does not infer activity from quota, foreground status or old history.
+  “Во время работы” describes the intended lifecycle, not proof of an active job.
+- Runtime orbit, appearance/disappearance timing, approval-wait behavior and a
+  verified activity transport remain a separate pending motion slice. Do not
+  introduce a simulated busy flag into production or activate unfinished motion.
+- Reuse SwiftUI, AppState, Foundation and the existing narrow AppKit panel seam;
+  no dependency, telemetry, backend, private-file scraping, signing or version
+  changes. No changes to the existing work-notification transport/configuration.
+
+Acceptance checklist:
+
+- [x] Both menu actions route to the same native catalogue and persisted choice;
+      live native-menu opening/tracking remains unverified.
+- [x] All 33 models and 9 character names match the frozen source; detailed
+      previews retain their approved crop and miniatures retain original pixels.
+- [x] Model checks cover nil/invalid/reloaded preferences, independent weights,
+      preview/category/zoom and arrow boundaries; source review covers close
+      lifecycle. Commit also restores the preview after mixed hover/keyboard input.
+- [ ] Native pointer/focus, Enter/Space dispatch, outside dismissal, menu tracking,
+      sleep dismissal and spoken VoiceOver require an explicitly authorized GUI pass.
+- [x] After explicit GUI approval, live Pixel context-menu entry, nine character
+      names, selection/change, zoom endpoints, X dismissal and selected-state
+      preservation on reopening passed on the technical Release build. Original
+      No companion/2× state was restored and only the test copy was closed.
+      Keyboard delivery failed its standard-menu control through CUA; status-menu
+      access timed out. Those checks and live Smooth/VoiceOver remain unverified.
+- [x] Representative Pixel/Smooth and RU/EN offscreen renders have anchored names, readable initials,
+      selected-name accents and no clipped essential controls.
+- [x] Build app/test targets without GUI; run focused headless checks and review.
+      Report live pointer/focus, VoiceOver and screen-edge behavior separately.
+
+Frozen source: docs/concepts/companion-picker-approved.html.
+SHA-256: 0fd47b726429255053ba283a641a847a76414422191eec702b4ce1eaae2dcbaf.
+
+Approved correction — 3 October 2026: the user reported the missing existing tenth
+character and named him Паша. Restore `character-charcoal-blazer` after Лиза П.,
+using its previously shipped runtime PNG and the existing approved detailed
+source `concepts/absorbable-person-10-v1.png` for the magnifier. The current shared
+catalogue contains 34 models and ten characters. Keep the three-column grid and
+existing scroll behavior in Pixel and Smooth, including keyboard access to the
+fourth row. Selection, relaunch persistence, manual absorption and the working
+orbit use the same ID. Preserve the original 33 frozen entries and all other
+artwork. This authorizes the missing-character correction and local build/tests;
+it adds no GUI launch or publication scope.
+
+Correction acceptance:
+
+- [x] All ten named characters have runtime sprites and matching HQ previews;
+      the original frozen 33 assets/crops remain unchanged.
+- [x] Паша is selectable and reloads from preferences; the keyboard navigation
+      model reaches and leaves the fourth row without changing the three-column layout.
+- [x] Focused headless checks and the local app build pass; live GUI and VoiceOver
+      are reported separately.
+
+Correction evidence: `build/companion-ten-audit/` records the scoped diff,
+preserved-asset hashes, faithful HQ derivation and passing focused/build logs.
+The fresh `build/CompanionTenDerivedData` app bundles all 34 runtime objects and
+matching preview entries. Independent review and QA found no confirmed defects.
+RU/EN offscreen renders verify Паша in both styles. At the retained 600 pt panel
+height, the fourth row extends below the initial scroll viewport; real scrolling,
+keyboard event delivery and VoiceOver remain unverified. The app was not launched.
+
+Implementation evidence: `build/companion-build.log` records successful
+`build-for-testing` with `CODE_SIGNING_ALLOWED=NO` and isolated
+`build/CompanionPickerDerivedData`. `script/check_companion_picker.sh` passed
+frozen asset/crop, model, persistence, navigation and placement checks;
+`script/check_completion_notices.sh` passed the existing completion/IPC regression
+against that build. Actual NSHostingView RU/EN renders are in
+`build/companion-checks/`. No GUI application or hosted XCTest was launched.
+The scoped source diff and hashes are in `build/companion-implementation-audit/`.
+
+## Approved companion orbital motion — 2 October 2026
+
+After reviewing the animated prototype, the user requested double speed and
+then explicitly authorized implementation: “ок, реализуй”. This supersedes the
+pending visual-approval boundary above. The accepted period is **5 seconds**.
+The catalogue, names, detailed previews and ordinary runtime sprites remain as
+previously approved. This authorization covers local implementation and checks;
+it does not include GUI interaction, installation or publication.
+
+- Show one selected companion while verified local Codex work is active. No
+  selection, idle or unknown activity means no companion. Several active tasks
+  share one companion; finishing one must not hide it while another is active.
+- Reuse the existing PNG and pet scene. At L (400 × 220 pt), the ellipse radii
+  are 130 × 62 pt and the sprite canvas is 80 × 80 pt; S/M scale proportionally.
+  Clockwise motion keeps the sprite upright with at most 5 degrees of tilt,
+  gentle depth scaling from 0.88 to 1.00, and far/near drawing behind/in front
+  of the existing hole. Do not add an orbit line, trail or absorption effect.
+- Fade in over 350 ms and fade out over 250 ms on a terminal task transition,
+  including completion, cancellation and failure. Normal completion notices
+  retain their independent verified delivery path.
+- Reduce Motion uses a static companion at (130, -12) relative to the L scene
+  center, with immediate appearance/removal. Known approval/input waits may
+  retain the companion statically; they must not be represented as active work.
+- The 5-second orbit is independent of remaining quota and Standard/Turbo.
+  Existing quota frames, pulse, manual absorption, tooltip, drag, position,
+  click-through and screen-clamping behavior stay intact. The companion adds
+  no pointer target or accessibility focus stop.
+- Selection changes during work use the newly chosen model; clearing selection
+  removes the companion. Hidden/sleeping/disconnected/terminated presentation
+  must not run an orphan animation or replay stale activity on resumption.
+- AppState owns verified activity; view-local state owns animation timing.
+  Reuse the existing timeline and sprite cache. No new dependency, polling of
+  private history, global input capture, message-content storage or telemetry.
+- Verify the external activity contract before enabling automatic delivery.
+  Quota updates, process presence, elapsed time and completion hints are not
+  start signals. If the installed Codex exposes no complete supported lifecycle,
+  keep automatic presentation inactive, report this limit and validate the
+  native renderer through an isolated test harness without pretending that
+  automatic activation is implemented.
+
+Acceptance checklist:
+
+- [x] Native ordinary sprites match the accepted 5-second trajectory and layers
+      in pure checks and the offscreen native contact sheet.
+- [x] Appearance/removal, selection changes and Reduce Motion are verified in
+      the state/render harness, including monotonic fade after an early finish.
+- [x] S/M/L bounds pass 2,103 samples; the inactive quota-50/frame-0/L native
+      render matches the previous aspect-fit view pixel for pixel.
+- [ ] Active companion pointer/lifecycle behavior, including resize and
+      hide/show recovery, requires an activity source and a live GUI pass.
+- [ ] A supported external source proves start, finish, cancellation, failure,
+      concurrency and stale-event recovery before automatic motion is enabled.
+- [x] Focused checks and an unsigned app/test build pass; independent review
+      distinguishes tested behavior from live GUI/VoiceOver checks not run.
+
+Implementation evidence: `build/companion-orbit-checks.log`,
+`build/companion-orbit-build.log`, the unchanged-transport regression in
+`build/companion-orbit-completion-regression.log`, and the native contact sheet
+`build/companion-checks/companion-orbit-native.png`. Six changed source/test/build
+files are recorded against the pre-motion baseline in
+`build/companion-orbit-audit/source-manifest.json` and `source.patch`.
+Review found an early-completion fade defect; it was corrected and rechecked
+with 130 regression samples. No confirmed renderer defects remained after the
+focused follow-up review. Automatic Desktop activity remains **blocked**;
+`AppState.companionActivity` returns `.unavailable`. This is a prepared native
+renderer, not an end-to-end working automatic companion feature.
+
+## Approved experimental companion hooks bridge — 3 October 2026
+
+The user approved trying the proposed approximate hooks prototype after the
+limitations were explained. This is an opt-in technical experiment, not a change
+to the default product's guarantee of verified activity or a release request.
+
+- Enable only when a valid experiment UUID token is supplied in the app's launch
+  environment. No preference, Codex configuration, existing notify integration,
+  hook trust, GUI, installation or release is changed by building/testing it.
+- A headless mode of the existing executable receives command-hook JSON on
+  stdin. It forwards only bounded event/session/turn IDs and a fresh helper-start
+  timestamp through a separate local notification. It never saves/logs prompts,
+  tool arguments/results, transcript paths or credentials, and never reads them
+  from files. Invalid input must fail open without affecting Codex's decisions.
+- UserPromptSubmit, PreToolUse and PostToolUse are approximate positive activity
+  hints. PermissionRequest can retain an existing companion statically; it must
+  never grant/deny an approval. Stop/SubagentStop/Interrupt end the matching
+  tracked turn (Codex uses SubagentStop instead of Stop for child agents);
+  SessionEnd clears that session. Multiple sessions/turns aggregate to working
+  while any tracked turn works, otherwise waiting or idle.
+- Dedupe and reject stale/reordered events. Interrupt and conservative Stop
+  tombstones prevent late tool hints from reviving a stopped turn. A continuation
+  of that same turn can consequently be missed; hook timestamps also cannot
+  prove actual Codex event ordering. These are explicit experimental limits.
+- Expire activity after 10 minutes without a positive hint, becoming unavailable
+  rather than claiming completion. Expiry can hide a companion during long work.
+  The state is memory-only and bounded. Reset on launch, sleep, reconnect,
+  hide/show and termination; require new hints afterwards, never infer recovery.
+- Reuse the approved 5-second orbit, S/M/L geometry, Pixel/Smooth catalogue,
+  Standard/Turbo independence, Reduce Motion static state and normal sprites.
+  Add no UI, announcements, menu options or translated text for this experiment.
+- Prepare an exact hook definition outside active config layers for review.
+  Codex hook trust must be handled through the normal explicit review mechanism;
+  do not bypass trust. Actual Desktop delivery and live rendering remain separate
+  checks until those hooks are trusted and a test app launch is approved.
+
+Acceptance: exercise the real headless executable and local IPC, normal/parallel
+turns, waiting, stop/cancel, absent error event followed by expiry, duplicate and
+late events, lifecycle reset, malformed/oversize input and default-off behavior.
+Build the app, rerun affected existing headless regressions, and independently
+review the scoped change. Report simulated hook payloads separately from actual
+Codex-dispatched hooks and live GUI behavior.

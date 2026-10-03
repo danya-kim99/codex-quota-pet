@@ -105,6 +105,13 @@ protocol CodexAppServerClient: AnyObject {
 
     func refreshRateLimits()
     func stop()
+    @MainActor func request(method: String, params: [String: Any], timeout: TimeInterval) async throws -> [String: Any]
+}
+
+extension CodexAppServerClient {
+    @MainActor func request(method: String, params: [String: Any], timeout: TimeInterval = 2) async throws -> [String: Any] {
+        throw CompletionError.unavailable
+    }
 }
 
 final class CodexAppServer: CodexAppServerClient {
@@ -124,6 +131,7 @@ final class CodexAppServer: CodexAppServerClient {
         let error: Body
     }
 
+    private var requests: [Int: (complete: (Result<[String: Any], Error>) -> Void, timeout: Task<Void, Never>)] = [:]
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?
@@ -194,6 +202,7 @@ final class CodexAppServer: CodexAppServerClient {
                 "method": "initialize",
                 "id": 0,
                 "params": [
+                    "capabilities": ["experimentalApi": true],
                     "clientInfo": [
                         "name": "black_hole_codex_quota_indicator",
                         "title": AppConstants.displayName,
@@ -233,6 +242,7 @@ final class CodexAppServer: CodexAppServerClient {
     }
 
     func stop() {
+        failRequests()
         sessionID += 1
         rateLimitTimer?.invalidate()
         rateLimitTimer = nil
@@ -303,6 +313,17 @@ final class CodexAppServer: CodexAppServerClient {
             return
         }
 
+        if let pending = requests.removeValue(forKey: responseID) {
+            pending.timeout.cancel()
+            if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+               let result = object["result"] as? [String: Any] {
+                pending.complete(.success(result))
+            } else {
+                pending.complete(.failure(CompletionError.unavailable))
+            }
+            return
+        }
+
         if let response = try? decoder.decode(RPCResponse<RateLimitsResult>.self, from: line) {
             rateLimitRequestIDs.remove(response.id)
             onSnapshot?(
@@ -324,12 +345,41 @@ final class CodexAppServer: CodexAppServerClient {
         }
 
         hasReportedFailure = true
+        failRequests()
         rateLimitTimer?.invalidate()
         rateLimitTimer = nil
         configTimer?.invalidate()
         configTimer = nil
         output?.readabilityHandler = nil
         onFailure?(message)
+    }
+
+    @MainActor
+    func request(method: String, params: [String: Any], timeout: TimeInterval = 2) async throws -> [String: Any] {
+        guard process?.isRunning == true, !hasReportedFailure else { throw CompletionError.unavailable }
+        let id = takeRequestID()
+        return try await withCheckedThrowingContinuation { continuation in
+            let expiry = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(timeout))
+                guard !Task.isCancelled, let pending = self?.requests.removeValue(forKey: id) else { return }
+                pending.complete(.failure(CompletionError.unavailable))
+            }
+            requests[id] = ({ continuation.resume(with: $0) }, expiry)
+            do { try send(["method": method, "id": id, "params": params]) }
+            catch {
+                requests.removeValue(forKey: id)?.timeout.cancel()
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func failRequests() {
+        let pending = requests.values
+        requests.removeAll()
+        for request in pending {
+            request.timeout.cancel()
+            request.complete(.failure(CompletionError.unavailable))
+        }
     }
 
     private func requestRateLimits() throws {

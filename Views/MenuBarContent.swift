@@ -13,6 +13,7 @@ struct MenuBarContent: View {
     let clearQuotaHistory: () -> Void
     let setShowsOnlyWhenCodexIsActive: (Bool) -> Void
     let setHidesInFullScreenApps: (Bool) -> Void
+    var openCompanionPicker: () -> Void = {}
     var checkForUpdates: () -> Void = {}
 
     var body: some View {
@@ -191,6 +192,19 @@ struct MenuBarContent: View {
             .help(localized("menu.object_mix.hint"))
             .accessibilityHint(localized("menu.object_mix.hint"))
 
+            Button(action: openCompanionPicker) {
+                HStack {
+                    if let object = appState.selectedCompanion {
+                        CompanionThumbnail(object: object).frame(width: 24, height: 24)
+                    }
+                    Text(localized("companion.entry"))
+                    Text(appState.selectedCompanion?.companionName ?? localized("companion.not_selected"))
+                        .foregroundStyle(appState.selectedCompanionID == nil ? Color.secondary : Color.yellow)
+                }
+            }
+            .accessibilityLabel(localized("companion.entry"))
+            .accessibilityValue(appState.companionSelectionName)
+
             Menu(localized("context_menu.behavior")) {
                 Toggle(
                     localized("menu.lock_position"),
@@ -231,6 +245,14 @@ struct MenuBarContent: View {
                         set: setHidesInFullScreenApps
                     )
                 )
+
+                Toggle(localized("menu.response_notices"), isOn: Binding(
+                    get: { appState.responseNoticesEnabled }, set: appState.setResponseNoticesEnabled
+                ))
+                .disabled(appState.responseNoticeConfigurationBusy)
+                .help(localized("menu.response_notices.help"))
+                .accessibilityHint(localized("menu.response_notices.help"))
+                if let issue = appState.responseNoticeIssue { Text(localized(issue)) }
 
                 Divider()
 
@@ -275,7 +297,9 @@ struct MenuBarContent: View {
             }
             .keyboardShortcut("q")
         }
-        .onAppear(perform: appState.refreshLaunchAtLoginStatus)
+        .onAppear {
+            appState.refreshLaunchAtLoginStatus()
+        }
     }
 
     private func shortMenuTitle(_ title: String) -> String {

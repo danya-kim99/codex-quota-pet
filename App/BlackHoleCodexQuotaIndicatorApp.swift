@@ -2,6 +2,18 @@ import AppKit
 import SwiftUI
 
 @main
+struct BlackHoleEntryPoint {
+    static func main() {
+        if let status = CompanionActivityHook.runIfRequested(arguments: CommandLine.arguments) {
+            exit(status)
+        }
+        if let status = CompletionNotifyAdapter.runIfRequested(arguments: CommandLine.arguments) {
+            exit(status)
+        }
+        BlackHoleCodexQuotaIndicatorApp.main()
+    }
+}
+
 struct BlackHoleCodexQuotaIndicatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -19,6 +31,7 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
                 clearQuotaHistory: appDelegate.clearQuotaHistory,
                 setShowsOnlyWhenCodexIsActive: appDelegate.setShowsOnlyWhenCodexIsActive,
                 setHidesInFullScreenApps: appDelegate.setHidesInFullScreenApps,
+                openCompanionPicker: appDelegate.openCompanionPicker,
                 checkForUpdates: appDelegate.checkForUpdates
             )
         } label: {
@@ -53,12 +66,16 @@ struct BlackHoleCodexQuotaIndicatorApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let appState = AppState()
+    let appState: AppState
+    private var activeCompletionMenus = Set<ObjectIdentifier>()
+    private var observesCompletionMenus = false
     private lazy var petPanel = PetPanelController(
         checkForUpdates: { [weak self] in self?.checkForUpdates() },
-        clearQuotaHistory: { [weak self] in self?.clearQuotaHistory() }
+        clearQuotaHistory: { [weak self] in self?.clearQuotaHistory() },
+        openCompanionPicker: { [weak self] in self?.openCompanionPicker() }
     )
     private var wakeObserver: NSObjectProtocol?
+    private var sleepObserver: NSObjectProtocol?
     private let terminationGate = UpdateTerminationGate()
     private lazy var appUpdater = AppUpdater(
         appState: appState,
@@ -70,19 +87,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         didCancel: { [weak self] in self?.cancelUpdateTermination() }
     )
 
+    override init() {
+        appState = AppState()
+        super.init()
+    }
+
+    init(appState: AppState) {
+        self.appState = appState
+        super.init()
+    }
+
+    func startCompletionMenuTracking() {
+        guard !observesCompletionMenus else { return }
+        observesCompletionMenus = true
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(completionMenuDidBeginTracking(_:)), name: NSMenu.didBeginTrackingNotification, object: nil)
+        center.addObserver(self, selector: #selector(completionMenuDidEndTracking(_:)), name: NSMenu.didEndTrackingNotification, object: nil)
+    }
+
+    func stopCompletionMenuTracking() {
+        let center = NotificationCenter.default
+        center.removeObserver(self, name: NSMenu.didBeginTrackingNotification, object: nil)
+        center.removeObserver(self, name: NSMenu.didEndTrackingNotification, object: nil)
+        observesCompletionMenus = false
+        activeCompletionMenus.removeAll()
+        appState.setCompletionNativeMenuOpen(false)
+    }
+
+    // AppKit posts these synchronously on the main thread, including nested menus.
+    @objc private func completionMenuDidBeginTracking(_ notification: Notification) {
+        guard let menu = notification.object as? NSMenu else { return }
+        activeCompletionMenus.insert(ObjectIdentifier(menu))
+        appState.setCompletionNativeMenuOpen(!activeCompletionMenus.isEmpty)
+    }
+
+    @objc private func completionMenuDidEndTracking(_ notification: Notification) {
+        guard let menu = notification.object as? NSMenu else { return }
+        activeCompletionMenus.remove(ObjectIdentifier(menu))
+        appState.setCompletionNativeMenuOpen(!activeCompletionMenus.isEmpty)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        startCompletionMenuTracking()
         if let handoff = UpdateHandoff.consume(for: currentBuild) {
             appState.restoreUpdateVisibility(handoff.isPetVisible)
             petPanel.restoreFrameAfterUpdate(handoff.frame)
         }
         appState.start()
         petPanel.startMonitoring(appState: appState)
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.appState.setCompletionSleeping(true)
+                self?.petPanel.dismissTransientUI()
+            }
+        }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
+                self?.appState.setCompletionSleeping(false)
                 self?.appState.noteWakeForQuotaHistory()
                 self?.appState.refreshQuotaIfStale(maxAge: 0)
                 self?.appState.refreshCodexResetForecastIfStale()
@@ -104,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func prepareUpdateTermination(completion: @escaping (Bool) -> Void) {
+        petPanel.dismissTransientUI()
         appState.beginTermination()
         terminationGate.prepare(
             operation: { [appState] in await appState.drainHistoryForTermination() },
@@ -138,14 +206,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func openCompanionPicker() {
+        petPanel.showCompanionPicker(appState: appState)
+    }
+
     func checkForUpdates() {
         appUpdater.checkForUpdates()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        stopCompletionMenuTracking()
+        petPanel.dismissTransientUI()
         if let wakeObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
+        if let sleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver) }
         appState.stop()
     }
 

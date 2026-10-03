@@ -24,6 +24,25 @@ struct AbsorbableObjectManifest: Decodable, Equatable {
     let objects: [Object]
 }
 
+extension AbsorbableObjectManifest.Object {
+    var companionName: String {
+        Self.characterNames[id] ?? NSLocalizedString("companion.name.\(id)", comment: "Companion name")
+    }
+
+    var companionDescription: String {
+        category == "characters"
+            ? NSLocalizedString("companion.description.\(id)", comment: "Character description") : ""
+    }
+
+    private static let characterNames = [
+        "character-white-shirt": "Даня", "character-purple-shirt": "Женя",
+        "character-green-hoodie": "Расул", "character-glasses": "Мила",
+        "character-cream-sweater": "Настя", "character-cargo-skirt": "Лиза К.",
+        "character-botanical-shirt": "Лёша Р.", "character-taupe-loungewear": "Денис",
+        "character-tied-cream-sweater": "Лиза П.", "character-charcoal-blazer": "Паша"
+    ]
+}
+
 enum AbsorbableObjectCatalogError: Error, Equatable {
     case missingManifest
     case invalidCanvas
@@ -56,6 +75,12 @@ struct AbsorbableObjectCatalog {
             throw AbsorbableObjectCatalogError.missingManifest
         }
         try self.init(data: Data(contentsOf: url))
+    }
+
+    func resolvedCompanionID(from storedValue: Any?) -> String? {
+        guard let id = storedValue as? String,
+              manifest.objects.contains(where: { $0.id == id }) else { return nil }
+        return id
     }
 
     func select(

@@ -445,9 +445,9 @@ final class RateLimitDecodingTests: XCTestCase {
         XCTAssertEqual(PixelContextMenuView.panelSize, CGSize(width: 480, height: 505))
     }
 
-    func testGroupedContextMenuHasSixRootActionsAndSingleLevelChildren() {
+    func testGroupedContextMenuHasSevenRootActionsAndSingleLevelChildren() {
         typealias Item = PixelContextMenuItem
-        let roots: [Item] = [.appearance, .objectMix, .behavior, .hidePet, .checkForUpdates, .quit]
+        let roots: [Item] = [.appearance, .objectMix, .companion, .behavior, .hidePet, .checkForUpdates, .quit]
         XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: false), roots)
         XCTAssertEqual(PixelContextMenuNavigation.rootItems(requiresRetry: true), [.retry] + roots)
         for requiresRetry in [false, true] {
@@ -471,7 +471,7 @@ final class RateLimitDecodingTests: XCTestCase {
             [.quotaDynamics, .codexResetForecast, .codexResetProvider, .clearQuotaHistory]
         )
         let behavior: [Item] = [
-            .positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .launchAtLogin
+            .positionLock, .pointerClickThrough, .onlyWhenCodexActive, .hideFullScreen, .responseNotices, .launchAtLogin
         ]
         XCTAssertEqual(
             PixelContextMenuNavigation.childItems(for: .behavior, requiresLoginApproval: false),
@@ -481,6 +481,15 @@ final class RateLimitDecodingTests: XCTestCase {
             PixelContextMenuNavigation.childItems(for: .behavior, requiresLoginApproval: true),
             behavior + [.openLoginItems]
         )
+        for requiresApproval in [false, true] {
+            XCTAssertEqual(
+                PixelContextMenuNavigation.childItems(
+                    for: .behavior, requiresLoginApproval: requiresApproval,
+                    responseNoticeConfigurationBusy: true
+                ),
+                behavior.filter { $0 != .responseNotices } + (requiresApproval ? [.openLoginItems] : [])
+            )
+        }
         let weights: [Item] = ["space", "animals", "characters"].flatMap { category in
             (0...3).map { .objectWeight(categoryID: category, weight: $0) }
         }
@@ -561,6 +570,19 @@ final class RateLimitDecodingTests: XCTestCase {
         navigation.selectChild(.codexResetForecast)
         navigation.move(by: 1, roots: roots, children: appearance)
         XCTAssertEqual(navigation.selectedChild, .clearQuotaHistory)
+
+        navigation.selectRoot(.behavior)
+        navigation.selectChild(.responseNotices)
+        let busyBehavior = PixelContextMenuNavigation.childItems(
+            for: .behavior, requiresLoginApproval: false, responseNoticeConfigurationBusy: true
+        )
+        navigation.normalize(roots: roots, children: busyBehavior)
+        XCTAssertEqual(navigation.selectedChild, .positionLock)
+        navigation.selectChild(.hideFullScreen)
+        navigation.move(by: 1, roots: roots, children: busyBehavior)
+        XCTAssertEqual(navigation.selectedChild, .launchAtLogin)
+        navigation.move(by: -1, roots: roots, children: busyBehavior)
+        XCTAssertEqual(navigation.selectedChild, .hideFullScreen)
     }
 
     @MainActor
@@ -639,18 +661,20 @@ final class RateLimitDecodingTests: XCTestCase {
                     requiresLoginApproval: false, hasLoginError: false
                 )
                 XCTAssertNil(closed.submenu)
-                XCTAssertEqual(closed.root.height, requiresRetry ? 241 : 210)
+                XCTAssertEqual(closed.root.height, requiresRetry ? 272 : 241)
                 XCTAssertTrue(panel.contains(closed.root))
                 XCTAssertEqual(closed.root.minY, placement.opensBelow ? 8 : 505 - closed.root.height)
                 for group: PixelContextMenuItem in [.appearance, .objectMix, .behavior] {
                     for requiresApproval in [false, true] {
                         for hasError in [false, true] {
-                            for conditionalRows in 0..<4 {
+                            for conditionalRows in 0..<8 {
                                 let showsForecast = conditionalRows & 1 != 0
                                 let hasHistoryIssue = conditionalRows & 2 != 0
+                                let hasCompletionError = conditionalRows & 4 != 0
                                 let layout = PixelContextMenuView.menuFrames(
                                     placement: placement, requiresRetry: requiresRetry, openGroup: group,
                                     requiresLoginApproval: requiresApproval, hasLoginError: hasError,
+                                    hasCompletionError: hasCompletionError,
                                     showsCodexResetForecast: showsForecast, hasHistoryIssue: hasHistoryIssue
                                 )
                                 let submenu = try XCTUnwrap(layout.submenu)
@@ -1455,6 +1479,8 @@ final class RateLimitDecodingTests: XCTestCase {
             catalog.manifest.objects.filter { $0.category == "characters" }.count,
             10
         )
+        XCTAssertEqual(catalog.manifest.objects.filter { $0.category == "characters" }.map(\.companionName),
+                       ["Даня", "Женя", "Расул", "Мила", "Настя", "Лиза К.", "Лёша Р.", "Денис", "Лиза П.", "Паша"])
 
         for object in catalog.manifest.objects {
             let url = try XCTUnwrap(

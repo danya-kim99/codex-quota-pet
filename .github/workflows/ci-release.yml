@@ -50,6 +50,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build-for-testing
 
+      - name: Check completion notices without UI
+        env:
+          BH_COMPLETION_APP_EXECUTABLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Debug/Black Hole Codex Quota Indicator.app/Contents/MacOS/Black Hole Codex Quota Indicator
+          BH_COMPLETION_SPARKLE_FRAMEWORK: ${{ github.workspace }}/build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
+        run: script/check_completion_notices.sh
+
+      - name: Check companion catalogue without UI
+        run: script/check_companion_picker.sh
+
       - name: Run unit tests
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \

@@ -16,9 +16,16 @@ struct PetDisplayGeometry: Equatable {
 final class PetPanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var pendingUpdateFrame: CGRect?
+    private var completionPanel: NSPanel?
+    private var completionHostingView: CompletionNoticeHostingView?
+    private var announcedCompletionID: UUID?
     private var tooltipPanel: NSPanel?
     private var tooltipHostingView: NSHostingView<QuotaTooltipView>?
-    private var contextMenuPanel: ContextMenuPanel?
+    private var companionPickerPanel: TransientPanel?
+    private var companionLocalMonitor: Any?
+    private var companionGlobalMonitor: Any?
+    private weak var companionReturnWindow: NSWindow?
+    private var contextMenuPanel: TransientPanel?
     private var contextMenuPresentation: ContextMenuPresentation?
     private var tooltipPlacement: QuotaTooltipView.Placement = .below
     private var isTooltipPresentedToSwiftUI = false
@@ -50,6 +57,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     private var lastExternalApplication: (bundleIdentifier: String?, isFullScreen: Bool) = (nil, false)
     private let frameName: String
     private let checkForUpdates: () -> Void
+    private let openCompanionPicker: (() -> Void)?
     private let clearQuotaHistory: () -> Void
     private let openCodexResetProvider: () -> Void
 
@@ -67,6 +75,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         frameName: String = AppConstants.petPanelFrameName,
         checkForUpdates: @escaping () -> Void = {},
         clearQuotaHistory: @escaping () -> Void = {},
+        openCompanionPicker: (() -> Void)? = nil,
         openCodexResetProvider: @escaping () -> Void = {
             if let url = URL(string: "https://codex-resets.com/") {
                 NSWorkspace.shared.open(url)
@@ -78,6 +87,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         self.frontmostApplication = frontmostApplication
         self.frameName = frameName
         self.checkForUpdates = checkForUpdates
+        self.openCompanionPicker = openCompanionPicker
         self.clearQuotaHistory = clearQuotaHistory
         self.openCodexResetProvider = openCodexResetProvider
         super.init()
@@ -97,7 +107,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             pointerMonitor,
             localPointerLocationMonitor,
             globalPointerLocationMonitor,
-            outsidePointerMonitor
+            outsidePointerMonitor, companionLocalMonitor, companionGlobalMonitor
         ].compactMap { $0 }.forEach(NSEvent.removeMonitor)
     }
 
@@ -146,6 +156,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func dismissTransientUI() {
+        dismissCompanionPicker(restoreFocus: false)
+        appState?.invalidateCompletionNotices()
         dismissContextMenu(animated: false)
         suppressTooltipUntilPointerExit()
     }
@@ -179,6 +191,62 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     var isCursorInsideVisibleRegion: Bool {
         cursorIsInsideVisibleRegion()
+    }
+
+    private func updateCompletionEligibility() {
+        appState?.setCompletionPresentationAllowed(
+            panel?.isVisible == true && !isTooltipPresentedToSwiftUI && !isDraggingPet
+                && contextMenuPanel == nil && companionPickerPanel == nil && !hasActivePointerSequence
+                && (!cursorIsInsideVisibleRegion() || appState?.passesPointerInputThrough == true)
+        )
+    }
+
+    private func updateCompletionPanel() {
+        guard let panel, panel.isVisible, let appState, let notice = appState.completionNotice else {
+            completionPanel?.orderOut(nil)
+            return
+        }
+        let display = Self.visibleFrame(for: panel.frame)
+        let size = CGSize(width: min(CompletionNoticeView.panelSize.width, display.width),
+                          height: min(CompletionNoticeView.panelSize.height, display.height))
+        let layout = Self.tooltipLayout(petFrame: panel.frame, visibleFrame: display, tooltipSize: size)
+        let noticePanel: NSPanel
+        if let completionPanel { noticePanel = completionPanel }
+        else {
+            noticePanel = TransientPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            noticePanel.isOpaque = false
+            noticePanel.backgroundColor = .clear
+            noticePanel.hasShadow = false
+            noticePanel.hidesOnDeactivate = false
+            noticePanel.becomesKeyOnlyIfNeeded = true
+            noticePanel.ignoresMouseEvents = false
+            noticePanel.animationBehavior = .none
+            noticePanel.level = panel.level
+            noticePanel.collectionBehavior = panel.collectionBehavior
+            panel.addChildWindow(noticePanel, ordered: .above)
+            completionPanel = noticePanel
+        }
+        let root = CompletionNoticeView(
+            notice: notice, style: appState.tooltipStyle,
+            dismiss: { [weak appState] in appState?.dismissCompletionNotice(id: $0) },
+            interactionChanged: { [weak appState] in appState?.setCompletionInteraction($0, active: $1, id: $2) }
+        )
+        if let completionHostingView {
+            completionHostingView.rootView = root
+        } else {
+            let hostingView = CompletionNoticeHostingView(rootView: root)
+            completionHostingView = hostingView
+            noticePanel.contentView = hostingView
+        }
+        noticePanel.setFrame(CGRect(origin: layout.origin, size: size), display: true)
+        noticePanel.orderFrontRegardless()
+        CompletionTrace.event("panel.ordered visible=\(noticePanel.isVisible) parentVisible=\(panel.isVisible) width=\(noticePanel.frame.width) height=\(noticePanel.frame.height)")
+        if announcedCompletionID != notice.id {
+            announcedCompletionID = notice.id
+            NSAccessibility.post(element: noticePanel, notification: .announcementRequested, userInfo: [
+                .announcement: notice.accessibilitySummary, .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ])
+        }
     }
 
     static func inputPolicy(
@@ -222,6 +290,10 @@ final class PetPanelController: NSObject, NSWindowDelegate {
 
     func startMonitoring(appState: AppState) {
         self.appState = appState
+        appState.responseNoticeDidChange = { [weak self] in
+            CompletionTrace.event("panel.callback controllerAlive=\(self != nil) hasNotice=\(self?.appState?.completionNotice != nil) parentVisible=\(self?.panel?.isVisible == true)")
+            self?.updateCompletionPanel()
+        }
 
         if observationTokens.isEmpty {
             let notificationCenter = NSWorkspace.shared.notificationCenter
@@ -321,6 +393,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             applyInputPolicy()
             updateHoverRearmForPanelShow()
             panel.orderFrontRegardless()
+            appState.setCompanionPanelVisible(true)
             recomputePointerInteraction()
             return
         }
@@ -380,11 +453,15 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         }
 
         panel.orderFrontRegardless()
+        appState.setCompanionPanelVisible(true)
         updateHoverRearmForPanelShow()
         recomputePointerInteraction()
     }
 
     func hide() {
+        appState?.setCompanionPanelVisible(false)
+        dismissCompanionPicker(restoreFocus: false)
+        appState?.setCompletionPresentationAllowed(false)
         removePointerLocationMonitors()
         dismissContextMenu(animated: false)
         cancelDragTracking()
@@ -393,6 +470,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         appState?.resetAbsorptionScene()
         hideTooltip()
         panel?.orderOut(nil)
+        appState?.setCompletionPresentationAllowed(false)
         isHoveringVisibleRegion = false
     }
 
@@ -442,6 +520,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     func updateTooltipLayout() {
+        updateCompletionPanel()
         let wasVisible = tooltipPanel?.isVisible == true
         repositionTooltip(preferredPlacement: tooltipPlacement, refreshContent: true)
         if wasVisible {
@@ -466,7 +545,8 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     private func showTooltip() {
-        guard let tooltipPanel, !isDraggingPet, contextMenuPanel == nil else { return }
+        guard let tooltipPanel, !isDraggingPet, contextMenuPanel == nil, companionPickerPanel == nil else { return }
+        appState?.setCompletionPresentationAllowed(false)
         let wasVisible = tooltipPanel.isVisible
         if !wasVisible {
             appState?.refreshCodexResetForecastIfStale()
@@ -485,6 +565,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         stopResetCountdownUpdates()
         setTooltipPresentedToSwiftUI(false)
         tooltipPanel?.orderOut(nil)
+        updateCompletionEligibility()
     }
 
     func windowWillMove(_ notification: Notification) {
@@ -501,6 +582,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     func beginDragTracking() {
         guard !isDraggingPet else { return }
         isDraggingPet = true
+        appState?.setCompletionPresentationAllowed(false)
         recomputePointerInteraction(updateHover: false)
         restoreTooltipAfterDrag = tooltipPanel?.isVisible == true
         dragCompletionTask?.cancel()
@@ -554,7 +636,78 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         return (CGRect(origin: origin, size: size), placement)
     }
 
+    func showCompanionPicker(appState: AppState) {
+        if companionPickerPanel != nil {
+            dismissCompanionPicker(restoreFocus: true)
+            return
+        }
+        let returnWindow = NSApp.keyWindow
+        dismissTransientUI()
+        self.appState = appState
+        let anchor = panel?.isVisible == true
+            ? CGPoint(x: panel!.frame.midX, y: panel!.frame.midY) : NSEvent.mouseLocation
+        let visibleFrame = Self.visibleFrame(containing: anchor, fallback: NSScreen.main?.visibleFrame ?? .zero)
+        let frame = Self.companionPickerFrame(anchor: anchor, visibleFrame: visibleFrame)
+        let picker = TransientPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        picker.title = NSLocalizedString("companion.title", comment: "Companion picker")
+        picker.level = .popUpMenu
+        picker.isFloatingPanel = true
+        picker.isOpaque = false
+        picker.backgroundColor = .clear
+        picker.hasShadow = false
+        picker.hidesOnDeactivate = false
+        picker.becomesKeyOnlyIfNeeded = false
+        picker.animationBehavior = .none
+        picker.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        picker.delegate = self
+        picker.contentView = NSHostingView(rootView: CompanionPickerView(
+            appState: appState,
+            dismiss: { [weak self] in self?.dismissCompanionPicker(restoreFocus: true) },
+            announceSelection: { [weak picker] message in
+                guard let picker else { return }
+                NSAccessibility.post(element: picker, notification: .announcementRequested,
+                    userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
+            }
+        ))
+        companionPickerPanel = picker
+        companionReturnWindow = returnWindow?.isVisible == true ? returnWindow : nil
+        appState.setCompletionPresentationAllowed(false)
+        companionLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self else { return event }
+            if event.window !== self.companionPickerPanel { self.dismissCompanionPicker(restoreFocus: false) }
+            return event
+        }
+        companionGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.dismissCompanionPicker(restoreFocus: false) }
+        }
+        picker.makeKeyAndOrderFront(nil)
+    }
+
+    static func companionPickerFrame(anchor: CGPoint, visibleFrame: CGRect) -> CGRect {
+        let size = CGSize(width: min(CompanionPickerView.panelSize.width, visibleFrame.width),
+                          height: min(CompanionPickerView.panelSize.height, visibleFrame.height))
+        return contextMenuLayout(anchor: anchor, visibleFrame: visibleFrame, size: size).frame
+    }
+
+    private func dismissCompanionPicker(restoreFocus: Bool) {
+        guard let picker = companionPickerPanel else { return }
+        companionPickerPanel = nil
+        [companionLocalMonitor, companionGlobalMonitor].compactMap { $0 }.forEach(NSEvent.removeMonitor)
+        companionLocalMonitor = nil
+        companionGlobalMonitor = nil
+        picker.delegate = nil
+        picker.orderOut(nil)
+        if restoreFocus, let window = companionReturnWindow, window.isVisible { window.makeKey() }
+        companionReturnWindow = nil
+        updateCompletionEligibility()
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        if notification.object as? NSWindow === companionPickerPanel { dismissCompanionPicker(restoreFocus: false) }
+    }
+
     func showContextMenu(at screenPoint: CGPoint) {
+        dismissCompanionPicker(restoreFocus: false)
         guard contextMenuPanel == nil,
               let panel,
               panel.isVisible,
@@ -572,7 +725,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             visibleFrame: Self.visibleFrame(containing: screenPoint, fallback: panel.frame)
         )
         let presentation = ContextMenuPresentation(placement: layout.placement)
-        let contextMenuPanel = ContextMenuPanel(
+        let contextMenuPanel = TransientPanel(
             contentRect: CGRect(origin: .zero, size: layout.frame.size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -599,6 +752,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         )
 
         self.contextMenuPanel = contextMenuPanel
+        appState.setCompletionPresentationAllowed(false)
         contextMenuPresentation = presentation
         applyInputPolicy()
         installOutsidePointerMonitor()
@@ -713,6 +867,11 @@ final class PetPanelController: NSObject, NSWindowDelegate {
                 self?.dismissContextMenu(animated: true) {
                     NSApp.terminate(nil)
                 }
+            },
+            openCompanionPicker: { [weak self, weak appState] in
+                guard let self, let appState else { return }
+                if let action = self.openCompanionPicker { action() }
+                else { self.showCompanionPicker(appState: appState) }
             }
         )
     }
@@ -772,6 +931,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
         contextMenuPanel?.orderOut(nil)
         contextMenuPanel = nil
         contextMenuPresentation = nil
+        updateCompletionEligibility()
         removeOutsidePointerMonitor()
         applyInputPolicy(applyMouseEvents: applyMouseEvents)
 
@@ -1377,10 +1537,12 @@ final class PetPanelController: NSObject, NSWindowDelegate {
     }
 
     private func displayParametersDidChange() {
+        dismissCompanionPicker(restoreFocus: false)
         dismissContextMenu(animated: false)
         correctPanelFrameIfNeeded(saveIfLocked: true)
         refreshVisibleRegion()
         repositionTooltip()
+        updateCompletionPanel()
         applyInputPolicy()
         recomputePointerInteraction()
     }
@@ -1421,6 +1583,7 @@ final class PetPanelController: NSObject, NSWindowDelegate {
             panel.ignoresMouseEvents = shouldIgnoreMouseEvents
         }
 
+        updateCompletionEligibility()
         guard updateHover, panel.isVisible, !passesThrough, !hasActiveSequence,
               isHoveringVisibleRegion != cursorIsInside else { return }
         isHoveringVisibleRegion = cursorIsInside
@@ -1545,9 +1708,20 @@ private enum ContextPointerKind {
     case controlClick
 }
 
-private final class ContextMenuPanel: NSPanel {
+private final class TransientPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+}
+
+@MainActor
+private final class CompletionNoticeHostingView: NSHostingView<CompletionNoticeView> {
+    override var needsPanelToBecomeKey: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard bounds.insetBy(dx: CompletionNoticeView.cardInset, dy: CompletionNoticeView.cardInset).contains(point) else { return nil }
+        return super.hitTest(point)
+    }
 }
 
 @MainActor

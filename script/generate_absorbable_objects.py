@@ -16,7 +16,7 @@ CHARACTER_SOURCE = ROOT / "docs/concepts/characters-contact-sheet-v1.png"
 CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-05-v1.png"
 FINAL_CHARACTER_PAIR_SOURCE = ROOT / "docs/concepts/absorbable-people-06-07-v2.png"
 TAUPE_LOUNGEWEAR_SOURCE = ROOT / "docs/concepts/absorbable-person-08-v5.png"
-TIED_CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-09-v4.png"
+TIED_CREAM_SWEATER_SOURCE = ROOT / "docs/concepts/absorbable-person-09-v3.png"
 CHARCOAL_BLAZER_SOURCE = ROOT / "docs/concepts/absorbable-person-10-v1.png"
 OUTPUT_DIR = ROOT / "Assets/Sprites/objects"
 PREVIEW = ROOT / "Assets/Sprites/previews/absorbable-objects-atlas.png"
@@ -482,7 +482,6 @@ def extract_sheet(
     columns: int,
     rows: int,
     inset: int = 0,
-    inset_overrides: dict[str, int] | None = None,
     minimum_component_area_overrides: dict[str, int] | None = None,
     edge_clear_width: int = 10,
     strong_foreground_threshold: float | None = None,
@@ -493,17 +492,16 @@ def extract_sheet(
     for index, (identifier, _) in enumerate(models):
         column = index % columns
         row = index // columns
-        model_inset = (inset_overrides or {}).get(identifier, inset)
         minimum_component_area = (minimum_component_area_overrides or {}).get(
             identifier,
             4,
         )
         cell = source.crop(
             (
-                round(column * source.width / columns) + model_inset,
-                round(row * source.height / rows) + model_inset,
-                round((column + 1) * source.width / columns) - model_inset,
-                round((row + 1) * source.height / rows) - model_inset,
+                round(column * source.width / columns) + inset,
+                round(row * source.height / rows) + inset,
+                round((column + 1) * source.width / columns) - inset,
+                round((row + 1) * source.height / rows) - inset,
             )
         )
         sprites[identifier] = extract_sprite(
